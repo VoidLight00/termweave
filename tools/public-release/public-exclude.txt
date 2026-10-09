@@ -16,3 +16,5 @@ server/android/runtime.test.ts
 # per-machine launchd file; the script itself is public
 tools/resurrect/*.plist
 tools/local-fixes
+# owner-machine operations (launchd, live deploy)
+tools/operations

@@ -72,3 +72,7 @@ fi
 "$harness" flow "$repo/.local/public" --profile public-full --languages en,ko,ja,zh \
   --approve-images --approve-publish --public --release --approve-release || { print "FAIL: harness flow"; exit 1; }
 print "PASS: published $version"
+# a version bump also moves the live app (launchd com.voidlight.termweave) to this release, health-checked
+if [[ -n $bump ]] && launchctl print gui/$(id -u)/com.voidlight.termweave >/dev/null 2>&1; then
+  "$repo/tools/operations/deploy-release.sh" || { print "FAIL: live deploy (previous release kept)"; exit 1; }
+fi
