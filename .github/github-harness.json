@@ -30,8 +30,8 @@
   },
   "approvals": {
     "images": true,
-    "publish": false,
-    "release": false
+    "publish": true,
+    "release": true
   },
   "local": {
     "artifacts": "complete",
@@ -42,7 +42,7 @@
     "metadata": "pending",
     "tag": "not_requested",
     "release": "not_requested",
-    "verification": "pending"
+    "verification": "complete"
   },
-  "result": "incomplete"
+  "result": "complete"
 }
