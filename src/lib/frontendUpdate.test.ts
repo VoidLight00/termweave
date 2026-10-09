@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { buildIdFromHtml, FrontendUpdateController, readDeployedBuildId } from "./frontendUpdate.ts";
+import { shouldAutoUpdate } from "./frontendUpdate.ts";
 import { frontendInputPending, protectFrontendInput } from "./frontendReloadSafety.ts";
 const oldId = "a".repeat(64), newId = "b".repeat(64);
 function fixture() {
@@ -65,4 +66,13 @@ describe("deployed frontend controls", () => {
       if (previousNavigator) Object.defineProperty(globalThis, "navigator", previousNavigator); else Reflect.deleteProperty(globalThis, "navigator");
     }
   });
+});
+
+it("a deploy is applied by itself only when idle and nothing can be lost", () => {
+  const base = { available: true, busy: false, idleMs: 6_000, quiet: true };
+  expect(shouldAutoUpdate(base)).toBe(true);
+  expect(shouldAutoUpdate({ ...base, available: false })).toBe(false);
+  expect(shouldAutoUpdate({ ...base, busy: true })).toBe(false);
+  expect(shouldAutoUpdate({ ...base, idleMs: 4_999 })).toBe(false);
+  expect(shouldAutoUpdate({ ...base, quiet: false })).toBe(false);
 });

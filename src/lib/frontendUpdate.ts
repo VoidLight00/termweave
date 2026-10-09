@@ -91,3 +91,14 @@ export class FrontendUpdateController {
   }
   dispose(): void { this.stopped = true; this.cancelActivation?.(); }
 }
+
+/** Idle time before a detected deploy is applied without a click (phone, browser tab, Mac app). */
+export const AUTO_UPDATE_IDLE_MS = 5_000;
+/**
+ * Apply a deployed web app by itself only when nothing could be lost: an update is available, no update
+ * is running, the person has not touched the page for AUTO_UPDATE_IDLE_MS, and there is no draft or
+ * pending input. Anything else keeps the manual Update button.
+ */
+export function shouldAutoUpdate(input: { available: boolean; busy: boolean; idleMs: number; quiet: boolean }): boolean {
+  return input.available && !input.busy && input.quiet && input.idleMs >= AUTO_UPDATE_IDLE_MS;
+}

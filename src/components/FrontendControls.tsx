@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { FrontendUpdateController, readDeployedBuildId, type FrontendUpdateState } from "../lib/frontendUpdate.ts";
+import { FrontendUpdateController, readDeployedBuildId, shouldAutoUpdate, type FrontendUpdateState } from "../lib/frontendUpdate.ts";
 import { frontendInputPending, pageHasDrafts } from "../lib/frontendReloadSafety.ts";
 import { composerDrafts } from "../lib/composerDraft.ts";
 import { terminalDraftReloadState } from "../lib/terminalDraft.ts";
@@ -40,14 +40,30 @@ export function FrontendControls() {
       reload: () => window.location.reload(),
     }, setState);
     controller.current = model;
-    const check = () => { if (document.visibilityState !== "hidden") void model.check(); };
+    // A deploy is applied without a click once the page is idle and holds nothing unsent (phone, tab, Mac app).
+    let lastInput = Date.now();
+    const touched = () => { lastInput = Date.now(); };
+    const inputEvents = ["keydown", "pointerdown", "touchstart", "compositionstart", "input", "wheel"] as const;
+    for (const name of inputEvents) window.addEventListener(name, touched, { capture: true, passive: true });
+    const quiet = () => {
+      const terminalDraft = terminalDraftReloadState();
+      return !(terminalDraft.pending || terminalDraft.drafts || frontendInputPending() || composerDrafts.hasPendingInput() || messageQueues.hasPendingInput()
+        || composerDrafts.hasDrafts() || messageQueues.hasDrafts() || pageHasDrafts(document) || document.querySelector('[aria-busy="true"]'));
+    };
+    const autoUpdate = () => {
+      if (document.visibilityState === "hidden") return;
+      if (shouldAutoUpdate({ ...model.state, idleMs: Date.now() - lastInput, quiet: quiet() })) void model.update();
+    };
+    const check = () => { if (document.visibilityState !== "hidden") void model.check().then(autoUpdate); };
     check();
     const timer = setInterval(check, 30_000);
+    const autoTimer = setInterval(autoUpdate, 5_000);
     window.addEventListener("online", check);
     window.addEventListener("focus", check);
     document.addEventListener("visibilitychange", check);
     return () => {
-      clearInterval(timer); model.dispose(); controller.current = null;
+      clearInterval(timer); clearInterval(autoTimer); model.dispose(); controller.current = null;
+      for (const name of inputEvents) window.removeEventListener(name, touched, { capture: true });
       window.removeEventListener("online", check); window.removeEventListener("focus", check);
       document.removeEventListener("visibilitychange", check);
     };
