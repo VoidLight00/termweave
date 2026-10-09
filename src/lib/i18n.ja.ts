@@ -161,7 +161,7 @@ export const JA: Record<string, string> = {
   "Agent {status}": "エージェント {status}",
 
   // ---- app header and shell ----
-  "Connecting to herdr web ui…": "herdr web ui に接続しています…",
+  "Connecting to TermWeave…": "TermWeave に接続しています…",
   "Close workspace list": "ワークスペース一覧を閉じる",
   "Open workspace list": "ワークスペース一覧を開く",
   "Show workspace list": "ワークスペース一覧を表示",
@@ -243,7 +243,7 @@ export const JA: Record<string, string> = {
   "Cancel update": "更新をキャンセル",
   "Bridge update needed": "ブリッジの更新が必要です",
   "Setup needed": "セットアップが必要です",
-  "This PC runs a bridge from a different version of TermWeave. Update it to reconnect; herdr sessions keep running.": "この PC では別バージョンの herdr web ui のブリッジが動作しています。更新すると再接続されます。herdr のセッションは実行されたままです。",
+  "This PC runs a bridge from a different version of TermWeave. Update it to reconnect; herdr sessions keep running.": "この PC では別バージョンの TermWeave のブリッジが動作しています。更新すると再接続されます。herdr のセッションは実行されたままです。",
   "Reconnecting needs your approval on this PC.": "再接続するには、この PC での承認が必要です。",
   "Update bridge": "ブリッジを更新",
   "Sign in and update…": "サインインして更新…",
@@ -366,8 +366,8 @@ export const JA: Record<string, string> = {
   "App updated. Save unsent drafts before reloading.": "アプリが更新されました。再読み込みする前に未送信の下書きを保存してください。",
   "Preparing the update…": "更新を準備しています…",
   "Updating; reconnecting shortly…": "更新中です。まもなく再接続します…",
-  "herdr web ui v{version} is available.": "herdr web ui v{version} が利用可能です。",
-  "A herdr web ui update is available.": "herdr web ui の更新が利用可能です。",
+  "TermWeave v{version} is available.": "TermWeave v{version} が利用可能です。",
+  "A TermWeave update is available.": "TermWeave の更新が利用可能です。",
   "View update": "更新を表示",
 
   // ---- key bar ----

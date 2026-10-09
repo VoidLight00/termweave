@@ -6,6 +6,8 @@
 # Every publish passes build_public.sh (leakscan) and the harness flow (gates/verify_github.sh).
 # Kill switch: touch ~/.config/termweave/auto-release.off     Log: ~/.local/state/termweave/auto-release.log
 set -uo pipefail
+# git exports GIT_DIR, GIT_INDEX_FILE and friends (relative paths) to hooks; they break worktrees and nested git calls
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES 2>/dev/null
 repo=${0:A:h:h:h}
 log=$HOME/.local/state/termweave/auto-release.log
 lock=$HOME/.local/state/termweave/auto-release.lock

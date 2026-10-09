@@ -15,7 +15,7 @@ export function UpdateControls({ updates, bridgesFollow = false }: { updates: Up
   const { status, error, busy, needsReload, request } = updates;
   return <section className="settings-section settings-updates">
     <h3>{t("Updates")}</h3>
-    <p className="settings-hint">{status?.current_revision ? t("Running {version}", { version: versionLabel(status.current_version, status.current_revision) ?? "" }) : "herdr web ui"}</p>
+    <p className="settings-hint">{status?.current_revision ? t("Running {version}", { version: versionLabel(status.current_version, status.current_revision) ?? "" }) : "TermWeave"}</p>
     <p className="settings-hint" role="status">
       {error ?? status?.error ?? status?.blocked_reason ?? (busy ?
         status?.phase === "building" ? t("Installing dependencies and building…") : status?.phase === "restarting" ? t("Restarting the bridge…") : t("Checking for updates…") :
@@ -63,7 +63,7 @@ export function UpdateNotice({ updates, onOpen }: { updates: UpdatesModel; onOpe
   const { status, needsReload } = updates;
   if (!needsReload && !status?.available && status?.phase !== "building" && status?.phase !== "restarting") return null;
   return <div className="update-notice" role="status">
-    <span>{needsReload ? t("App updated. Save unsent drafts before reloading.") : status?.phase === "building" ? t("Preparing the update…") : status?.phase === "restarting" ? t("Updating; reconnecting shortly…") : status?.latest_version ? t("herdr web ui v{version} is available.", { version: status.latest_version }) : t("A herdr web ui update is available.")}</span>
+    <span>{needsReload ? t("App updated. Save unsent drafts before reloading.") : status?.phase === "building" ? t("Preparing the update…") : status?.phase === "restarting" ? t("Updating; reconnecting shortly…") : status?.latest_version ? t("TermWeave v{version} is available.", { version: status.latest_version }) : t("A TermWeave update is available.")}</span>
     <button type="button" className="btn" onClick={needsReload ? () => window.location.reload() : onOpen}>{t(needsReload ? "Reload app" : "View update")}</button>
   </div>;
 }

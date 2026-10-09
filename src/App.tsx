@@ -661,7 +661,7 @@ export function App() {
           <main className="terminal-host">
             <div className="terminal-placeholder">
               <div className="terminal-placeholder-inner">
-                <span>{t("Connecting to herdr web ui…")}</span>
+                <span>{t("Connecting to TermWeave…")}</span>
               </div>
             </div>
           </main>

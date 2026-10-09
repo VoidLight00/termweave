@@ -164,7 +164,7 @@ export const KO: Record<string, string> = {
   "Agent {status}": "에이전트 {status}",
 
   // ---- app header and shell ----
-  "Connecting to herdr web ui…": "herdr web ui에 연결하는 중…",
+  "Connecting to TermWeave…": "TermWeave에 연결하는 중…",
   "Close workspace list": "워크스페이스 목록 닫기",
   "Open workspace list": "워크스페이스 목록 열기",
   "Show workspace list": "워크스페이스 목록 보이기",
@@ -246,7 +246,7 @@ export const KO: Record<string, string> = {
   "Cancel update": "업데이트 취소",
   "Bridge update needed": "브리지 업데이트 필요",
   "Setup needed": "설정 필요",
-  "This PC runs a bridge from a different version of TermWeave. Update it to reconnect; herdr sessions keep running.": "이 PC의 브리지가 다른 버전의 herdr web ui입니다. 업데이트하면 다시 연결됩니다. herdr 세션은 계속 돕니다.",
+  "This PC runs a bridge from a different version of TermWeave. Update it to reconnect; herdr sessions keep running.": "이 PC의 브리지가 다른 버전의 TermWeave입니다. 업데이트하면 다시 연결됩니다. herdr 세션은 계속 돕니다.",
   "Reconnecting needs your approval on this PC.": "다시 연결하려면 이 PC에서 승인이 필요합니다.",
   "Update bridge": "브리지 업데이트",
   "Sign in and update…": "로그인해서 업데이트…",
@@ -369,8 +369,8 @@ export const KO: Record<string, string> = {
   "App updated. Save unsent drafts before reloading.": "앱이 업데이트되었습니다. 새로 고치기 전에 보내지 않은 초안을 저장하세요.",
   "Preparing the update…": "업데이트 준비 중…",
   "Updating; reconnecting shortly…": "업데이트 중. 곧 다시 연결됩니다…",
-  "herdr web ui v{version} is available.": "herdr web ui v{version}이 나왔습니다.",
-  "A herdr web ui update is available.": "herdr web ui 업데이트가 있습니다.",
+  "TermWeave v{version} is available.": "TermWeave v{version}이 나왔습니다.",
+  "A TermWeave update is available.": "TermWeave 업데이트가 있습니다.",
   "View update": "업데이트 보기",
 
   // ---- key bar ----

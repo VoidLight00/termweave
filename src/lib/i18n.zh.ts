@@ -163,7 +163,7 @@ export const ZH: Record<string, string> = {
   "Agent {status}": "Agent 状态：{status}",
 
   // ---- app header and shell ----
-  "Connecting to herdr web ui…": "正在连接 herdr web ui…",
+  "Connecting to TermWeave…": "正在连接 TermWeave…",
   "Close workspace list": "关闭工作区列表",
   "Open workspace list": "打开工作区列表",
   "Show workspace list": "显示工作区列表",
@@ -245,7 +245,7 @@ export const ZH: Record<string, string> = {
   "Cancel update": "取消更新",
   "Bridge update needed": "需要更新 bridge",
   "Setup needed": "需要设置",
-  "This PC runs a bridge from a different version of TermWeave. Update it to reconnect; herdr sessions keep running.": "此 PC 运行的 bridge 来自其他版本的 herdr web ui。更新后即可重新连接，herdr 会话会继续运行。",
+  "This PC runs a bridge from a different version of TermWeave. Update it to reconnect; herdr sessions keep running.": "此 PC 运行的 bridge 来自其他版本的 TermWeave。更新后即可重新连接，herdr 会话会继续运行。",
   "Reconnecting needs your approval on this PC.": "重新连接需要你在此 PC 上批准。",
   "Update bridge": "更新 bridge",
   "Sign in and update…": "登录并更新…",
@@ -368,8 +368,8 @@ export const ZH: Record<string, string> = {
   "App updated. Save unsent drafts before reloading.": "应用已更新。重新加载前请保存未发送的草稿。",
   "Preparing the update…": "正在准备更新…",
   "Updating; reconnecting shortly…": "正在更新，即将重新连接…",
-  "herdr web ui v{version} is available.": "herdr web ui v{version} 已发布。",
-  "A herdr web ui update is available.": "herdr web ui 有可用更新。",
+  "TermWeave v{version} is available.": "TermWeave v{version} 已发布。",
+  "A TermWeave update is available.": "TermWeave 有可用更新。",
   "View update": "查看更新",
 
   // ---- key bar ----
