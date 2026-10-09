@@ -3,6 +3,11 @@
 TermWeave(herdr web ui 포크)의 변경 기록입니다. 원본 프로젝트의 기록은 `CHANGELOG.md`에 있습니다.
 이 파일에는 실제 동작이나 게이트로 확인된 완료 항목만 적습니다. 일부만 끝난 항목은 "남은 일"에 따로 적습니다.
 
+## [0.3.3] - 2026-10-09
+
+- feat: the Mac app reloads itself after a deploy once input is idle
+- feat: TERMWEAVE_TRUST_LOCAL lets this PC's own direct connections skip the token
+
 ## [0.3.2] - 2026-10-09
 
 - feat: live app runs owned releases of this repo and redeploys on every version bump

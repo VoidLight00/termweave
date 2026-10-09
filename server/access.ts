@@ -42,6 +42,8 @@ export interface AccessInput {
   tokenConfigured: boolean;
   /** a device has been paired at some point: the gate is closed to strangers (server/devices.ts) */
   gated: boolean;
+  /** TERMWEAVE_TRUST_LOCAL=1: this PC's own direct connections skip the token (single-user PC only) */
+  trustLocal?: boolean;
 }
 
 export type Access =
@@ -83,6 +85,8 @@ export function cameThroughProxy(headers: Headers): boolean {
 export function decideAccess(input: AccessInput): Access {
   if (input.tokenMatched) return { level: "full", via: "token", role: "drive" };
   if (input.device !== null) return { level: "full", via: "device", role: input.device.role, device: input.device };
+  // ponytail: opt-in for a PC only its owner uses; a proxy, tunnel or LAN client still needs the token
+  if (input.trustLocal && input.loopback && !input.forwarded) return { level: "full", via: "local", role: "drive" };
   // before the login header: a token must hold against a header a visitor can send through another proxy
   if (input.tokenConfigured) return { level: "none", reason: "token_required" };
   // the identity header is only worth something from the local tailscaled, never from a LAN client

@@ -934,6 +934,7 @@ export function createServer(
         ...identityOf(),
         tokenConfigured: token !== "",
         gated: devices.gated,
+        trustLocal: process.env["TERMWEAVE_TRUST_LOCAL"] === "1",
       });
       const authenticated = access.level === "full" || (bridgePath && bridgeAuthorized);
 

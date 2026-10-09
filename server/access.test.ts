@@ -11,6 +11,13 @@ describe("decideAccess", () => {
     expect(via({ forwarded: true, gated: true })).toBe("refused:pairing_required");
   });
 
+  it("lets this PC in past a token only when TERMWEAVE_TRUST_LOCAL opts in", () => {
+    expect(via({ tokenConfigured: true })).toBe("refused:token_required");
+    expect(via({ tokenConfigured: true, trustLocal: true })).toBe("local");
+    expect(via({ tokenConfigured: true, trustLocal: true, forwarded: true })).toBe("refused:token_required");
+    expect(via({ tokenConfigured: true, trustLocal: true, loopback: false })).toBe("refused:token_required");
+  });
+
   it("denies external and proxied access without token or device", () => {
     expect(via({ loopback: false })).toBe("refused:pairing_required");
     expect(via({ loopback: true, forwarded: true })).toBe("refused:pairing_required");

@@ -13,6 +13,7 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDele
     var window: NSWindow!
     var web: WKWebView!
     var authTried = false
+    var lastInput = Date()
 
     // Token is read at runtime from the plugin .env, never compiled into the app.
     func localToken() -> String? {
@@ -58,6 +59,41 @@ final class App: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDele
         buildMenu()
         web.load(URLRequest(url: home))
         NSApp.activate(ignoringOtherApps: true)
+        watchForDeploys()
+    }
+
+    // After a deploy the page keeps the old bundle. Compare the build id in the served index.html with the
+    // loaded page every 10s and reload only after 5s without keyboard or mouse input, so typing is never cut.
+    func watchForDeploys() {
+        NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .leftMouseDown, .rightMouseDown, .scrollWheel]) { [weak self] event in
+            self?.lastInput = Date(); return event
+        }
+        Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in self?.checkBuild() }
+    }
+
+    func checkBuild() {
+        var probe = URLComponents(url: home, resolvingAgainstBaseURL: false)!
+        probe.path = "/"; probe.queryItems = [URLQueryItem(name: "frontend-build-check", value: String(Int(Date().timeIntervalSince1970)))]
+        var request = URLRequest(url: probe.url!, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 8)
+        request.setValue("text/html", forHTTPHeaderField: "Accept")
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+            guard let self, (response as? HTTPURLResponse)?.statusCode == 200, let data, let html = String(data: data, encoding: .utf8),
+                  let served = Self.buildId(html) else { return }
+            DispatchQueue.main.async {
+                self.web.evaluateJavaScript("document.querySelector('meta[name=\"frontend-build-id\"]')?.content || ''") { result, _ in
+                    guard let loaded = result as? String, !loaded.isEmpty, loaded.lowercased() != served,
+                          Date().timeIntervalSince(self.lastInput) >= 5 else { return }
+                    self.web.load(URLRequest(url: home))
+                }
+            }
+        }.resume()
+    }
+
+    static func buildId(_ html: String) -> String? {
+        guard let range = html.range(of: #"<meta\s+name="frontend-build-id"\s+content="([a-f0-9]{64})""#, options: .regularExpression) else { return nil }
+        let tag = String(html[range])
+        guard let start = tag.range(of: "content=\"")?.upperBound else { return nil }
+        return String(tag[start...].prefix(64)).lowercased()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { true }
