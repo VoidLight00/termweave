@@ -1,0 +1,319 @@
+.prompt-card {
+  position: sticky;
+  bottom: var(--space-2);
+  z-index: var(--z-popover);
+  width: 100%;
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: var(--hairline) solid var(--status-blocked);
+  border-radius: var(--radius-xl);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-pop);
+}
+
+.prompt-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.prompt-card-header h2,
+.prompt-card-question,
+.prompt-card-hint,
+.prompt-card-error {
+  margin: 0;
+}
+
+.prompt-card-header h2 {
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+}
+
+/* a form of several questions: a chip per question, answered ones checked, the one asked now in
+   the accent; the chips name the questions, so the card's title only says where this one stands */
+.prompt-card-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prompt-card-step {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2) 2px 2px;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-tight);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.prompt-card-step-mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+}
+
+.prompt-card-step-mark svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 3;
+}
+
+.prompt-card-step-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-card-step.is-answered {
+  color: var(--text);
+}
+
+.prompt-card-step.is-answered .prompt-card-step-mark {
+  color: var(--accent);
+}
+
+.prompt-card-step.is-current {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  color: var(--text-strong);
+  font-weight: var(--fw-medium);
+}
+
+.prompt-card-step.is-current .prompt-card-step-mark {
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+/* what the agent asks is the line to read first: full strength, not a caption under the title */
+.prompt-card-question {
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+}
+
+/* a question in Codex's queue: the agent is not waiting on it, so the card says who answers what */
+.prompt-card-hint {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-base);
+}
+
+.prompt-card-body {
+  max-height: 10rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow: auto;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* one option per row, full width: labels and their descriptions line up to scan down, the way
+   the agent's own menu reads, and no option is filled as if it were already chosen */
+.prompt-card-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.prompt-card-option {
+  width: 100%;
+  min-height: var(--control-h);
+  display: flex;
+  /* the number sits on the label's first line whatever the mono font's metrics */
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-base);
+  text-align: left;
+  /* an option can name a long path: it wraps inside the card instead of running past it */
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.prompt-card-option:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+
+.prompt-card-option:hover .prompt-card-number {
+  color: var(--accent);
+}
+
+/* while an answer is on its way every option waits, the checkbox rows included */
+.prompt-card[aria-busy="true"] .prompt-card-option {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.prompt-card[aria-busy="true"] .prompt-card-option:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+}
+
+/* a picked option: a checked box, or a typed pick of an approval's option that waits for Confirm */
+.prompt-card-option.is-checked,
+.prompt-card-option.is-typed {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+}
+
+/* the number the agent's menu shows: typing it in the composer picks the option too */
+.prompt-card-number {
+  flex: none;
+  min-width: 2ch;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-weight: var(--fw-regular);
+}
+
+.prompt-card-option.is-checked .prompt-card-number,
+.prompt-card-option.is-typed .prompt-card-number {
+  color: var(--accent);
+}
+
+.prompt-card-option input {
+  flex: none;
+  align-self: flex-start;
+  width: 16px;
+  height: 16px;
+  /* centred on the label's first line */
+  margin: calc((var(--fs-sm) * var(--lh-base) - 16px) / 2) 0 0;
+  accent-color: var(--primary);
+  cursor: inherit;
+}
+
+.prompt-card-option-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.prompt-card-option-label {
+  font-weight: var(--fw-medium);
+}
+
+.prompt-card-option-description {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+
+/* the menu's own recommendation, told by a tag instead of a "(Recommended)" suffix */
+.prompt-card-tag {
+  display: inline-block;
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  color: var(--accent);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  /* no taller than the label's line, so the number beside it stays level */
+  line-height: var(--lh-tight);
+}
+
+.prompt-card-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+}
+
+.prompt-card-confirm span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.prompt-card-submit {
+  align-self: flex-start;
+}
+
+.prompt-card-custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.prompt-card-custom-label {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.prompt-card-custom-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* the field grows to the Send button's height, which is the touch target on a phone */
+.prompt-card-custom .input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: auto;
+}
+
+.prompt-card-custom .btn svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.prompt-card-error {
+  color: var(--status-blocked);
+  font-size: var(--fs-xs);
+}
+
+@media (pointer: coarse) {
+  .prompt-card-option {
+    min-height: var(--touch-target);
+  }
+}
+
+@media (max-width: 480px) {
+  .prompt-card {
+    padding: var(--space-3);
+  }
+}

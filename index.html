@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="description" content="Chat with your coding agents and use live herdr terminals from your browser or phone." />
+    <meta property="og:title" content="TermWeave" />
+    <meta property="og:description" content="Your agents. Any screen. Chat, terminal and mobile access for herdr." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#181613" />
+    <meta name="color-scheme" content="dark" />
+    <!-- The query is a URL no pre-0.3.32 service worker has cached: those serve the plain
+         URL cache-first, which handed Chrome the old `orientation: "any"` manifest on the
+         first launch after an upgrade and spent that day's installed-app update check. -->
+    <link rel="manifest" href="/manifest.webmanifest?v=termweave-4" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <!-- Leave apple-mobile-web-app-status-bar-style unset to use the normal home-screen
+         status-bar layout instead of drawing beneath it (#164). Existing installs and
+         viewport behavior need separate checks; see docs/ios-home-screen-testing.md. -->
+    <meta name="apple-mobile-web-app-title" content="TermWeave" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/termweave-v2-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/termweave-v2-180.png" />
+    <title>TermWeave</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="/src/pwa.ts"></script>
+  </body>
+</html>

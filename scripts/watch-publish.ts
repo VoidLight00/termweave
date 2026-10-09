@@ -1,0 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { GitHubWatchStore } from './watch-github-store.ts';
+import { publishCandidates } from './watch-store.ts';
+if (!process.env.WATCH_ALLOW_WRITES || process.env.WATCH_ALLOW_WRITES !== 'reviewed-ci') throw new Error('Watcher mutations require the reviewed CI writer job');
+const repository = process.env.GITHUB_REPOSITORY, token = process.env.GITHUB_TOKEN, branch = process.env.WATCH_STATE_BRANCH;
+if (!repository || !token || !branch) throw new Error('Missing reviewed repository credentials/state branch');
+const input = JSON.parse(readFileSync(process.env.WATCH_INPUT_PATH ?? 'evidence/watcher/input.json','utf8'));
+const result = await publishCandidates(new GitHubWatchStore(repository,token,branch),input.state,input.candidates,`run_${process.env.GITHUB_RUN_ID}`);
+console.log(JSON.stringify({pending:result.state.pending.length,completed:result.state.completed.length,errors:result.errors.length}));
+if (result.errors.length) process.exitCode=1;

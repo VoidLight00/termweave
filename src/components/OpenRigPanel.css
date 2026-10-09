@@ -1,0 +1,35 @@
+.openrig-dialog { width: min(640px, calc(100vw - 24px)); max-height: calc(var(--app-height, 100dvh) - 24px); margin: auto; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--bg); color: var(--text); overflow: hidden; word-break: keep-all; overflow-wrap: anywhere; }
+.openrig-dialog[open] { display: flex; flex-direction: column; }
+.openrig-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+.openrig-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.openrig-header h2 { font-size: 16px; color: var(--text-strong); margin: 0 0 4px; text-wrap: balance; }
+.openrig-header p, .openrig-muted { font-size: 12px; color: var(--text-muted); margin: 4px 0 12px; text-wrap: pretty; }
+.openrig-body { padding: 14px 16px; overflow: auto; min-height: 0; overscroll-behavior: contain; }
+.openrig-health { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.openrig-health .btn { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; }
+.openrig-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
+.openrig-dot.is-connected { background: var(--text-strong); }
+.openrig-field { display: grid; gap: 6px; font-size: 12px; min-width: 0; }
+.openrig-field select { width: 100%; min-width: 0; max-width: 100%; padding: 8px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.openrig-sections section, .openrig-view { padding-top: 16px; }
+.openrig-dialog h3 { font-size: 13px; color: var(--text-strong); margin: 0 0 8px; text-wrap: balance; }
+.openrig-dialog h4 { font-size: 12px; margin: 12px 0 6px; text-wrap: balance; }
+.openrig-list { list-style: none; padding: 0; margin: 0; font-size: 12px; }
+.openrig-list li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 12px; min-width: 0; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.openrig-list li > * { min-width: 0; }
+.openrig-list small { grid-column: 1 / -1; color: var(--text-muted); }
+.openrig-empty, .openrig-notice, .openrig-result p, .openrig-preview p { font-size: 12px; line-height: 1.55; text-wrap: pretty; }
+.openrig-notice { background: var(--bg-raised, var(--bg)); padding: 8px; border-radius: var(--radius-md); }
+.openrig-view { margin-top: 16px; border-top: 1px solid var(--border); }
+.openrig-view-controls { display: flex; align-items: flex-end; gap: 8px; }
+.openrig-view-controls .openrig-field { flex: 1; }
+.openrig-preview .btn { margin-top: 12px; }
+.openrig-footer { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 12px 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-muted); }
+.openrig-footer svg { flex-shrink: 0; }
+@media (max-width: 640px), (pointer: coarse) { .openrig-dialog .btn, .openrig-dialog .icon-button, .openrig-dialog select { min-height: 44px; } .openrig-dialog select { font-size: 16px; } }
+@media (max-width: 380px) { .openrig-header, .openrig-body { padding: 12px; } .openrig-footer { padding: 10px 12px; } .openrig-list li { grid-template-columns: minmax(0, 1fr); } }
+
+.openrig-service { padding-block: 10px; border-bottom: 1px solid var(--border); min-width: 0; }
+.openrig-service-control { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.openrig-service-control > div { flex: 1 1 180px; min-width: 0; }
+.openrig-service-control > button { min-height: 44px; white-space: normal; }

@@ -1,0 +1,24 @@
+name: Verify immutable release candidate
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: HERDR_TEST_MODE=unit bun test scripts/release/release.test.ts scripts/release/build.test.ts
+      - run: bun run typecheck
+      # Native compatibility and exact-source product lanes must be approved and
+      # recorded before buildRelease can produce a distributable artifact.
+      # This job neither uploads a release nor activates any server.

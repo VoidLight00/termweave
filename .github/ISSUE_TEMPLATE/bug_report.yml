@@ -1,0 +1,102 @@
+name: Bug report
+description: Something in herdr web ui does not work as it should
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A security problem (someone gets in who should not, a secret leaks) goes to a
+        [private report](https://github.com/VoidLight00/termweave/security/advisories/new), not here.
+
+        **Leave out secrets.** Never paste `HERDR_WEB_TOKEN`, a pairing code or link, device cookies,
+        SSH keys or agent sign-ins. Blur hostnames and Tailscale logins in screenshots if you prefer.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+      placeholder: |
+        1. Open a Codex pane on the phone
+        2. Tap Approve on the prompt card
+        3. The card stays and the pane never continues
+    validations:
+      required: true
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often
+      options: [Every time, Sometimes, Once so far]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: herdr web ui version
+      description: The sidebar footer shows it (`herdr web ui vX.Y.Z`). Add the last version that worked, if you know it.
+      placeholder: 0.3.33 (worked in 0.3.31)
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How it runs
+      options:
+        - herdr plugin
+        - One-line installer (install.sh)
+        - bun run start (source checkout)
+        - bun run server / bun run dev (development)
+        - The browser demo
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Server PC
+      description: OS and CPU of the PC the app's server runs on, and `herdr --version`.
+      placeholder: Debian 13 x64, herdr 0.9.3
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Device and browser
+      description: Device, OS version and browser, and whether it is a browser tab or the installed (home-screen) app.
+      placeholder: iPhone 16, iOS 27, installed app
+    validations:
+      required: true
+  - type: dropdown
+    id: route
+    attributes:
+      label: How the device reaches the server
+      options:
+        - This PC (localhost)
+        - SSH tunnel
+        - tailscale serve
+        - LAN address
+        - Reverse proxy or public domain
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: access
+    attributes:
+      label: How it signs in
+      description: The method only. Never the token or code itself.
+      options:
+        - Nothing (this PC)
+        - Tailscale login
+        - Paired device
+        - Token
+        - Not sure
+  - type: input
+    id: agent
+    attributes:
+      label: Agent and PC
+      description: The agent in the pane and its version, and whether the pane is on a remote PC (its OS).
+      placeholder: Claude Code 2.1.4, local PC
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots or logs
+      description: The server log from `bun run start` or the plugin's log, or the browser console. Remove secrets first.

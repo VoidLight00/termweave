@@ -1,0 +1,14 @@
+{
+  "version": "0.6.7",
+  "patch": "termweave-native-identities-v1",
+  "files": {
+    "daemon/dist/domain/terminal/herdr-adapter.js": {
+      "input": "0064bb4a39ec0046ba7e595259493862d4237c2a468763836cb434d8fcd6750a",
+      "output": "7432c1f5179664461cfebb23035aa28af329d96c02e42c02904ebc0372d85818"
+    },
+    "daemon/dist/domain/terminal/termweave-terminal-identities.js": {
+      "input": null,
+      "output": "d1122d6d602d1cd8576a492879fbc7bd0d96402f4843d1076bbdce77ca31d1a8"
+    }
+  }
+}

@@ -1,0 +1,71 @@
+name: Observe upstream candidates
+on:
+  schedule:
+    - cron: '17 0 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: termweave-upstream-watch
+  cancel-in-progress: false
+jobs:
+  observe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Check watcher fixtures
+        run: HERDR_TEST_MODE=unit bun test scripts/watch-upstreams.test.ts
+      - name: Observe metadata only
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WATCH_RESTORE_GITHUB: '1'
+          WATCH_STATE_BRANCH: upstream-watch-state
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          WATCH_STATE_PATH: evidence/watcher/state.json
+          WATCH_CANDIDATES_PATH: evidence/watcher/candidates.json
+        run: bun scripts/watch-upstreams.ts
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: upstream-observation
+          path: evidence/watcher/
+          retention-days: 90
+      # Artifacts transfer this run's bounded result only; durable state lives in
+      # the reviewed state branch, restored before every observation.
+
+  candidates:
+    needs: observe
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
+        with:
+          bun-version: 1.4.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: upstream-observation
+          path: evidence/watcher/
+      - name: Persist observations and idempotent candidates
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          WATCH_STATE_BRANCH: upstream-watch-state
+          WATCH_ALLOW_WRITES: reviewed-ci
+          WATCH_INPUT_PATH: evidence/watcher/input.json
+        run: bun scripts/watch-publish.ts

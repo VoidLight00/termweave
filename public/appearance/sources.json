@@ -1,0 +1,50 @@
+[
+  {
+    "file": "jetbrains-mono.woff2",
+    "source": "https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/fonts/webfonts/JetBrainsMono-Regular.woff2",
+    "sha256": "f1a7a03672cdd494ce0d5543fac6e4360fe22403c6de297fdc2e55a815f7baff",
+    "bytes": 92380
+  },
+  {
+    "file": "JetBrainsMono-OFL.txt",
+    "source": "https://raw.githubusercontent.com/JetBrains/JetBrainsMono/master/OFL.txt",
+    "sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+    "bytes": 4399
+  },
+  {
+    "file": "d2coding.woff2",
+    "source": "https://raw.githubusercontent.com/naver/d2-coding-font/master/site/fonts/D2Coding-Regular.woff2",
+    "sha256": "0fa3ea3b5990782e8e0c124ff6918c64ad057bc87365565405531e010cfdfbaa",
+    "bytes": 1490832
+  },
+  {
+    "file": "D2Coding-OFL.txt",
+    "source": "https://raw.githubusercontent.com/naver/d2-coding-font/master/OFL.txt",
+    "sha256": "1807e8dec4d65f474cbf9be39f5e2254ecb81702babc320749e272ea66ffcc69",
+    "bytes": 4511
+  },
+  {
+    "file": "noto-sans-kr.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+    "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+    "bytes": 10414588
+  },
+  {
+    "file": "NotoSansKR-OFL.txt",
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanskr/OFL.txt",
+    "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "bytes": 4388
+  },
+  {
+    "file": "Catppuccin-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/catppuccin/catppuccin/main/LICENSE",
+    "sha256": "814096d2c34cc216c624738a49356f32b7237733b4f7edb0685f4e50ef5074ba",
+    "bytes": 1067
+  },
+  {
+    "file": "RosePine-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/rose-pine/rose-pine-theme/main/LICENSE",
+    "sha256": "fb2535bcb42729f0547691eea7feee12d6870d184d704a7a929513973974d7bd",
+    "bytes": 1067
+  }
+]

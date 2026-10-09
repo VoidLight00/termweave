@@ -1,0 +1,9 @@
+import {createServer} from 'vite';import {chromium} from 'playwright-core';import {chromiumExecutable} from './browser.ts';import assert from 'node:assert/strict';import {writeFileSync} from 'node:fs';import {join} from 'node:path';
+const root=join(import.meta.dir,'..');const vite=await createServer({root,configFile:false,server:{host:'127.0.0.1',port:0},plugins:[{name:'fixture',configureServer(server){server.middlewares.use('/links-fixture',(_req,res)=>{res.setHeader('Content-Type','text/html');res.end('<html><body><script type="module" src="/scripts/file-links-fixture.ts"></script></body></html>');});}}]});await vite.listen();const browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true});
+try{const page=await browser.newPage();await page.goto(`http://127.0.0.1:${(vite.httpServer!.address() as any).port}/links-fixture`);await page.waitForFunction(()=>Boolean((window as any).linkCase));const run=(bytes:string,cols:number)=>page.evaluate(({bytes,cols})=>(window as any).linkCase(bytes,cols),{bytes,cols});
+ const uri='file:///synthetic/parent/file.txt';const soft=await run(uri,23);assert.deepEqual(soft.opened,['/synthetic/parent/file.txt']);assert.equal(soft.rows[1].isWrapped,true);
+ const hard=await run('file:///synthetic/parent\r\n/file.txt',24);assert.ok(!hard.opened.includes('/synthetic/parent'));assert.equal(hard.rows[1].isWrapped,false);
+ const completed=await run('file:///synthetic/a.txt\r\nPASS unrelated',22);assert.deepEqual(completed.opened,['/synthetic/a.txt']);
+ const encoded=await run('file:///synthetic/%ED%95%9C%EA%B8%80%20a.txt',20);assert.deepEqual(encoded.opened,['/synthetic/한글 a.txt']);
+ if(process.env.DOCK_EVIDENCE)writeFileSync(join(process.env.DOCK_EVIDENCE,'file-links-browser.json'),JSON.stringify({soft,hard,completed,encoded},null,2));console.log('PASS browser short/softwrapped/encoded URI and hard-row refusal without unrelated joins');
+}finally{await browser.close();await vite.close();}

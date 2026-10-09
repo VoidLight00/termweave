@@ -1,0 +1,56 @@
+{
+  "name": "termweave",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "description": "Browser version of the herdr terminal - live herdr workspaces, panes and agents in a web UI",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VoidLight00/termweave.git"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "server": "bun run server/index.ts",
+    "start": "bun run build && bun run server/managed.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:unit": "bun scripts/ci-tests.ts unit",
+    "validate:ledgers": "node scripts/validate-ledgers.mjs",
+    "test:ledgers": "node --test scripts/ledger.test.mjs",
+    "test:integration": "bun scripts/ci-tests.ts integration",
+    "test:ui": "bun run build && bun scripts/ui-regression.ts",
+    "generate:types": "bun run scripts/generate-protocol-types.ts",
+    "build:remote": "bun run scripts/build-remote-bundle.ts",
+    "build:site": "bun scripts/build-site.ts",
+    "test:ssh": "bun run scripts/ssh-integration.ts"
+  },
+  "dependencies": {
+    "@lydell/node-pty": "1.1.0",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-unicode-graphemes": "0.4.0",
+    "@xterm/addon-web-links": "0.11.0",
+    "@xterm/xterm": "5.5.0",
+    "katex": "^0.18.9",
+    "lucide-react": "^1.47.0",
+    "qrcode-generator": "^2.0.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.14",
+    "@types/katex": "^0.16.8",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/web-push": "^3.6.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "playwright-core": "^1.49.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  },
+  "patchedDependencies": {
+    "@xterm/xterm@5.5.0": "patches/@xterm%2Fxterm@5.5.0.patch"
+  }
+}

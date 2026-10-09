@@ -1,0 +1,277 @@
+/* dictation (VoiceInput.tsx): the mic button and the pill shown above the input while it
+   listens. Accent only: red would read as an error. The level meters are painted by
+   useVoiceInput per frame, so only transform/opacity move and nothing here transitions them */
+
+.voice-mic-wrap {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+}
+
+/* breathes with the voice level behind the filled button while it listens */
+.voice-mic-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.voice-mic-wrap[data-state="starting"] .voice-mic-ring,
+.voice-mic-wrap[data-state="recording"] .voice-mic-ring {
+  opacity: 0.25;
+}
+
+.voice-mic {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.voice-mic svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.voice-mic:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.voice-mic[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+@media (hover: hover) {
+  .voice-mic:hover:not(:disabled):not([aria-pressed="true"]) {
+    background: var(--bg-hover);
+  }
+}
+
+/* always mounted: a transition (not keyframes) so a cancel mid-entrance reverses smoothly;
+   visibility waits for the exit to finish */
+.voice-pill {
+  position: absolute;
+  bottom: calc(100% + var(--space-2));
+  z-index: var(--z-popover);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - var(--space-4));
+  height: calc(var(--control-h) + var(--space-1));
+  padding: 0 var(--space-1);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-pop);
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  opacity: 0;
+  transform: scale(0.96);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out),
+    visibility 0s linear var(--dur-fast);
+}
+
+.voice-pill[data-align="start"] {
+  left: var(--space-2);
+  transform-origin: bottom left;
+}
+
+.voice-pill[data-align="end"] {
+  right: var(--space-2);
+  transform-origin: bottom right;
+}
+
+.voice-pill.is-open {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--dur-base) var(--ease-spring),
+    transform var(--dur-base) var(--ease-spring),
+    visibility 0s;
+}
+
+.voice-pill-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--control-h) - var(--space-1));
+  height: calc(var(--control-h) - var(--space-1));
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.voice-pill-button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.voice-done {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.voice-pill-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .voice-cancel:hover {
+    background: var(--bg-hover);
+    color: var(--text-strong);
+  }
+}
+
+.voice-pill-dot {
+  flex: none;
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.voice-pill[data-state="starting"] .voice-pill-dot {
+  opacity: 0.4;
+}
+
+.voice-pill[data-state="transcribing"] .voice-pill-dot {
+  animation: pulse var(--dur-pulse) var(--ease-pulse) infinite;
+}
+
+.voice-pill-label {
+  flex: none;
+  font-weight: 600;
+}
+
+/* the live transcript, one line */
+.voice-pill-partial {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 18em;
+  overflow: hidden;
+  color: var(--text-dim);
+  text-overflow: ellipsis;
+}
+
+.voice-bars {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  height: 20px;
+  transform-origin: center;
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    opacity var(--dur-base) var(--ease-out);
+}
+
+.voice-bars [data-voice-bar] {
+  width: 3px;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transform-origin: center;
+  transform: scaleY(0.12);
+  will-change: transform;
+}
+
+/* listening is over: the waveform folds into its centre while the dot pulses */
+.voice-pill[data-state="transcribing"] .voice-bars {
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+/* reduced motion's stand-in for the bars: one level bar, repainted a few times a second */
+.voice-meter {
+  display: none;
+  flex: none;
+  width: 40px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+}
+
+.voice-meter > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+
+.voice-timer {
+  flex: none;
+  min-width: 4ch;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.voice-timer.is-ending {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-pill,
+  .voice-pill.is-open,
+  .voice-mic,
+  .voice-bars {
+    transition: none;
+  }
+
+  .voice-pill,
+  .voice-pill.is-open {
+    transform: none;
+  }
+
+  .voice-bars,
+  .voice-mic-ring {
+    display: none;
+  }
+
+  .voice-meter {
+    display: block;
+  }
+
+  .voice-pill[data-state="transcribing"] .voice-pill-dot {
+    animation: none;
+  }
+}

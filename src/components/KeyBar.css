@@ -1,0 +1,82 @@
+/*
+ * Touch key bar under the terminal (KeyBar.tsx): the keys a soft keyboard has
+ * no room for. Hidden on fine-pointer desktops, shown on coarse pointers and
+ * narrow viewports. A key never takes focus (KeyBar.tsx cancels pointerdown and
+ * mousedown), so the soft keyboard stays up and xterm's textarea keeps every
+ * keystroke; the row scrolls sideways when the keys outgrow the viewport.
+ */
+
+.key-bar {
+  display: none;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  height: calc(var(--keybar-h) + env(safe-area-inset-bottom, 0px));
+  padding: 0 0 env(safe-area-inset-bottom, 0px);
+  border-top: var(--hairline) solid var(--border);
+  background: var(--bg-panel);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.key-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: var(--touch-target);
+  height: var(--touch-target);
+  padding: 0 var(--space-1);
+  background: transparent;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.key svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+/* hover only where a pointer can hover: a tapped key must not stay lit */
+@media (hover: hover) {
+  .key:hover {
+    background: var(--bg-hover);
+  }
+}
+
+.key:active,
+.key.is-armed {
+  background: var(--bg-elevated);
+  border-color: var(--accent);
+  color: var(--text-strong);
+}
+
+@media (pointer: coarse), (max-width: 768px) {
+  .key-bar {
+    display: flex;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key {
+    transition: none;
+  }
+}

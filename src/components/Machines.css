@@ -1,0 +1,333 @@
+/* One PC per group. The caret hangs in the list gutter so the monitor icon lines up with
+   the pane marks below it, and the state line lines up with the PC name. */
+.machine-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.machine-group {
+  --machine-indent: calc(var(--space-3) + 16px + var(--space-2) + 16px + var(--space-2));
+  padding-bottom: var(--space-2);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.machine-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-2) 0 var(--space-3);
+}
+
+.machine-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1;
+  min-width: 0;
+  min-height: var(--touch-target);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+
+.machine-caret,
+.machine-icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+}
+
+.machine-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.machine-kind {
+  flex: none;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+}
+
+.machine-dot {
+  flex: none;
+  width: var(--dot-size);
+  height: var(--dot-size);
+  border-radius: var(--radius-pill);
+  background: var(--status-idle);
+}
+
+.machine-dot.is-connected { background: var(--status-done); }
+.machine-dot.is-error { background: var(--status-blocked); }
+
+.machine-dot.is-connecting,
+.machine-dot.is-reconnecting {
+  background: var(--status-working);
+  animation: pulse var(--dur-pulse) var(--ease-pulse) infinite;
+}
+
+.machine-state {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0 var(--space-3) var(--space-2) var(--machine-indent);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-tight);
+}
+
+.machine-state-word {
+  color: var(--text-dim);
+  font-weight: var(--fw-medium);
+}
+
+.machine-state.is-error .machine-state-word { color: var(--status-blocked); }
+.machine-state.is-connecting .machine-state-word,
+.machine-state.is-reconnecting .machine-state-word { color: var(--status-working); }
+
+/* the server's own words can run long (socket paths): two lines, the full text on hover */
+.machine-state-detail {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--text-dim);
+  overflow-wrap: anywhere;
+}
+
+.machine-empty {
+  padding: 0 var(--space-3) var(--space-2) var(--machine-indent);
+}
+
+.machine-workspaces .sidebar-list { overflow: visible; }
+.machine-offline { opacity: 0.5; }
+
+.machine-controls {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-elevated);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.machine-controls form,
+.machine-control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.machine-controls .field {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.machine-dialog {
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: var(--hairline) solid var(--border-strong);
+  color: var(--text);
+}
+
+.machine-dialog::backdrop { background: var(--scrim); }
+
+.machine-dialog .modal-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.machine-dialog form,
+.machine-advanced {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.machine-advanced { padding-top: var(--space-3); }
+
+.machine-dialog summary {
+  padding: var(--space-2) 0;
+  cursor: pointer;
+}
+
+.machine-challenge pre {
+  font-size: var(--fs-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.machine-progress {
+  padding: var(--space-3);
+  background: var(--bg-hover);
+  border-radius: var(--radius-md);
+  overflow-wrap: anywhere;
+}
+
+/* what ssh printed while it waits: a check URL to visit, a banner; bounded, the newest lines stay */
+.machine-ssh-output {
+  max-height: 9em;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  overflow: auto;
+  background: var(--bg-input);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.machine-ssh-output a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.machine-install-list {
+  padding-left: var(--space-5);
+  line-height: 1.7;
+}
+
+.machine-error {
+  margin: 0;
+  color: var(--status-blocked);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.machine-group > .machine-error {
+  padding: 0 var(--space-3) var(--space-2) var(--machine-indent);
+}
+
+.machine-context-name {
+  max-width: 140px;
+  overflow: hidden;
+  color: var(--text-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .machine-dot.is-connecting,
+  .machine-dot.is-reconnecting { animation: none; }
+}
+
+/* a PC that retrying cannot reconnect: the next step, spelled out, with its button */
+.machine-action {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 var(--space-3) var(--space-2) var(--machine-indent);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--status-blocked);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-tight);
+}
+
+.machine-action-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.machine-action-text strong {
+  color: var(--status-blocked);
+  font-weight: var(--fw-medium);
+}
+
+
+.machine-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.machine-action-reason {
+  overflow-wrap: anywhere;
+}
+
+.machine-action.is-updating {
+  border-color: var(--border);
+  width: calc(100% - var(--space-3) - var(--machine-indent));
+}
+
+/* a bridge install: the step, a bar, the bytes and time left */
+.bridge-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+}
+
+.bridge-progress-step {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--text-strong);
+}
+
+.bridge-progress-count,
+.bridge-progress-detail {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.bridge-progress-detail { margin: 0; }
+
+.bridge-progress-bar {
+  position: relative;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg);
+}
+
+.bridge-progress-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--status-working);
+  transition: width 0.3s ease;
+}
+
+/* no size to measure (install, restart): a band that keeps moving */
+.bridge-progress-bar span.is-indeterminate {
+  width: 35%;
+  animation: bridge-progress-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes bridge-progress-slide {
+  from { left: -35%; }
+  to { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bridge-progress-bar span { transition: none; }
+  .bridge-progress-bar span.is-indeterminate { left: 0; width: 100%; animation: none; opacity: 0.5; }
+}
+
+/* an update in progress is news, not an error */
+.machine-action.is-updating .machine-action-text strong { color: var(--status-working); }

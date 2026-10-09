@@ -1,0 +1,32 @@
+[
+  {
+    "path": "public/appearance/jetbrains-mono.woff2",
+    "sha256": "f1a7a03672cdd494ce0d5543fac6e4360fe22403c6de297fdc2e55a815f7baff",
+    "bytes": 92380,
+    "source": "https://raw.githubusercontent.com/JetBrains/JetBrainsMono/19371302b95d218af43299bce79ddbddd0bc364d/fonts/webfonts/JetBrainsMono-Regular.woff2",
+    "license_path": "public/appearance/JetBrainsMono-OFL.txt",
+    "license_sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+    "license_source": "https://raw.githubusercontent.com/JetBrains/JetBrainsMono/19371302b95d218af43299bce79ddbddd0bc364d/OFL.txt",
+    "format": "woff2"
+  },
+  {
+    "path": "public/appearance/d2coding.woff2",
+    "sha256": "0fa3ea3b5990782e8e0c124ff6918c64ad057bc87365565405531e010cfdfbaa",
+    "bytes": 1490832,
+    "source": "https://raw.githubusercontent.com/naver/d2-coding-font/b0dc372e28d7abdba7f3cba854855ceffbd490a8/site/fonts/D2Coding-Regular.woff2",
+    "license_path": "public/appearance/D2Coding-OFL.txt",
+    "license_sha256": "1807e8dec4d65f474cbf9be39f5e2254ecb81702babc320749e272ea66ffcc69",
+    "license_source": "https://raw.githubusercontent.com/naver/d2-coding-font/b0dc372e28d7abdba7f3cba854855ceffbd490a8/OFL.txt",
+    "format": "woff2"
+  },
+  {
+    "path": "public/appearance/noto-sans-kr.ttf",
+    "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+    "bytes": 10414588,
+    "source": "https://raw.githubusercontent.com/google/fonts/2eb0b48d5f760f62e286216f0859a8c540dbc1bd/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+    "license_path": "public/appearance/NotoSansKR-OFL.txt",
+    "license_sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "license_source": "https://raw.githubusercontent.com/google/fonts/2eb0b48d5f760f62e286216f0859a8c540dbc1bd/ofl/notosanskr/OFL.txt",
+    "format": "ttf"
+  }
+]

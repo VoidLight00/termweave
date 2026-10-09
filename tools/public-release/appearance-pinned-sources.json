@@ -1,0 +1,58 @@
+[
+  {
+    "file": "jetbrains-mono.woff2",
+    "source": "https://raw.githubusercontent.com/JetBrains/JetBrainsMono/19371302b95d218af43299bce79ddbddd0bc364d/fonts/webfonts/JetBrainsMono-Regular.woff2",
+    "sha256": "f1a7a03672cdd494ce0d5543fac6e4360fe22403c6de297fdc2e55a815f7baff",
+    "bytes": 92380,
+    "upstream_commit": "19371302b95d218af43299bce79ddbddd0bc364d"
+  },
+  {
+    "file": "JetBrainsMono-OFL.txt",
+    "source": "https://raw.githubusercontent.com/JetBrains/JetBrainsMono/19371302b95d218af43299bce79ddbddd0bc364d/OFL.txt",
+    "sha256": "a76abf002c49097d146e86740a3105a5d00450b1592e820a1109a8c5680cd697",
+    "bytes": 4399,
+    "upstream_commit": "19371302b95d218af43299bce79ddbddd0bc364d"
+  },
+  {
+    "file": "d2coding.woff2",
+    "source": "https://raw.githubusercontent.com/naver/d2-coding-font/b0dc372e28d7abdba7f3cba854855ceffbd490a8/site/fonts/D2Coding-Regular.woff2",
+    "sha256": "0fa3ea3b5990782e8e0c124ff6918c64ad057bc87365565405531e010cfdfbaa",
+    "bytes": 1490832,
+    "upstream_commit": "b0dc372e28d7abdba7f3cba854855ceffbd490a8"
+  },
+  {
+    "file": "D2Coding-OFL.txt",
+    "source": "https://raw.githubusercontent.com/naver/d2-coding-font/b0dc372e28d7abdba7f3cba854855ceffbd490a8/OFL.txt",
+    "sha256": "1807e8dec4d65f474cbf9be39f5e2254ecb81702babc320749e272ea66ffcc69",
+    "bytes": 4511,
+    "upstream_commit": "b0dc372e28d7abdba7f3cba854855ceffbd490a8"
+  },
+  {
+    "file": "noto-sans-kr.ttf",
+    "source": "https://raw.githubusercontent.com/google/fonts/2eb0b48d5f760f62e286216f0859a8c540dbc1bd/ofl/notosanskr/NotoSansKR%5Bwght%5D.ttf",
+    "sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+    "bytes": 10414588,
+    "upstream_commit": "2eb0b48d5f760f62e286216f0859a8c540dbc1bd"
+  },
+  {
+    "file": "NotoSansKR-OFL.txt",
+    "source": "https://raw.githubusercontent.com/google/fonts/2eb0b48d5f760f62e286216f0859a8c540dbc1bd/ofl/notosanskr/OFL.txt",
+    "sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+    "bytes": 4388,
+    "upstream_commit": "2eb0b48d5f760f62e286216f0859a8c540dbc1bd"
+  },
+  {
+    "file": "Catppuccin-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/catppuccin/catppuccin/d09787dd98ca6fba08af5ef2ae94a7e09f17daca/LICENSE",
+    "sha256": "814096d2c34cc216c624738a49356f32b7237733b4f7edb0685f4e50ef5074ba",
+    "bytes": 1067,
+    "upstream_commit": "d09787dd98ca6fba08af5ef2ae94a7e09f17daca"
+  },
+  {
+    "file": "RosePine-LICENSE.txt",
+    "source": "https://raw.githubusercontent.com/rose-pine/rose-pine-theme/781bb844aae0bcec2763b23a4c7d3cc6aede780c/LICENSE",
+    "sha256": "fb2535bcb42729f0547691eea7feee12d6870d184d704a7a929513973974d7bd",
+    "bytes": 1067,
+    "upstream_commit": "781bb844aae0bcec2763b23a4c7d3cc6aede780c"
+  }
+]

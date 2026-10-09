@@ -1,0 +1,63 @@
+node_modules/
+dist/
+*.log
+.env
+evidence/
+.omo/
+.gjc/
+.herdr-web-ui/
+
+remote-bundles/
+
+# README demo videos: uploaded to GitHub, not committed (docs/development.md)
+docs/screenshots/*.mp4
+
+# the website, assembled by scripts/build-site.ts
+_site/
+
+# film footage and renders, made by scripts/film/
+_film/
+
+# TermWeave: local state and capture files are never source.
+.env
+.env.*
+**/.env
+**/.env.*
+evidence/
+logs/
+*.log
+*.jsonl
+.ci-config/
+.ci-state/
+state/
+backup/
+restore/
+
+# public export staging (built from HEAD by tools/public-release, has its own git history)
+/.local/public/
+__pycache__/
+# --- github harness: 공통 무시 패턴 ---
+build/
+.next/
+*.pyc
+.venv/
+venv/
+target/
+# 환경/시크릿
+*.secret
+secrets.*
+*.key
+*.pem
+# 내부 문서 (공개 금지)
+docs-private/
+.private/
+internal/
+# public 누출 차단 내부어 목록(로컬 유지 — 공개 repo에 올리지 않음)
+# OS/에디터
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+assets/prompts/
+
+.github/publish-denylist.txt

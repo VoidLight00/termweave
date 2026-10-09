@@ -1,0 +1,1 @@
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android" android:accessibilityEventTypes="typeWindowStateChanged" android:accessibilityFeedbackType="feedbackGeneric" android:canRetrieveWindowContent="false" android:canPerformGestures="true" android:notificationTimeout="100" android:settingsActivity="dev.termweave.companion.MainActivity"/>

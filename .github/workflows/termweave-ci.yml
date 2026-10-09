@@ -1,0 +1,35 @@
+name: TermWeave isolated verification
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: termweave-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
+        with:
+          bun-version: 1.4.2
+      - name: Install locked dependencies without lifecycle scripts
+        run: bun install --frozen-lockfile --ignore-scripts
+      - name: Install pinned Chromium
+        run: bun node_modules/playwright-core/cli.js install chromium
+      - name: Verify source and synthetic browser lanes
+        run: bun scripts/verify-isolated.ts ledger type build unit render source-style
+      # Native API/integration lanes need a separately reviewed runtime binary lock.
+      # No upstream installer, deployment action, credentials, or release workflow runs here.

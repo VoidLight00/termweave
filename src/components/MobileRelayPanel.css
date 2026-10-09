@@ -1,0 +1,12 @@
+.mobile-relay-panel { display:grid; gap:.65rem; min-width:0; padding-block:1rem; border-top:1px solid var(--border-color, #7774); word-break:keep-all; overflow-wrap:anywhere; }
+.mobile-relay-panel h4 { margin:0; text-wrap:balance; }
+.mobile-relay-panel p { margin:0; text-wrap:pretty; }
+.mobile-relay-panel form,.mobile-relay-panel form label { display:grid; gap:.5rem; min-width:0; }
+.mobile-relay-panel form { padding-block:.75rem; }
+.mobile-relay-panel input:not([type="checkbox"]) { width:100%; min-width:0; box-sizing:border-box; padding:.6rem; }
+.mobile-relay-panel summary,.mobile-relay-control { cursor:pointer; }
+.mobile-relay-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+.mobile-relay-actions button { min-height:44px; white-space:normal; }
+.mobile-relay-image { display:block; max-width:100%; width:auto; max-height:65vh; justify-self:center; object-fit:contain; background:#111; }
+.mobile-relay-image.interactive { touch-action:none; cursor:crosshair; }
+.mobile-relay-control { display:flex; align-items:center; gap:.5rem; min-height:44px; }

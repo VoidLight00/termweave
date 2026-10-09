@@ -1,0 +1,15 @@
+.rename-terminal-dialog { margin: auto; padding: 0; color: var(--text-strong); max-width: calc(100vw - 24px); word-break: keep-all; overflow-wrap: anywhere; }
+.rename-terminal-dialog::backdrop { background: rgb(0 0 0 / 55%); }
+.rename-terminal-dialog .modal-title { text-wrap: balance; }
+.rename-terminal-dialog label { display: grid; gap: var(--space-2); min-width: 0; }
+.rename-terminal-dialog input { width: 100%; min-width: 0; }
+.modal.rename-terminal-dialog { border: 1px solid var(--border); border-radius: var(--radius-xl); max-height: calc(var(--app-height, 100dvh) - 24px); }
+.rename-terminal-dialog form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.rename-terminal-dialog .modal-header, .rename-terminal-dialog .modal-footer { flex-shrink: 0; }
+@media (pointer: coarse), (max-width: 768px) {
+  .rename-terminal-dialog input { min-height: 44px; font-size: 16px; }
+  .rename-terminal-dialog .btn { min-height: 44px; min-width: 64px; }
+}
+@media (max-width: 768px) {
+  .modal.rename-terminal-dialog { top: max(12px, env(safe-area-inset-top, 0px)); bottom: auto; margin: 0 auto; }
+}

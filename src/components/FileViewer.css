@@ -1,0 +1,144 @@
+.file-viewer-scrim {
+  /* above the file browser it may open from */
+  z-index: calc(var(--z-modal) + 1);
+}
+
+.file-viewer {
+  width: min(96vw, 1100px);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.file-viewer-header {
+  gap: var(--space-1);
+}
+
+.file-viewer-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.file-viewer-title .modal-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-viewer-meta {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  white-space: nowrap;
+}
+
+.file-viewer-size { flex: none; }
+
+/* the folder part of a long path gives way first */
+.file-viewer-path {
+  min-width: 0;
+  overflow: hidden;
+  direction: rtl;
+  text-align: left;
+  text-overflow: ellipsis;
+}
+
+.file-viewer-header a.icon-button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.file-viewer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--bg);
+}
+
+.file-viewer-media {
+  /* auto margins: media sits in the middle of a full-height viewer, text starts at the top */
+  margin-block: auto;
+  max-width: 100%;
+  max-height: 78vh;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+}
+
+.file-viewer-audio {
+  margin-block: auto;
+  width: min(100%, 480px);
+}
+
+.file-viewer-pdf {
+  width: 100%;
+  height: 78vh;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.file-viewer-text {
+  align-self: stretch;
+  margin: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.file-viewer-note {
+  margin: var(--space-3) 0 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+@media (pointer: coarse) {
+  .file-viewer {
+    width: 100vw;
+    max-height: 100dvh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .file-viewer-header .icon-button {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+
+  .file-viewer-media { max-height: calc(100dvh - 120px); }
+  .file-viewer-pdf { height: calc(100dvh - 120px); }
+}
+
+.file-viewer-choices ul {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.file-viewer-choices .btn {
+  max-width: 100%;
+  height: auto;
+  min-height: var(--control-h);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  text-align: left;
+  overflow-wrap: anywhere;
+}

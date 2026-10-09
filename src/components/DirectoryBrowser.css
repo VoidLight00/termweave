@@ -1,0 +1,136 @@
+/* the folder (and file) browser: new-session Browse, and the Files dialog */
+.dir-browser {
+  display: flex;
+  flex-direction: column;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.dir-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+/* a long path keeps its end, the part that says where you are */
+.dir-browser-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline: var(--space-1);
+  overflow: hidden;
+  direction: rtl;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.dir-browser-list {
+  max-height: calc(var(--control-h) * 7);
+  margin: 0;
+  padding: var(--space-1) 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.dir-browser-item {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dir-browser-item:hover:not(:disabled),
+.dir-browser-item:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.dir-browser-item svg {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  color: var(--accent);
+}
+
+.dir-browser-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dir-browser-note {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+.dir-browser-error {
+  color: var(--status-blocked);
+}
+
+.dir-browser-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-top: var(--hairline) solid var(--border);
+}
+
+.dir-browser-hidden {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.dir-browser-size {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.dir-browser-item.is-file svg {
+  color: var(--text-dim);
+}
+
+@media (pointer: coarse) {
+  .dir-browser-item {
+    min-height: var(--touch-target);
+  }
+
+  .dir-browser-bar .icon-button {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+}
+
+.files-dialog {
+  width: min(100%, 560px);
+}
+
+.files-dialog .dir-browser-list {
+  max-height: min(60vh, calc(var(--control-h) * 14));
+}

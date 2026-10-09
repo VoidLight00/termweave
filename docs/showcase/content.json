@@ -1,0 +1,491 @@
+{
+ "schemaVersion": 1,
+ "locales": [
+  "en",
+  "ko",
+  "ja",
+  "zh"
+ ],
+ "visualLocales": [
+  "en",
+  "ko",
+  "ja",
+  "zh"
+ ],
+ "project": {
+  "name": "TermWeave",
+  "version": "0.3.0",
+  "license": "MIT",
+  "summary": {
+   "en": "A cmux-style web and Mac client for herdr: docked, numbered panes per workspace, agent icons, a Needs-you list and correct Korean input.",
+   "ko": "herdr를 위한 cmux 스타일 웹·맥 클라이언트입니다. 작업 공간별 분할 배치, 번호 붙은 패널, 에이전트 아이콘, 응답 필요 목록, 깨지지 않는 한글 입력을 제공합니다.",
+   "ja": "herdr 向けの cmux 風 Web・Mac クライアントです。ワークスペースごとの分割、番号付きペイン、エージェントアイコン、入力待ち一覧、正しい韓国語入力を備えます。",
+   "zh": "面向 herdr 的 cmux 风格 Web 与 Mac 客户端：在每个工作区内拆分和停靠终端，一眼看清带编号的窗格及其中运行的 AI 代理，直接回应等待输入的代理，韩文输入也不会出错。"
+  }
+ },
+ "evidence": [
+  {
+   "id": "readme-quickstart",
+   "path": "README.md",
+   "lines": [
+    7,
+    15
+   ],
+   "status": "documented"
+  },
+  {
+   "id": "dock-split",
+   "path": "src/components/DockGroup.tsx",
+   "lines": [
+    40,
+    64
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "pane-number",
+   "path": "src/lib/paneNumber.ts",
+   "lines": [
+    3,
+    7
+   ],
+   "status": "code-verified"
+  },
+  {
+   "id": "agent-marks",
+   "path": "src/components/AgentMark.tsx",
+   "lines": [
+    160,
+    167
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "needs-input",
+   "path": "src/components/Sidebar.tsx",
+   "lines": [
+    254,
+    255
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "session-color",
+   "path": "src/components/Sidebar.tsx",
+   "lines": [
+    161,
+    161
+   ],
+   "status": "code-verified"
+  },
+  {
+   "id": "folder-session",
+   "path": "src/components/NewSessionDialog.tsx",
+   "lines": [
+    39,
+    64
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "ime-diff",
+   "path": "src/lib/imeDiff.ts",
+   "lines": [
+    1,
+    25
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "ime-terminal",
+   "path": "src/components/PaneTerminal.tsx",
+   "lines": [
+    308,
+    331
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "hangul-row",
+   "path": "src/lib/terminalGlyphs.ts",
+   "lines": [
+    270,
+    273
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "default-view",
+   "path": "src/lib/settings.ts",
+   "lines": [
+    117,
+    117
+   ],
+   "status": "code-verified"
+  },
+  {
+   "id": "access-local",
+   "path": "server/access.ts",
+   "lines": [
+    84,
+    95
+   ],
+   "status": "code-verified"
+  },
+  {
+   "id": "machine-name",
+   "path": "server/machines.ts",
+   "lines": [
+    92,
+    93
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "openrig-panel",
+   "path": "src/components/OpenRigPanel.tsx",
+   "lines": [
+    114,
+    120
+   ],
+   "status": "execution-verified"
+  },
+  {
+   "id": "terminal-menu",
+   "path": "src/components/TerminalMenu.tsx",
+   "lines": [
+    24,
+    25
+   ],
+   "status": "code-verified"
+  },
+  {
+   "id": "license",
+   "path": "LICENSE",
+   "lines": [
+    1,
+    3
+   ],
+   "status": "documented"
+  },
+  {
+   "id": "changelog",
+   "path": "CHANGELOG.termweave.md",
+   "lines": [
+    1,
+    6
+   ],
+   "status": "documented"
+  }
+ ],
+ "benefits": [
+  {
+   "id": "workspaces",
+   "title": {
+    "en": "cmux-style workspaces with numbered, docked panes",
+    "ko": "cmux처럼 작업 공간마다 번호가 붙은 터미널 배치",
+    "ja": "cmux 風のワークスペースと番号付きドッキングペイン",
+    "zh": "cmux 风格的工作区与带编号的停靠窗格"
+   },
+   "body": {
+    "en": "Each workspace keeps its own split layout: split, drag, resize and zoom. Every terminal gets a global number like P3 and an icon for the agent running in it.",
+    "ko": "작업 공간마다 분할 배치를 따로 기억합니다. 나누기, 끌어 옮기기, 크기 조절, 확대가 됩니다. 모든 터미널에 P3 같은 전역 번호와 실행 중인 에이전트 아이콘이 붙습니다.",
+    "ja": "ワークスペースごとに分割レイアウトを保持します。右や下に分割し、タブをグループ間でドラッグし、サイズ変更やズームもできます。すべてのターミナルには P3 のような通し番号が付き、サイドバーでどのエージェント（Claude Code、Codex、Gemini CLI など）が動いているか分かります。",
+    "zh": "每个工作区都保留自己的拆分布局。可以向右或向下拆分、在分组之间拖动标签页、调整大小和放大。每个终端都有 P3 这样的全局编号，侧边栏会显示其中运行的代理（Claude Code、Codex、Gemini CLI 等）。"
+   },
+   "evidence": [
+    "dock-split",
+    "pane-number",
+    "agent-marks"
+   ]
+  },
+  {
+   "id": "needs-you",
+   "title": {
+    "en": "See and answer the agents that need you",
+    "ko": "응답을 기다리는 에이전트를 바로 찾아 답하기",
+    "ja": "入力待ちのエージェントをすぐ見つけて応答",
+    "zh": "立即找到并回应等待你的代理"
+   },
+   "body": {
+    "en": "A Needs you list collects panes waiting for input, and each workspace shows Running and Needs input counts. Answer from the terminal or chat, on desktop or phone.",
+    "ko": "'응답 필요' 목록에 입력을 기다리는 패널이 모이고, 작업 공간마다 실행 중·응답 필요 개수가 보입니다. 데스크톱이나 휴대폰에서 터미널 또는 채팅으로 바로 답합니다.",
+    "ja": "「Needs you」一覧に入力待ちのペインが集まり、各ワークスペースに実行中と入力待ちの件数が表示されます。ペインを開き、ターミナルまたはチャット画面からデスクトップでもスマートフォンでも応答できます。",
+    "zh": "“Needs you”列表汇集等待输入的窗格，每个工作区显示运行中和需要输入的数量。打开窗格即可在终端或聊天视图中回应，桌面和手机均可使用。"
+   },
+   "evidence": [
+    "needs-input",
+    "default-view"
+   ]
+  },
+  {
+   "id": "korean",
+   "title": {
+    "en": "Native Mac window with correct Korean input",
+    "ko": "맥 전용 앱 창과 깨지지 않는 한글 입력",
+    "ja": "Mac ネイティブウィンドウと正しい韓国語入力",
+    "zh": "Mac 原生窗口与正确的韩文输入"
+   },
+   "body": {
+    "en": "In WebKit the macOS Korean IME rewrites syllables in place, which xterm alone drops. TermWeave replays each edit, so fast Hangul typing arrives exactly and spaces stay plain.",
+    "ko": "WebKit에서는 macOS 한국어 입력기가 음절을 제자리에서 고쳐 써서 xterm만으로는 글자가 빠집니다. TermWeave는 입력 변화를 그대로 다시 보내므로 빠르게 쳐도 한글과 띄어쓰기가 정확합니다.",
+    "ja": "WebKit（Safari と Mac アプリ）では macOS の韓国語 IME が音節をその場で書き換え、xterm 単体ではその入力が失われます。TermWeave は入力欄の変化をそのまま送り直すため、速く打ってもハングルが正確に届き、スペースは通常の空白のまま、小さな文字でもハングルの上が欠けません。",
+    "zh": "在 WebKit（Safari 与 Mac 应用）中，macOS 韩文输入法会原地改写音节，仅靠 xterm 会丢失这些输入。TermWeave 按输入框的变化重新发送，因此快速输入韩文也能准确到达，空格保持普通空格，小字号下韩文顶部也不会被裁切。"
+   },
+   "evidence": [
+    "ime-diff",
+    "ime-terminal",
+    "hangul-row"
+   ]
+  }
+ ],
+ "quickstart": {
+  "commands": [
+   "sh install.sh --check",
+   "TERMWEAVE_INSTALL_DIR=\"$HOME/.local/share/termweave-owned\" sh install.sh --install",
+   "bun \"$HOME/.local/share/termweave-owned/scripts/owned-server.ts\" start"
+  ],
+  "prerequisites": {
+   "en": "macOS or Linux, Bun 1.4.2, Node 18+ and a separately installed herdr (validated with herdr 0.9.1 on macOS). Run the commands in a normal shell.",
+   "ko": "macOS 또는 Linux, Bun 1.4.2, Node 18 이상, 그리고 별도로 설치한 herdr가 필요합니다(macOS의 herdr 0.9.1로 검증). 명령은 일반 셸에서 실행합니다.",
+   "ja": "macOS または Linux、Bun 1.4.2、Node 18 以上、別途インストールした herdr が必要です（macOS の herdr 0.9.1 で検証）。コマンドは通常のシェルで実行します。",
+   "zh": "需要 macOS 或 Linux、Bun 1.4.2、Node 18 及以上，以及单独安装的 herdr（已在 macOS 上用 herdr 0.9.1 验证）。请在普通 shell 中运行命令。"
+  },
+  "expected": {
+   "en": "The check reports missing prerequisites, the install builds local source only, and the server prints a loopback address. Open it in a browser. Nothing is exposed outside this PC unless you configure access yourself.",
+   "ko": "점검 단계는 빠진 준비물을 알려 주고, 설치는 로컬 소스만 빌드하며, 서버는 이 PC 안에서만 열리는 주소를 출력합니다. 그 주소를 브라우저로 엽니다. 직접 설정하지 않는 한 이 PC 밖으로는 열리지 않습니다.",
+   "ja": "チェックは不足している前提条件を報告し、インストールはローカルのソースだけをビルドし、サーバーはこの PC 内だけで開くアドレスを表示します。そのアドレスをブラウザーで開きます。自分で設定しない限り、この PC の外には公開されません。",
+   "zh": "检查步骤会报告缺少的前提条件，安装只构建本地源码，服务器会打印仅在本机可访问的地址。用浏览器打开该地址。除非你自行配置，否则不会对本机以外开放。"
+  },
+  "evidence": [
+   "readme-quickstart"
+  ]
+ },
+ "howItWorks": {
+  "layout": "flow",
+  "intro": {
+   "en": "TermWeave never owns your terminals. herdr runs every shell and agent; TermWeave is a client that reads herdr's socket and draws it in a browser tab or the Mac app.",
+   "ko": "TermWeave는 터미널을 직접 소유하지 않습니다. 모든 셸과 에이전트는 herdr가 실행하고, TermWeave는 herdr의 소켓을 읽어 브라우저 탭이나 맥 앱에 그려 주는 클라이언트입니다.",
+   "ja": "TermWeave はターミナルを所有しません。シェルとエージェントはすべて herdr が実行し、TermWeave は herdr のソケットを読んでブラウザーのタブや Mac アプリに描画するクライアントです。",
+   "zh": "TermWeave 不拥有你的终端。所有 shell 和代理都由 herdr 运行；TermWeave 是读取 herdr 套接字并在浏览器标签页或 Mac 应用中绘制的客户端。"
+  },
+  "steps": [
+   {
+    "id": "herdr",
+    "title": {
+     "en": "herdr runs the terminals",
+     "ko": "herdr가 터미널을 실행",
+     "ja": "herdr がターミナルを実行",
+     "zh": "herdr 运行终端"
+    },
+    "body": {
+     "en": "Workspaces, panes, shells and agents live in herdr. Closing the browser or restarting TermWeave leaves them running.",
+     "ko": "작업 공간, 패널, 셸, 에이전트는 herdr 안에 있습니다. 브라우저를 닫거나 TermWeave를 다시 시작해도 계속 실행됩니다.",
+     "ja": "ワークスペース、ペイン、シェル、エージェントは herdr の中にあります。ブラウザーを閉じても TermWeave を再起動しても動き続けます。",
+     "zh": "工作区、窗格、shell 和代理都存在于 herdr 中。关闭浏览器或重启 TermWeave 后它们仍在运行。"
+    },
+    "evidence": [
+     "readme-quickstart"
+    ]
+   },
+   {
+    "id": "server",
+    "title": {
+     "en": "TermWeave server bridges it",
+     "ko": "TermWeave 서버가 연결",
+     "ja": "TermWeave サーバーが橋渡し",
+     "zh": "TermWeave 服务器负责桥接"
+    },
+    "body": {
+     "en": "A local Bun server talks to the herdr socket and streams terminals. Loopback clients are trusted; any configured token is required of everyone, and remote access stays off until you set it up.",
+     "ko": "로컬 Bun 서버가 herdr 소켓과 통신하며 터미널 화면을 전달합니다. 이 PC 안의 접속은 신뢰하고, 토큰을 설정하면 모든 접속에 토큰을 요구하며, 원격 접속은 직접 설정하기 전까지 꺼져 있습니다.",
+     "ja": "ローカルの Bun サーバーが herdr のソケットと通信し、ターミナルを配信します。この PC 内からの接続は信頼し、トークンを設定するとすべての接続に要求し、リモートアクセスは設定するまで無効です。",
+     "zh": "本地 Bun 服务器与 herdr 套接字通信并传输终端画面。本机连接受信任；一旦配置令牌，所有连接都需要令牌；在你自行设置之前远程访问保持关闭。"
+    },
+    "evidence": [
+     "access-local"
+    ]
+   },
+   {
+    "id": "clients",
+    "title": {
+     "en": "Browser, Mac app or phone shows it",
+     "ko": "브라우저·맥 앱·휴대폰에 표시",
+     "ja": "ブラウザー・Mac アプリ・スマホで表示",
+     "zh": "浏览器、Mac 应用或手机显示"
+    },
+    "body": {
+     "en": "The same UI runs in a browser tab, the optional native Mac window and a phone layout that opens terminals first. Optional panels such as OpenRig teams only act when you turn them on.",
+     "ko": "같은 화면이 브라우저 탭, 선택 사항인 맥 전용 앱 창, 터미널이 먼저 열리는 휴대폰 화면에서 동작합니다. OpenRig 팀 같은 선택 패널은 직접 켰을 때만 동작합니다.",
+     "ja": "同じ UI がブラウザーのタブ、任意の Mac ネイティブウィンドウ、ターミナルを先に開くスマホ表示で動きます。OpenRig チームなどの任意パネルは、オンにしたときだけ動作します。",
+     "zh": "同一界面可在浏览器标签页、可选的 Mac 原生窗口以及优先打开终端的手机布局中运行。OpenRig 团队等可选面板仅在你开启后才会工作。"
+    },
+    "evidence": [
+     "default-view",
+     "openrig-panel"
+    ]
+   }
+  ]
+ },
+ "useCases": [
+  {
+   "id": "multi-agent",
+   "title": {
+    "en": "Run several coding agents side by side",
+    "ko": "코딩 에이전트 여러 개를 나란히 실행",
+    "ja": "複数のコーディングエージェントを並べて実行",
+    "zh": "并排运行多个编码代理"
+   },
+   "body": {
+    "en": "Keep Claude Code, Codex and a test runner in one workspace, tell them apart by agent icon and P number, and jump to whichever one needs input.",
+    "ko": "Claude Code, Codex, 테스트 실행 창을 한 작업 공간에 두고, 에이전트 아이콘과 P 번호로 구분하며, 응답이 필요한 쪽으로 바로 이동합니다.",
+    "ja": "Claude Code、Codex、テスト実行を一つのワークスペースに置き、エージェントアイコンと P 番号で見分け、入力待ちのものへすぐ移動します。",
+    "zh": "把 Claude Code、Codex 和测试运行放在同一工作区，通过代理图标和 P 编号区分，并直接跳到需要输入的那个。"
+   },
+   "evidence": [
+    "agent-marks",
+    "pane-number",
+    "needs-input"
+   ]
+  },
+  {
+   "id": "folders",
+   "title": {
+    "en": "One folder session per project",
+    "ko": "프로젝트마다 폴더 세션 하나",
+    "ja": "プロジェクトごとにフォルダーセッション",
+    "zh": "每个项目一个文件夹会话"
+   },
+   "body": {
+    "en": "The + on a PC creates a folder session: pick a folder first, name it, and start a plain shell unless you choose an agent. Rename, color or close it from its menu.",
+    "ko": "PC 옆의 +는 폴더 세션을 만듭니다. 폴더를 먼저 고르고 이름을 붙이며, 에이전트를 고르지 않으면 일반 셸로 시작합니다. 메뉴에서 이름 변경, 색상 지정, 닫기를 할 수 있습니다.",
+    "ja": "PC の + でフォルダーセッションを作成します。まずフォルダーを選んで名前を付け、エージェントを選ばなければ通常のシェルで始まります。メニューから名前変更、色付け、終了ができます。",
+    "zh": "PC 旁的 + 会创建文件夹会话：先选文件夹并命名，不选代理时以普通 shell 启动。可在菜单中重命名、设置颜色或关闭。"
+   },
+   "evidence": [
+    "folder-session",
+    "session-color",
+    "terminal-menu"
+   ]
+  },
+  {
+   "id": "share-screen",
+   "title": {
+    "en": "Share your screen without your machine name",
+    "ko": "컴퓨터 이름을 숨기고 화면 공유",
+    "ja": "マシン名を隠して画面共有",
+    "zh": "隐藏机器名后共享屏幕"
+   },
+   "body": {
+    "en": "Set TERMWEAVE_MACHINE_NAME to show a neutral PC name in the sidebar during demos and recordings. The screenshots in this README were taken that way.",
+    "ko": "TERMWEAVE_MACHINE_NAME을 설정하면 시연이나 녹화 중 사이드바에 다른 PC 이름이 표시됩니다. 이 README의 화면도 그렇게 촬영했습니다.",
+    "ja": "TERMWEAVE_MACHINE_NAME を設定すると、デモや録画中にサイドバーへ別の PC 名を表示できます。この README の画面もその方法で撮影しました。",
+    "zh": "设置 TERMWEAVE_MACHINE_NAME 后，演示和录屏时侧边栏会显示中性的 PC 名称。本 README 中的截图就是这样拍摄的。"
+   },
+   "evidence": [
+    "machine-name"
+   ]
+  }
+ ],
+ "limitations": [
+  {
+   "id": "herdr-required",
+   "body": {
+    "en": "herdr is required and installed separately; TermWeave does not bundle or upgrade it. Validation so far used herdr 0.9.1 on macOS; Linux and Windows are not validated.",
+    "ko": "herdr가 반드시 필요하며 따로 설치해야 합니다. TermWeave는 herdr를 포함하거나 업그레이드하지 않습니다. 지금까지는 macOS의 herdr 0.9.1로만 검증했고, Linux와 Windows는 검증하지 않았습니다.",
+    "ja": "herdr は必須で、別途インストールが必要です。TermWeave は herdr を同梱も更新もしません。これまでの検証は macOS の herdr 0.9.1 のみで、Linux と Windows は未検証です。",
+    "zh": "必须单独安装 herdr；TermWeave 不捆绑也不升级它。目前仅在 macOS 上用 herdr 0.9.1 验证过，Linux 和 Windows 未验证。"
+   },
+   "evidence": [
+    "readme-quickstart"
+   ]
+  },
+  {
+   "id": "not-official",
+   "body": {
+    "en": "Independent project derived from herdr-web-ui (MIT). Not affiliated with herdr, cmux, Anthropic, OpenAI or Google; agent icons only label which program runs in a pane.",
+    "ko": "herdr-web-ui(MIT)에서 파생한 독립 프로젝트입니다. herdr, cmux, Anthropic, OpenAI, Google과 제휴 관계가 없으며, 에이전트 아이콘은 패널에서 어떤 프로그램이 실행 중인지 표시하는 용도입니다.",
+    "ja": "herdr-web-ui（MIT）から派生した独立プロジェクトです。herdr、cmux、Anthropic、OpenAI、Google とは提携しておらず、エージェントアイコンはペインで動くプログラムを示すためだけのものです。",
+    "zh": "这是从 herdr-web-ui（MIT）派生的独立项目，与 herdr、cmux、Anthropic、OpenAI、Google 均无隶属关系；代理图标仅用于标示窗格中运行的程序。"
+   },
+   "evidence": [
+    "license",
+    "agent-marks"
+   ]
+  },
+  {
+   "id": "manual-checks",
+   "body": {
+    "en": "Real phone IME, Safari on iOS and assistive technology still need manual checks. Remote access, the Android companion and OpenRig teams are optional and off by default.",
+    "ko": "실제 휴대폰 입력기, iOS 사파리, 보조 기술은 아직 수동 확인이 필요합니다. 원격 접속, 안드로이드 연동, OpenRig 팀은 선택 기능이며 기본적으로 꺼져 있습니다.",
+    "ja": "実機スマホの IME、iOS の Safari、支援技術はまだ手動確認が必要です。リモートアクセス、Android 連携、OpenRig チームは任意機能で、既定ではオフです。",
+    "zh": "真实手机输入法、iOS 上的 Safari 和辅助技术仍需手动检查。远程访问、Android 配套功能和 OpenRig 团队均为可选功能，默认关闭。"
+   },
+   "evidence": [
+    "readme-quickstart",
+    "openrig-panel"
+   ]
+  }
+ ],
+ "verification": [
+  {
+   "id": "ime-test",
+   "status": "execution-verified",
+   "body": {
+    "en": "Hangul typed through the real macOS Korean IME in WebKit at 60, 25 and 12 ms per key arrived exactly in the shell (9 of 9 sentences, spaces included).",
+    "ko": "WebKit에서 실제 macOS 한국어 입력기로 키 간격 60·25·12ms로 친 한글이 셸에 정확히 들어갔습니다(문장 9개 중 9개, 띄어쓰기 포함).",
+    "ja": "WebKit で実際の macOS 韓国語 IME を使い、キー間隔 60・25・12 ms で入力したハングルがシェルに正確に届きました（9 文中 9 文、スペースを含む）。",
+    "zh": "在 WebKit 中通过真实的 macOS 韩文输入法以每键 60、25、12 毫秒输入的韩文准确到达 shell（9 句中 9 句，含空格）。"
+   },
+   "evidence": [
+    "ime-diff",
+    "ime-terminal"
+   ]
+  },
+  {
+   "id": "screens",
+   "status": "execution-verified",
+   "body": {
+    "en": "Screenshots come from this source running against a separate demo herdr session with sample projects; no personal workspace is shown.",
+    "ko": "화면은 이 소스를 샘플 프로젝트가 들어 있는 별도의 시연용 herdr 세션에 연결해 촬영했습니다. 개인 작업 공간은 나오지 않습니다.",
+    "ja": "画面はこのソースをサンプルプロジェクト入りの別のデモ用 herdr セッションに接続して撮影しました。個人のワークスペースは写っていません。",
+    "zh": "截图来自本源码连接到包含示例项目的独立演示 herdr 会话，未显示任何个人工作区。"
+   },
+   "evidence": [
+    "dock-split",
+    "machine-name"
+   ]
+  },
+  {
+   "id": "unit",
+   "status": "documented",
+   "body": {
+    "en": "Unit tests and type checks run locally before each export; there is no hosted CI badge yet.",
+    "ko": "공개본을 만들 때마다 로컬에서 단위 테스트와 타입 검사를 실행합니다. 아직 외부 CI 배지는 없습니다.",
+    "ja": "公開版を作るたびにローカルで単体テストと型チェックを実行します。まだ外部 CI バッジはありません。",
+    "zh": "每次导出前都会在本地运行单元测试和类型检查；目前还没有托管的 CI 徽章。"
+   },
+   "evidence": [
+    "changelog"
+   ]
+  }
+ ],
+ "next": {
+  "en": "Read CHANGELOG.termweave.md for what changed in each release, SECURITY.md before enabling remote access, and CONTRIBUTING.md to send fixes.",
+  "ko": "릴리스별 변경 사항은 CHANGELOG.termweave.md에서, 원격 접속을 켜기 전 주의 사항은 SECURITY.md에서, 수정 제안 방법은 CONTRIBUTING.md에서 확인할 수 있습니다.",
+  "ja": "リリースごとの変更は CHANGELOG.termweave.md、リモートアクセスを有効にする前の注意は SECURITY.md、修正の送り方は CONTRIBUTING.md をご覧ください。",
+  "zh": "各版本的变更见 CHANGELOG.termweave.md，开启远程访问前请阅读 SECURITY.md，提交修复请参阅 CONTRIBUTING.md。"
+ },
+ "realScreenshots": [
+  "hero",
+  "gallery-1",
+  "gallery-2",
+  "gallery-3"
+ ],
+ "screenshotCaption": {
+  "en": "real app screen, demo session with sample projects",
+  "ko": "실제 앱 화면, 샘플 프로젝트를 띄운 시연 세션",
+  "ja": "実際のアプリ画面、サンプルプロジェクトのデモセッション",
+  "zh": "真实应用界面，使用示例项目的演示会话"
+ }
+}

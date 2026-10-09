@@ -1,0 +1,10 @@
+name: TermWeave upstream
+description: Propose a reviewed upstream change
+body:
+  - type: textarea
+    id: requirement
+    attributes:
+      label: Requirement, source and acceptance criteria
+      description: Use public provenance and synthetic examples. No secrets, personal transcripts or automatic deployment instructions.
+    validations:
+      required: true

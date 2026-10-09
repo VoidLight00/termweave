@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: 'Be concise. Prioritize reproducible correctness, security, lifecycle and regression issues. Explain the failing scenario. Avoid cosmetic suggestions and speculative rewrites.'
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary_in_walkthrough: true
+  poem: false
+  sequence_diagrams: false
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    - '!shared/herdr-api.generated.ts'
+    - '!docs/screenshots/**'
+    - '!evidence/**'
+    - '!dist/**'
+    - '!public/icons/*.png'
+    - '!bun.lock'
+  path_instructions:
+    - path: 'server/**'
+      instructions: >-
+        Follow .github/REVIEW.md and any available AGENTS.md. Never load node-pty in Bun or pass
+        --takeover to herdr terminal attach. Verify attach cancellation, shared
+        pending attaches and last-client cleanup. Observe clients must never send
+        input or resize a pane. Each RPC uses a fresh socket; subscriptions alone
+        stay open. Tests mutate only owned panes and use temporary state directories.
+        Malformed VAPID state must fail without rotating the key.
+    - path: 'src/**'
+      instructions: >-
+        Follow .github/REVIEW.md and any available AGENTS.md. Never queue terminal input while
+        disconnected. Render the append-only PTY stream with term.write, with
+        xterm scrollback zero. Keep observe and ended panes read-only. Preserve
+        IME input and native clipboard behavior. Use the existing theme tokens.
+    - path: '{shared,scripts}/**'
+      instructions: >-
+        Generated herdr wire types must come from the schema and generator,
+        never manual edits. Keep HTTP and WebSocket contracts consistent on
+        both sides. Release tags are visible to installed updaters immediately;
+        publish them only after the exact commit passes validation.
+    - path: '.github/workflows/**'
+      instructions: >-
+        PR code runs without write tokens or repository secrets. Avoid
+        pull_request_target for checkout and execution of PR code. Do not
+        interpolate untrusted input directly into shell scripts. Release
+        publishing must depend on successful validation of the same commit.
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - '.github/REVIEW.md'
+      - 'CONTRIBUTING.md'
+      - '**/AGENTS.md'

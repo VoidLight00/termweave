@@ -1,0 +1,18 @@
+# Paths left out of the public export (zsh globs, relative to the repo root).
+# Internal working notes and machine-specific scripts; the product source stays public.
+docs/postmortems
+docs/*-2026[0-9][0-9][0-9][0-9]*.md
+docs/ROADMAP-cmux-tmux.md
+docs/PLAN-*.md
+FAILURE_LOG.md
+tracking
+evidence
+design/logo-options-*
+# live smoke scripts drive the owner's own herdr session
+scripts/*-live*.ts
+scripts/*-live-smoke.ts
+scripts/chat-pane-regression.ts
+server/android/runtime.test.ts
+# per-machine launchd file; the script itself is public
+tools/resurrect/*.plist
+tools/local-fixes

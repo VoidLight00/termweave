@@ -1,0 +1,131 @@
+<!doctype html>
+<!--
+  The template banner.ts renders: the README banner, the Open Graph card and the framed
+  "A look around" shots. The graphite stage from brief section 2 (lamp, floor pool, vignette,
+  grain) with the real app in a window object and a phone object. banner.ts replaces the
+  {{…}} tokens and sets <body data-kind>; nothing here is animated.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {
+    font-family: "Pretendard Variable";
+    font-weight: 45 920;
+    src: url("{{FONTS}}/PretendardVariable.ttf") format("truetype"),
+      url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/woff2/PretendardVariable.woff2") format("woff2-variations");
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-weight: 500;
+    src: url("{{FONTS}}/JetBrainsMono-Medium.ttf") format("truetype"),
+      url("https://cdn.jsdelivr.net/npm/@fontsource/jetbrains-mono@5.1.0/files/jetbrains-mono-latin-500-normal.woff2") format("woff2");
+  }
+
+  :root {
+    --bg: #12100e;
+    --panel: #181613;
+    --border-strong: #3e3830;
+    --text: #d8d0c3;
+    --dim: #9b9183;
+    --strong: #f2ebdf;
+    --amber: #f0a830;
+    --sans: "Pretendard Variable", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: #12100e; }
+  body { width: {{W}}px; height: {{H}}px; overflow: hidden; font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+
+  /* ---- the stage ---- */
+  .stage {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    background:
+      radial-gradient(ellipse 58% 70% at var(--lamp-x, 50%) -12%, rgba(240, 168, 48, 0.10), rgba(240, 168, 48, 0.03) 42%, transparent 72%),
+      radial-gradient(ellipse 50% 22% at var(--pool-x, 50%) 100%, rgba(242, 235, 223, 0.06), transparent 70%),
+      var(--bg);
+  }
+  .grain, .vignette { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+  .grain { background: url("{{GRAIN}}"); opacity: 0.03; mix-blend-mode: overlay; }
+  .vignette { box-shadow: inset 0 0 240px rgba(0, 0, 0, 0.55); }
+
+  /* ---- the window object: raw 1440x900 capture, chrome scaled with it (k = width / 1440) ---- */
+  .window {
+    --k: calc(var(--ww) / 1440);
+    position: absolute; width: calc(var(--ww) * 1px);
+    border-radius: 14px; overflow: hidden; background: var(--panel);
+    border: 1px solid rgba(242, 235, 223, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 240, 220, 0.14), 0 50px 120px -20px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.5);
+  }
+  .window .bar {
+    position: relative; height: calc(38px * var(--k)); display: flex; align-items: center;
+    padding-left: calc(16px * var(--k)); gap: calc(8px * var(--k));
+    box-shadow: inset 0 1px 0 rgba(255, 240, 220, 0.14);
+  }
+  .window .dot { width: calc(12px * var(--k)); height: calc(12px * var(--k)); border-radius: 50%; background: var(--border-strong); }
+  .window .url {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font: 500 calc(12px * var(--k)) / 1 var(--mono); color: var(--dim);
+    padding: calc(5px * var(--k)) calc(14px * var(--k)); border-radius: 999px; background: rgba(0, 0, 0, 0.22);
+  }
+  .window img { display: block; width: 100%; height: auto; }
+
+  /* ---- the phone object: raw 780x1688 capture ---- */
+  .phone {
+    position: absolute; width: calc(var(--pw) * 1px); padding: 10px; border-radius: 46px; background: #0b0a09;
+    box-shadow: 0 0 0 1px rgba(242, 235, 223, 0.10), inset 0 1px 0 rgba(255, 240, 220, 0.10);
+    filter: drop-shadow(0 40px 60px rgba(0, 0, 0, 0.55));
+  }
+  .phone img { display: block; width: 100%; height: auto; border-radius: 36px; }
+
+  /* ---- type ---- */
+  .copy { position: absolute; z-index: 5; }
+  .mark { display: block; }
+  .word { color: var(--strong); font-weight: 700; letter-spacing: -0.035em; line-height: 1; }
+  .tag { color: var(--dim); font-weight: 500; letter-spacing: -0.015em; line-height: 1.2; }
+
+  /* ---- banner 1920x800 and og 1280x640: copy left; window bleeding off the right and bottom,
+     phone standing clear of the bottom edge in front of it, both in one perspective ---- */
+  body[data-kind="banner"] .stage, body[data-kind="og"] .stage { --lamp-x: 22%; --pool-x: 58%; }
+  .scene { position: absolute; inset: 0; perspective: 2400px; perspective-origin: 55% 45%; }
+  .scene .window { transform: rotateY(-16deg) rotateX(6deg); transform-origin: 100% 50%; }
+  .scene .phone { transform: rotateY(-5deg); transform-origin: 0 50%; z-index: 4; }
+
+  body[data-kind="banner"] .copy { left: 96px; top: 50%; transform: translateY(-50%); width: 720px; }
+  body[data-kind="banner"] .mark { width: 128px; height: 128px; margin: 0 0 40px -10px; }
+  body[data-kind="banner"] .word { font-size: 88px; }
+  body[data-kind="banner"] .tag { font-size: 40px; margin-top: 22px; }
+  body[data-kind="banner"] .window { --ww: 1240; left: 800px; top: 70px; }
+  body[data-kind="banner"] .phone { --pw: 322; left: 830px; top: 186px; }
+
+  body[data-kind="og"] .copy { left: 64px; top: 50%; transform: translateY(-50%); width: 540px; }
+  body[data-kind="og"] .mark { width: 96px; height: 96px; margin: 0 0 30px -8px; }
+  body[data-kind="og"] .word { font-size: 64px; }
+  body[data-kind="og"] .tag { font-size: 30px; margin-top: 16px; }
+  body[data-kind="og"] .window { --ww: 960; left: 600px; top: 92px; }
+  body[data-kind="og"] .phone { --pw: 260; left: 606px; top: 168px; padding: 8px; border-radius: 38px; }
+  body[data-kind="og"] .phone img { border-radius: 30px; }
+
+  /* ---- look: one window under the lamp; whole and centred, or a detail whose top-left corner sits
+     96px in and which bleeds off the right and bottom ---- */
+  body[data-kind="look"] .window { --ww: {{LOOK_W}}; }
+  body[data-look="whole"] .window { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  body[data-look="detail"] .window { left: 96px; top: 96px; }
+  body[data-look="detail"] .stage { --lamp-x: 34%; }
+  /* the detail sinks into the table where it leaves the frame, so the bleed reads as chosen */
+  body[data-look="detail"] .stage::after {
+    content: ""; position: absolute; inset: 0; z-index: 9; pointer-events: none;
+    background:
+      linear-gradient(to bottom, transparent calc(100% - 340px), rgba(18, 16, 14, 0.94)),
+      linear-gradient(to right, transparent calc(100% - 64px), rgba(18, 16, 14, 0.7));
+  }
+</style>
+</head>
+<body data-kind="{{KIND}}" data-look="{{LOOK}}">
+  <div class="stage">
+    {{CONTENT}}
+    <div class="grain"></div>
+    <div class="vignette"></div>
+  </div>
+</body>
+</html>

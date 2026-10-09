@@ -1,0 +1,143 @@
+import { chromiumExecutable } from './browser.ts';
+import "./test-herdr.ts";
+import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { chromium } from "playwright-core";
+import { createServer } from "../server/index.ts";
+import { sessionSnapshot, workspaceCreate, workspaceClose, herdrRpc } from "../server/herdr/client.ts";
+import { UsageService } from "../server/usage.ts";
+const root = mkdtempSync(join(tmpdir(), "herdr-dock-test-"));
+const owned: string[] = [];
+let server: ReturnType<typeof createServer> | undefined;
+let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+try {
+  const created = await workspaceCreate({ cwd: root, label: "dock-test-owned" }); owned.push(created.workspace.workspace_id);
+  const other = await workspaceCreate({ cwd: root, label: "dock-test-other" }); owned.push(other.workspace.workspace_id);
+  const ids = [created.root_pane.pane_id];
+  for (let i = 0; i < 3; i++) ids.push((await herdrRpc<{ pane: { pane_id: string } }>("pane.split", { target_pane_id: ids[0], direction: "right", cwd: root, focus: false })).pane.pane_id);
+  server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: root, usage: new UsageService(undefined, []) });
+  const origin = `http://127.0.0.1:${server.port}`;
+  browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+  await page.addInitScript(({ workspace, panes }) => {
+    localStorage.setItem("termweave:settings", JSON.stringify({ language: "en", terminalInputMode: "direct" }));
+    const g = (index: number) => ({ kind: "group", id: `g${index}`, tabs: [panes[index]], active: panes[index] });
+    const split = (id: string, axis: string, first: unknown, second: unknown) => ({ kind: "split", id, axis, ratio: 0.5, first, second });
+    const key = `termweave:dock:v1:local:${workspace}`;
+    if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(split("c", "columns", split("r1", "rows", g(0), g(1)), split("r2", "rows", g(2), g(3)))));
+  }, { workspace: created.workspace.workspace_id, panes: ids });
+  const ready=new Set<string>();
+  const errors: string[] = [], input: { pane_id: string }[] = [];
+  page.on("pageerror", error => { errors.push(error.message); console.error(error.stack); });
+  page.on("websocket", socket => { socket.on("framereceived",({payload})=>{const m=JSON.parse(String(payload));if(m.type==="input-ready"&&m.pane_id)ready.add(m.pane_id);}); socket.on("framesent", ({ payload }) => { const m = JSON.parse(String(payload)); if (m.type === "input") input.push(m); }); });
+  await page.goto(`${origin}/?pane=${ids[0]}`); await page.locator(".conn-live").waitFor();
+  const before = await sessionSnapshot();
+  assert.equal(await page.getByRole("button", { name: /^(단일|좌우 2분할|상하 2분할|4분할)$/ }).count(), 0);
+  assert.equal(await page.locator(".dock-group").count(), 4);
+  const drag = async (source: number, target: number, x = 0.5, y = 0.5) => {
+    const box = await page.locator(".dock-drop-body").nth(target).boundingBox(); assert.ok(box); assert.ok(box.height > 100);
+    const title = await page.locator(`[data-tab-id="${ids[source]}"]`).boundingBox(); assert.ok(title);
+    await page.mouse.move(title.x + title.width / 2, title.y + title.height / 2); await page.mouse.down();
+    await page.mouse.move(title.x + title.width / 2 + 10, title.y + title.height / 2, { steps: 5 });
+    await page.mouse.move(box.x + box.width * x, box.y + box.height * y, { steps: 20 });
+    await page.mouse.move(box.x + box.width * x, box.y + box.height * y); await page.mouse.up();
+  };
+  await page.waitForTimeout(300);
+  await drag(1, 0); await page.waitForFunction(() => document.querySelectorAll(".dock-group").length === 3);
+  const first = page.locator(".dock-group").first(); assert.equal(await first.getByRole("tab").count(), 2);
+  await first.getByText("Keyboard layout", { exact: true }).click();
+  await first.getByRole("button", { name: "Move tab earlier", exact: true }).click();
+  assert.equal(await first.getByRole("tab").first().getAttribute("data-tab-id"), ids[1]!);
+  await drag(1, 0, 0.98, 0.5); assert.equal(await page.locator(".dock-group").count(), 4);
+  for (const axis of ["columns", "rows"] as const) {
+    const divider = page.locator(`.dock-divider-${axis}`).first(); const box = await divider.boundingBox(); assert.ok(box);
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down();
+    await page.mouse.move(box.x + (axis === "columns" ? 75 : 0), box.y + (axis === "rows" ? 60 : 0)); await page.mouse.up();
+    const ratio = Number(await divider.getAttribute("aria-valuenow")); assert.ok(ratio >= 15 && ratio <= 85);
+    await divider.focus(); await page.keyboard.press(axis === "columns" ? "ArrowLeft" : "ArrowUp");
+    assert.ok(Number(await divider.getAttribute("aria-valuenow")) < ratio);
+    const start = await divider.getAttribute("aria-valuenow");
+    await divider.dispatchEvent("pointerdown", { pointerId: 12, button: 0, clientX: box.x, clientY: box.y });
+    await divider.dispatchEvent("pointercancel", { pointerId: 12 });
+    assert.equal(await divider.getAttribute("aria-valuenow"), start);
+  }
+  const stored = await page.evaluate(() => localStorage.getItem(Object.keys(localStorage).find(key => key.startsWith("termweave:dock:v1:"))!));
+  await page.locator(".dock-group").first().getByRole("button", { name: "Zoom", exact: true }).click();
+  assert.equal(await page.locator(".dock-group").count(), 1);
+  await page.getByRole("button", { name: "Restore layout", exact: true }).click(); assert.equal(await page.locator(".dock-group").count(), 4);
+  ready.clear(); await page.reload(); await page.locator(".conn-live").waitFor(); assert.equal(await page.locator(".dock-group").count(), 4);
+  assert.equal(await page.evaluate(() => localStorage.getItem(Object.keys(localStorage).find(key => key.startsWith("termweave:dock:v1:"))!)), stored);
+  const active = await page.locator(".dock-group").first().getAttribute("data-pane-id");
+  const deadline=Date.now()+15000;while(!ready.has(active!)&&Date.now()<deadline)await Bun.sleep(20);assert.ok(ready.has(active!),"active owned pane never input-ready");
+  await page.locator(".dock-group").first().locator(".xterm-helper-textarea").focus(); await page.waitForFunction(() => document.activeElement?.matches(".xterm-helper-textarea")); const start = input.length;
+  await page.keyboard.type("#after-drag-resize"); await page.waitForFunction(() => Boolean(document.activeElement?.matches(".xterm-helper-textarea"))); for (let attempt=0;attempt<100&&input.length===start;attempt++)await Bun.sleep(20); assert.ok(input.slice(start).length); assert.ok(input.slice(start).every(m => m.pane_id === active));
+  const after = await sessionSnapshot();
+  for (const id of ids) {
+    const old = before.panes.find(pane => pane.pane_id === id)!;
+    const next = after.panes.find(pane => pane.pane_id === id)!;
+    for (const key of ["pane_id", "terminal_id", "workspace_id", "tab_id", "cwd"] as const) assert.equal(next[key], old[key]);
+  }
+  const popupPromise = page.waitForEvent("popup");
+  await page.locator(".dock-group").first().getByRole("button", { name: "Open separate browser view", exact: true }).click();
+  const popup = await popupPromise; await popup.locator(".conn-live").waitFor();
+  await popup.waitForFunction(id => document.querySelector(".dock-group")?.getAttribute("data-pane-id") === id, active);
+  assert.equal((await sessionSnapshot()).panes.length, after.panes.length);
+  await popup.close();
+  await page.locator(".dock-group").first().getByRole("button", { name: "Hide from view", exact: true }).click();
+  assert.equal((await sessionSnapshot()).panes.length, after.panes.length);
+  await page.goto(`${origin}/?pane=${other.root_pane.pane_id}`); await page.locator(".conn-live").waitFor(); assert.equal(await page.locator(".dock-group").count(), 1);
+  const freshSource = other.root_pane.pane_id;
+  const originalTerminal = (await sessionSnapshot()).panes.find(pane => pane.pane_id === freshSource)!;
+  await page.goto(`${origin}/?pane=${freshSource}`); await page.locator(".conn-live").waitFor();
+  assert.equal(await page.locator(".dock-group").count(), 1);
+  assert.equal(await page.locator(".dock-group").getByRole("tab").count(), 1);
+  await page.getByRole("button", { name: "New terminal tab", exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll('[role="tab"]').length === 2);
+  await page.waitForFunction(() => !document.querySelector<HTMLButtonElement>('[aria-label="New terminal tab"]')?.disabled);
+  assert.equal(await page.locator(".dock-group").count(), 1);
+  assert.equal((await sessionSnapshot()).panes.length, after.panes.length + 1);
+  const newActive = await page.locator(".dock-group").getAttribute("data-pane-id");
+  assert.notEqual(newActive, freshSource);
+  const shell = (await sessionSnapshot()).panes.find(pane => pane.pane_id === newActive)!;
+  for (const key of ["workspace_id", "tab_id", "cwd"] as const) assert.equal(shell[key], originalTerminal[key]);
+  await page.locator(`[data-tab-id="${freshSource}"]`).click();
+  await page.waitForFunction(id => document.querySelector(".dock-group")?.getAttribute("data-pane-id") === id, freshSource);
+  assert.equal((await sessionSnapshot()).panes.find(pane => pane.pane_id === freshSource)?.terminal_id, originalTerminal.terminal_id);
+  await page.route("**/api/pane/split", route => route.fulfill({ status: 502, contentType: "application/json", body: '{"error":{"code":"test","message":"test"}}' }));
+  await page.getByRole("button", { name: "New terminal tab", exact: true }).first().click(); await page.getByRole("alert").waitFor();
+  assert.equal(await page.locator(".dock-group").getByRole("tab").count(), 2);
+  assert.equal((await sessionSnapshot()).panes.length, after.panes.length + 1);
+  await page.unroute("**/api/pane/split");
+  await page.locator(".dock-group").first().getByText("Search terminal output", { exact: true }).click();
+  await page.locator(".dock-group").first().getByLabel("Terminal search query").fill("after-drag-resize");
+  await page.locator(".dock-group").first().getByRole("button", { name: "Search", exact: true }).click();
+  await page.locator(".dock-search [role=status]").first().waitFor();
+  // Rapid view remounts must release sockets and settle deferred xterm work.
+  const liveSockets = new Set<import("playwright-core").WebSocket>();
+  page.on("websocket", socket => { liveSockets.add(socket); socket.on("close", () => liveSockets.delete(socket)); });
+  const paneCount = (await sessionSnapshot()).panes.length;
+  for (let i = 0; i < 20; i++) {
+    await page.locator(`[data-tab-id="${newActive}"]`).click();
+    await page.locator(`[data-tab-id="${freshSource}"]`).click();
+  }
+  await page.waitForTimeout(500);
+  assert.ok(liveSockets.size <= 1, `leaked WebSockets: ${liveSockets.size}`);
+  assert.equal((await sessionSnapshot()).panes.length, paneCount);
+  assert.deepEqual(errors, []);
+  await page.getByRole("button", { name: "Split terminal right", exact: true }).first().click();
+  await page.waitForFunction(() => document.querySelectorAll(".dock-group").length === 2);
+  // A committed tree can precede the refresh/focus stage of the same creation.
+  // The next user action starts only once that transaction has released its lock.
+  await page.getByRole("button", { name: "Split terminal below", exact: true }).first().waitFor({ state: "visible" });
+  await page.waitForFunction(() => !document.querySelector<HTMLButtonElement>('[aria-label="Split terminal below"]')?.disabled);
+  await page.getByRole("button", { name: "Split terminal below", exact: true }).first().click();
+  await page.waitForFunction(() => document.querySelectorAll(".dock-group").length === 3);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForFunction(() => document.querySelectorAll(".dock-group").length === 1);
+  assert.equal(await page.getByRole("button", { name: "New terminal tab", exact: true }).count(), 1);
+  assert.equal(await page.getByLabel("Mobile pane selection").count(), 1);
+  assert.deepEqual(errors, []);
+  console.log("PASS docking/browser: default1, presets absent, plus active same-group real shell tab/cwd, return to original terminal identity, explicit right/down splits, mobile1, rapid20 socket settle (sidecar PID oracle separate), output search, center/edge/reorder, divider axes/nested/keyboard/cancel, zoom restore, persisted reload, independent input, workspace isolation, browser undock, hide survival, creation failure; errors=0");
+} finally { await browser?.close(); server?.stop(); for (const id of owned) await workspaceClose(id).catch(() => undefined); rmSync(root, { recursive: true, force: true }); }

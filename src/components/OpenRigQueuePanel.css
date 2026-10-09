@@ -1,0 +1,11 @@
+.openrig-queue { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.openrig-queue > summary { cursor: pointer; min-height: 44px; padding-block: 12px; }
+.openrig-queue fieldset { min-width: 0; margin: 0; padding: 10px; border: 1px solid var(--border); border-radius: 6px; }
+.openrig-queue input, .openrig-queue textarea { box-sizing: border-box; width: 100%; min-width: 0; font-size: 16px; color: var(--text); background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.openrig-queue textarea { resize: vertical; }
+.openrig-queue button { min-height: 44px; max-width: 100%; white-space: normal; }
+.openrig-queue dd { margin-inline-start: 0; margin-block-end: 8px; }
+.openrig-queue p { text-wrap: pretty; }
+
+.openrig-notify { display: flex; align-items: flex-start; gap: 8px; padding-block: 10px; min-height: 44px; }
+.openrig-notify input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 20px; margin-block: 2px; }

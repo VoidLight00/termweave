@@ -1,0 +1,2 @@
+import {it,expect} from 'bun:test';import {readFileSync} from 'node:fs';import {join} from 'node:path';
+it('source-only plugin has no automatic phone exposure entrypoint',()=>{const manifest=Bun.TOML.parse(readFileSync(join(import.meta.dir,'../herdr-plugin.toml'),'utf8')) as any;expect(manifest.panes??[]).toEqual([]);expect((manifest.actions??[]).some((entry:any)=>entry.id==='phone')).toBe(false);});

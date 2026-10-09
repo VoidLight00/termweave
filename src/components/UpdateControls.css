@@ -1,0 +1,41 @@
+.update-actions,
+.update-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-updates .settings-hint,
+.settings-herdr-update .settings-hint {
+  overflow-wrap: anywhere;
+}
+
+.update-notice {
+  flex: 0 0 auto;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  color: var(--text-strong);
+  background: var(--bg-elevated);
+  border-bottom: var(--hairline) solid var(--border);
+  font-size: var(--fs-xs);
+}
+
+.update-output {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  max-height: 14em;
+  overflow: auto;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.update-output[data-failed] {
+  border-color: var(--status-blocked);
+}

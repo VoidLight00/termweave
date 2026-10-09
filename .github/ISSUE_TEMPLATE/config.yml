@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/VoidLight00/termweave/security/advisories/new
+    about: Report privately. See SECURITY.md.
+  - name: User guide and FAQ
+    url: https://github.com/devswha/herdr-web-ui/blob/main/docs/guide.md#faq
+    about: Setup, phone, access and common questions.
