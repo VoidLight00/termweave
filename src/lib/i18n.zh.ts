@@ -1112,4 +1112,10 @@ export const ZH: Record<string, string> = {
   "Create folder session": "创建文件夹会话",
   "Creating folder session…": "正在创建文件夹会话…",
   "Start program (optional)": "启动程序（可选，默认为 Shell）",
+  "Needs help": "需要协助",
+  "{n} seats need help": "{n} 个席位需要协助",
+  "Error reported": "已报告错误",
+  "Held": "已暂停",
+  "Waiting for input": "等待输入",
+  "Startup failed": "启动失败",
 };

@@ -34,7 +34,11 @@ src=$(git -C "$repo" rev-parse --short HEAD)
 if git -C "$out" diff --cached --quiet; then
   print "no public changes since the last export"
 else
-  git -C "$out" -c user.name="TermWeave" -c user.email="noreply@users.noreply.github.com" \
-    commit -q -m "chore(release): ${version:-export} from source ${src}"
+  # GitHub noreply author, stored once (no network in the background hook); never fall back to git config
+  author_email=$(cat "$HOME/.config/termweave/public-author-email" 2>/dev/null)
+  [[ $author_email == *@users.noreply.github.com ]] || { print "FAIL: no public author email in ~/.config/termweave/public-author-email"; exit 1; }
+  GIT_AUTHOR_NAME=VoidLight00 GIT_AUTHOR_EMAIL=$author_email GIT_COMMITTER_NAME=VoidLight00 GIT_COMMITTER_EMAIL=$author_email \
+    git -C "$out" commit -q -m "chore(release): ${version:-export} from source ${src}"
+  [[ $(git -C "$out" log -1 --format='%ae %ce') == "$author_email $author_email" ]] || { print "FAIL: export commit has the wrong author"; git -C "$out" reset -q --soft HEAD~1; exit 1; }
 fi
 "$harness" leakscan "$out" --public

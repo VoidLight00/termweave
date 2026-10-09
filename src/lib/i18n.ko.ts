@@ -1108,4 +1108,10 @@ export const KO: Record<string, string> = {
   "Rose": "장미색",
   "Violet": "보라",
   "Cyan": "청록",
+  "Needs help": "도움 필요",
+  "{n} seats need help": "도움이 필요한 좌석 {n}개",
+  "Error reported": "오류 보고",
+  "Held": "보류",
+  "Waiting for input": "입력 대기",
+  "Startup failed": "시작 실패",
 };

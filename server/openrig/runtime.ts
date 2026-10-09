@@ -1,3 +1,4 @@
+import { seatAttention } from "./seat-attention.ts";
 import {verifyTerminalIdentities,type OpenRigNativeSnapshot} from './terminal-identities.ts';
 import {OpenRigRecovery} from './recovery.ts';
 import {createHash} from 'node:crypto';
@@ -104,7 +105,7 @@ export class OpenRigRuntime {
     // Installed 0.6.7 attention=1 silently ignores rig. Filter the scoped list using its documented predicate instead.
     const human=(s:unknown)=>typeof s==='string'&&(/^(?:human(?:-[A-Za-z0-9._-]+)?@(kernel|host)|[A-Za-z0-9._:-]+@external)$/.test(s));
     const attention=items.filter(q=>['pending','in-progress','blocked'].includes(String(q.state))&&q.humanIntent!=='update'&&(human(q.destinationSession)||(q.state==='blocked'&&human(q.blockedOn))));
-    return {rigId,nodes:records(n).map(r=>project(r,['nodeId','rigId','rigName','logicalId','podNamespace','role','canonicalSessionName','nodeKind','runtime','sessionStatus','startupStatus','lifecycleState','model','hostSelfId'])),queue:{items:items.map(queueProjection),limit:100,truncated},attention:{items:attention.map(queueProjection),limit:100,truncated},snapshots:records(s).map(r=>project(r,['id','rigId','kind','status','createdAt'])),checkedAt:new Date().toISOString()};
+    return {rigId,nodes:records(n).map(r=>({...project(r,['nodeId','rigId','rigName','logicalId','podNamespace','role','canonicalSessionName','nodeKind','runtime','sessionStatus','startupStatus','lifecycleState','model','hostSelfId','lastActivityAt','pendingWorkCount','blockedWorkCount']),attention:seatAttention(r)})),queue:{items:items.map(queueProjection),limit:100,truncated},attention:{items:attention.map(queueProjection),limit:100,truncated},snapshots:records(s).map(r=>project(r,['id','rigId','kind','status','createdAt'])),checkedAt:new Date().toISOString()};
   }
 
 

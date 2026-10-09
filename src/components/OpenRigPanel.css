@@ -33,3 +33,7 @@
 .openrig-service-control { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .openrig-service-control > div { flex: 1 1 180px; min-width: 0; }
 .openrig-service-control > button { min-height: 44px; white-space: normal; }
+
+/* seat attention: tint and label only (no side stripe) */
+.openrig-attention, .openrig-attention-summary { display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, #d97706 16%, transparent); color: inherit; font-size: 12px; word-break: keep-all; overflow-wrap: anywhere; }
+.openrig-attention b, .openrig-attention-summary { font-weight: 600; }

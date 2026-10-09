@@ -102,10 +102,17 @@ export function OpenRigPanel({ readOnly, canManageService = false, onClose, onOp
     finally { actionBusy.current = false; if (!controller.signal.aborted) setPending(null); }
   };
   const issues = (items: SeatIssue[]) => <ul className="openrig-list">{items.map((item, index) => <li key={`${item.seat}-${index}`}><strong>{item.seat}</strong><span>{item.reason}</span>{item.host && <small>{item.host}</small>}</li>)}</ul>;
-  const records = (items: Item[], kind: "nodes" | "tasks" | "snapshots") => <ul className="openrig-list">{items.map((item, index) => <li key={field(item, "nodeId", "qitemId", "id") || index}>
+  // OpenRig seat attention (server/openrig/seat-attention.ts): a badge and its reason on the seat row
+  const attentionOf = (item: Item): { reason: string; detail: string | null } | null => {
+    const value = (item as Record<string, unknown>)["attention"] as { needed?: unknown; reason?: unknown; detail?: unknown } | undefined;
+    return value?.needed === true && typeof value.reason === "string" ? { reason: value.reason, detail: typeof value.detail === "string" ? value.detail : null } : null;
+  };
+  const attentionLabel: Record<string, string> = { error: t("Error reported"), held: t("Held"), needs_input: t("Waiting for input"), failed: t("Startup failed"), attention_required: t("Needs attention") };
+  const records = (items: Item[], kind: "nodes" | "tasks" | "snapshots") => <ul className="openrig-list">{items.map((item, index) => <li key={field(item, "nodeId", "qitemId", "id") || index} data-attention={kind === "nodes" && attentionOf(item) ? "true" : undefined}>
     <strong>{field(item, "summary", "logicalId", "canonicalSessionName", "id", "nodeId", "qitemId") || t("Unnamed record")}</strong>
-    <span>{field(item, kind === "nodes" ? "role" : "status", "state", "sessionStatus", "lifecycleState") || t("Status not reported")}{kind === "nodes" && field(item, "sessionStatus", "lifecycleState") ? ` · ${field(item, "sessionStatus", "lifecycleState")}` : ""}</span>
+    <span>{field(item, kind === "nodes" ? "role" : "status", "state", "sessionStatus", "lifecycleState") || t("Status not reported")}{kind === "nodes" && field(item, "sessionStatus", "lifecycleState") && field(item, "sessionStatus", "lifecycleState") !== field(item, kind === "nodes" ? "role" : "status", "state", "sessionStatus", "lifecycleState") ? ` · ${field(item, "sessionStatus", "lifecycleState")}` : ""}</span>
     {field(item, "runtime", "destinationSession", "createdAt", "tsUpdated") && <small>{field(item, "runtime", "destinationSession", "createdAt", "tsUpdated")}</small>}
+    {kind === "nodes" && attentionOf(item) && <span className="openrig-attention" role="status"><b>{t("Needs help")}</b> {attentionLabel[attentionOf(item)!.reason] ?? attentionOf(item)!.reason}{attentionOf(item)!.detail ? ` · ${attentionOf(item)!.detail}` : ""}</span>}
   </li>)}</ul>;
   return createPortal(<dialog ref={dialog} className="openrig-dialog" aria-labelledby={`${id}-title`} onCancel={(event) => { event.preventDefault(); if (!pending && !servicePending && !starterBusy) onClose(); }}>
     <header className="openrig-header"><div><h2 id={`${id}-title`}>{t("OpenRig teams")}</h2><p>{t("Team roles, tasks, and saved state")}</p></div><button type="button" className="icon-button" aria-label={t("Close")} disabled={pending !== null || servicePending || starterBusy} onClick={onClose} autoFocus><X aria-hidden="true" /></button></header>
@@ -128,7 +135,7 @@ export function OpenRigPanel({ readOnly, canManageService = false, onClose, onOp
         {detail && <div className="openrig-sections">
           <OpenRigRecoveryPanel key={`recovery-${detail.rigId}`} rigId={detail.rigId} readOnly={readOnly || starterBusy} onBusy={setStarterBusy} onChanged={() => setRefresh(value => value + 1)} />
           <OpenRigQueuePanel key={detail.rigId} team={detail} readOnly={readOnly || starterBusy} onBusy={setStarterBusy} onChanged={() => setRefresh(value => value + 1)} />
-          <section><h3>{t("Roles and nodes")}</h3>{detail.nodes.length ? records(detail.nodes, "nodes") : <p className="openrig-empty">{t("No roles reported")}</p>}<p className="openrig-muted">{t("P numbers are shown only when terminal identity is verified.")}</p></section>
+          <section><h3>{t("Roles and nodes")}</h3>{detail.nodes.some(node => attentionOf(node as Item)) && <p className="openrig-attention-summary" role="status">{t("{n} seats need help", { n: detail.nodes.filter(node => attentionOf(node as Item)).length })}</p>}{detail.nodes.length ? records(detail.nodes, "nodes") : <p className="openrig-empty">{t("No roles reported")}</p>}<p className="openrig-muted">{t("P numbers are shown only when terminal identity is verified.")}</p></section>
           <section><h3>{t("Tasks")}</h3>{detail.queue.items.length ? records(detail.queue.items, "tasks") : <p className="openrig-empty">{t("No tasks reported")}</p>}{detail.queue.truncated && <p className="openrig-notice">{t("The task list is limited to {count} items.", { count: detail.queue.limit })}</p>}</section>
           {!!detail.attention?.items?.length && <section><h3>{t("Needs attention")}</h3>{records(detail.attention.items, "tasks")}{detail.attention.truncated && <p className="openrig-notice">{t("The task list is limited to {count} items.", { count: detail.attention.limit })}</p>}</section>}
           <section><h3>{t("Snapshots")}</h3>{detail.snapshots.length ? records(detail.snapshots, "snapshots") : <p className="openrig-empty">{t("No saved snapshots reported")}</p>}</section>

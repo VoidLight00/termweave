@@ -1110,4 +1110,10 @@ export const JA: Record<string, string> = {
   "Create folder session": "フォルダセッションを作成",
   "Creating folder session…": "フォルダセッションを作成中…",
   "Start program (optional)": "起動プログラム（任意、既定はシェル）",
+  "Needs help": "要対応",
+  "{n} seats need help": "対応が必要な席 {n} 件",
+  "Error reported": "エラー報告",
+  "Held": "保留",
+  "Waiting for input": "入力待ち",
+  "Startup failed": "起動失敗",
 };
