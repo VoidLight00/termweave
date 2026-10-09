@@ -6,7 +6,7 @@ export function startMobileRelay(options: { deviceToken: string; viewerToken: st
   hostname: "127.0.0.1", port: options.port ?? 7341,
   fetch(req, server) {
    const url = new URL(req.url);
-   if (url.pathname === "/download/termweave-companion.apk" && options.download) return options.download(req);
+   if ((url.pathname === "/download/termweave-companion.apk" || url.pathname === "/download/termweave-companion.json") && options.download) return options.download(req);
    if (url.pathname === "/health" && req.method === "GET") return Response.json(options.health?.() ?? {ok:true},{headers:{"cache-control":"no-store"}});
    if (url.pathname === "/pair" && req.method === "POST" && !req.headers.has("origin") && options.pairing) return options.pairing(req);
    if (url.pathname !== "/connect" || req.headers.has("origin")) return new Response("Not found", {status:404});

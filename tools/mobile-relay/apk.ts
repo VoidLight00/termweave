@@ -16,8 +16,11 @@ export function apkDownloadHandler(manifest:string, verifySignature=(path:string
  if(createHash('sha256').update(bytes).digest('hex')!==record.sha256||!verifySignature(record.path))throw Error('apk_verification_failed');
  // The verified immutable bytes are served; subsequent build output changes are irrelevant.
  let active=0;
+ // The app polls this to offer an update; versionCode is the installed-vs-served comparison key.
+ const latest=Number.isSafeInteger(record.versionCode)&&record.versionCode>0?{versionCode:record.versionCode,versionName:String(record.versionName??record.version??''),sha256:record.sha256,bytes:record.bytes}:null;
  return (req:Request):Response=>{
   const url=new URL(req.url);
+  if(url.pathname==='/download/termweave-companion.json'&&latest&&!url.search&&req.method==='GET')return Response.json(latest,{headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
   if(url.pathname!=='/download/termweave-companion.apk'||url.search)return new Response('Not found',{status:404});
   if(req.method!=='GET')return new Response('Method not allowed',{status:405,headers:{Allow:'GET'}});
   if(req.headers.has('range'))return new Response('Range not supported',{status:416});

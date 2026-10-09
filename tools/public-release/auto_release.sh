@@ -78,3 +78,7 @@ print "PASS: published $version"
 if [[ -n $bump ]] && launchctl print gui/$(id -u)/com.voidlight.termweave >/dev/null 2>&1; then
   "$repo/tools/operations/deploy-release.sh" || { print "FAIL: live deploy (previous release kept)"; exit 1; }
 fi
+# the companion APK carries the same version, so each bump is offered to phones as an update
+if [[ -n $bump && -f $HOME/.local/state/termweave-mobile-relay/apk.json ]]; then
+  "$repo/tools/mobile-relay/publish_apk.sh" || print "FAIL: APK publish (phones keep the previous version)"
+fi

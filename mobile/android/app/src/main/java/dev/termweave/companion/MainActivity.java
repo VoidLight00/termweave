@@ -47,6 +47,8 @@ public class MainActivity extends Activity {
         endpoint = new EditText(this);
         endpoint.setHint("https://중계주소");
         endpoint.setSingleLine(true);
+        String saved = Updater.origin(this);
+        if (saved != null) endpoint.setText(saved);
         layout.addView(endpoint);
         code = new EditText(this);
         code.setHint("Mac에 표시된 12자리 등록 코드");
@@ -67,6 +69,8 @@ public class MainActivity extends Activity {
         Button stop = new Button(this);
         stop.setText("공유 종료 · 연결 해제");
         layout.addView(stop);
+        Updater.schedule(this);
+        if (getIntent() != null) onNewIntent(getIntent());
         stop.setOnClickListener(v -> {
             if (pairing != null) pairing.cancel();
             stopService(new Intent(this, ProjectionService.class));
@@ -80,6 +84,7 @@ public class MainActivity extends Activity {
             String entered = code.getText().toString().trim().toUpperCase(Locale.ROOT);
             if (!"https".equals(origin.getScheme()) || origin.getHost() == null || origin.getUserInfo() != null || origin.getQuery() != null || origin.getFragment() != null || !(origin.getPath().isEmpty() || origin.getPath().equals("/")) || !entered.matches("[A-Z2-7]{12}")) throw new IllegalArgumentException();
             String base = "https://" + origin.getRawAuthority();
+            Updater.saveOrigin(this, base);
             pendingEndpoint = "wss://" + origin.getRawAuthority() + "/connect?role=device";
             String body = new JSONObject().put("code", entered).toString();
             code.setText(""); start.setEnabled(false);
@@ -134,6 +139,17 @@ public class MainActivity extends Activity {
             startForegroundService(new Intent(this, ProjectionService.class).putExtra("consent", data).putExtra("endpoint", pendingEndpoint).putExtra("token", pendingToken));
         }
         pendingToken = null; start.setEnabled(true);
+    }
+    @Override protected void onResume() {
+        super.onResume();
+        new Thread(() -> {
+            try { Updater.Latest latest = Updater.newer(this); if (latest != null) runOnUiThread(() -> Updater.offer(this, latest)); } catch (Exception ignored) { /* offline: the background job retries */ }
+        }).start();
+    }
+    @Override protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (Updater.ACTION_STATUS.equals(intent.getAction())) Updater.onStatus(this, intent);
+        // ACTION_INSTALL (notification tap) needs nothing extra: onResume re-checks and offers the update
     }
     @Override protected void onDestroy() {
         if (pairing != null) pairing.cancel();

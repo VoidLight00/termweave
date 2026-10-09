@@ -21,3 +21,15 @@ test('APK route serves exact verified snapshot and refuses arbitrary routes, met
  expect(()=>apkDownloadHandler(manifest,()=>true)).toThrow();
  }finally{rmSync(root,{recursive:true,force:true});}
 });
+test('version metadata is served only when the manifest records a versionCode',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'tw-apk-'));try{
+ const path=join(root,'test.apk'),manifest=join(root,'apk.json'),bytes=Buffer.from('synthetic');writeFileSync(path,bytes);
+ const sha256=createHash('sha256').update(bytes).digest('hex');
+ writeFileSync(manifest,JSON.stringify({path,bytes:bytes.length,sha256}),{mode:0o600});
+ expect(apkDownloadHandler(manifest,()=>true)(new Request('http://localhost/download/termweave-companion.json')).status).toBe(404);
+ writeFileSync(manifest,JSON.stringify({path,bytes:bytes.length,sha256,versionCode:307,versionName:'0.3.7'}),{mode:0o600});
+ const handler=apkDownloadHandler(manifest,()=>true);
+ expect(await handler(new Request('http://localhost/download/termweave-companion.json')).json()).toEqual({versionCode:307,versionName:'0.3.7',sha256,bytes:bytes.length});
+ expect(handler(new Request('http://localhost/download/termweave-companion.json?x=1')).status).toBe(404);
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
