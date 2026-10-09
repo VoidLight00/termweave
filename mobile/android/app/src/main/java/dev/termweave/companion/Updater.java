@@ -39,10 +39,13 @@ final class Updater {
 
     /** Periodic background check; JobScheduler keeps it across reboots without extra dependencies. */
     static void schedule(Context context) {
-        JobScheduler jobs = context.getSystemService(JobScheduler.class);
-        if (jobs.getPendingJob(1) != null) return;
-        jobs.schedule(new JobInfo.Builder(1, new ComponentName(context, UpdateJob.class))
-            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setPeriodic(TimeUnit.HOURS.toMillis(6)).setPersisted(true).build());
+        // a scheduling failure must never stop the app from opening; the on-open check still runs
+        try {
+            JobScheduler jobs = context.getSystemService(JobScheduler.class);
+            if (jobs.getPendingJob(1) != null) return;
+            jobs.schedule(new JobInfo.Builder(1, new ComponentName(context, UpdateJob.class))
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY).setPeriodic(TimeUnit.HOURS.toMillis(6)).setPersisted(true).build());
+        } catch (RuntimeException ignored) { /* e.g. a missing permission on a future Android version */ }
     }
 
     /** Blocking; returns the served release only when it is newer than the installed one. */
