@@ -1,0 +1,283 @@
+/*
+ * Terminal chrome for PaneTerminal.tsx: the xterm mount, the empty placeholder
+ * and the status banners. The host background equals --term-bg so the canvas
+ * edge is invisible; the banners float over the top-right corner so they never
+ * steal rows from the pty. The stack is a column: the mount takes every row the
+ * key bar (KeyBar.css) leaves, and clips so a pending refit never paints over it.
+ */
+
+/* Source-only releases use system fonts. Users may install a licensed Nerd Font
+   locally; no unverified font binary is redistributed. */
+
+.terminal-stack {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* the grid keeps a small gutter of its own: the host (styles.css) has none, because the
+   chat lens and the composer want the full width. The gutter sits on .xterm itself, not
+   on the mount: the fit addon subtracts the terminal element's padding but reads the
+   parent's border-box width, so padding on the mount would overflow the last columns */
+.pane-terminal {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  /* a drag here is ours (PaneTerminal turns it into wheel events for herdr): without
+     this the browser takes the gesture after its first move and scrolls the page or
+     the composer instead, or starts pull-to-refresh */
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+/* a grid that is not this browser's own (observing, or mirrored from a PC that cannot attach)
+   can be larger than the mount: it scrolls instead of clipping, so every cell can be reached.
+   A finger pans it through PaneTerminal's touch handlers (touch-action stays none), a mouse
+   by wheel or scrollbar */
+.pane-terminal[data-adopted-grid] {
+  overflow: auto;
+}
+
+.pane-terminal .xterm {
+  padding: var(--space-2) var(--space-2) 0;
+}
+
+/* the mount's own box: everything that may overlay the pty (the chat lens) is
+   positioned against THIS, never against the stack — the composer and key bar
+   below keep their rows no matter which lens is on */
+.terminal-surface {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* no pane selected: the mount keeps its size (the fit needs it) but never paints, so its
+   cursor cannot show through the placeholder */
+.pane-terminal.is-idle {
+  visibility: hidden;
+}
+
+/* no scrollback (PaneTerminal.tsx), so the viewport never scrolls: hide the track that would
+   otherwise sit over the last columns on platforms with classic scrollbars */
+.pane-terminal .xterm-viewport {
+  scrollbar-width: none;
+}
+
+.pane-terminal .xterm-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.terminal-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-banner); /* above the xterm mount, like the banners; pointer-events stay off */
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  font-size: var(--fs-md);
+  pointer-events: none;
+}
+
+.terminal-placeholder-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.terminal-placeholder svg {
+  width: var(--space-6);
+  height: var(--space-6);
+}
+
+.terminal-placeholder.is-restore-error {
+  padding: 0 var(--space-4);
+  text-align: center;
+}
+
+.terminal-placeholder.is-restore-error svg {
+  color: var(--status-blocked);
+}
+
+/* herdr's own words: what failed and what to do about it */
+.terminal-placeholder-detail {
+  max-width: 36rem;
+  font-size: var(--fs-sm);
+}
+
+/* the banners stack in one top-right column: any state combination (warning XOR
+   review, observe alongside either) renders without collisions, and the column lets
+   clicks pass through to the pty except where the review banner re-enables them */
+.terminal-banners {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-3);
+  z-index: var(--z-banner);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--space-3));
+  pointer-events: none;
+}
+
+.terminal-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--chip-h);
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.terminal-banner-warning {
+  border-color: var(--status-working);
+  color: var(--status-working);
+}
+
+/* not a fault: a lens herdr does not offer on this PC yet */
+.terminal-banner-soon {
+  border-color: var(--accent);
+  color: var(--text);
+  background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--bg-elevated);
+}
+
+.terminal-banner-output-error {
+  max-width: 100%;
+  white-space: normal;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  pointer-events: auto;
+}
+
+/* view-only state: the same pill anatomy as the banners, accent-tint layered OVER the
+   opaque elevated base - a bare tint would let live pty glyphs bleed through */
+.terminal-banner-observe {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: linear-gradient(var(--accent-tint), var(--accent-tint)) var(--bg-elevated);
+}
+
+/* the held-input review banner: wider than a pill because it carries text + actions,
+   so it takes --radius-md (a control-bearing box, not a chip) and grows to fit its
+   --control-h buttons. It only renders while CONNECTED (the reconnecting banner owns
+   the disconnected slot), and it is the one banner that accepts pointer events. */
+.terminal-banner-draft {
+  height: auto;
+  min-height: calc(var(--control-h) + 2 * var(--space-1));
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  max-width: 100%;
+  pointer-events: auto;
+}
+
+/* the held-draft echo inside the reconnecting pill is capped like the review text */
+.draft-held {
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.terminal-banner-draft .draft-label {
+  color: var(--status-working);
+}
+
+.terminal-banner-draft .draft-text {
+  max-width: 32ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.terminal-banner-draft .draft-dropped {
+  color: var(--text-dim);
+}
+
+.terminal-banner-draft .draft-actions {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.terminal-banner-draft .draft-actions button {
+  height: var(--control-h);
+  padding: 0 var(--space-2);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  font-size: var(--fs-xs);
+  font-family: inherit;
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.terminal-banner-draft .draft-actions button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.terminal-banner-draft .draft-actions button:active {
+  background: var(--bg-elevated);
+}
+
+.terminal-banner-draft .draft-actions button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.terminal-banner-draft .draft-actions button:focus-visible {
+  outline: var(--ring);
+  outline-offset: var(--ring-offset);
+}
+
+/* phones: banners wrap instead of overflowing - a wrapping box stops being a chip, so it
+   takes padding and --radius-md (the review banner already does) */
+@media (max-width: 480px) {
+  .terminal-banner {
+    white-space: normal;
+  }
+
+  .terminal-banner-observe,
+  .terminal-banner-soon,
+  .terminal-banner-warning {
+    max-width: min(36ch, 100%);
+    text-align: right;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-banner-draft .draft-actions button {
+    transition: none;
+  }
+}
+
+/* xterm swaps its row elements on every redraw. A touch keeps its first target for the
+   whole gesture, so a finger that landed on a row lost every later move (and its end)
+   as soon as the first scroll redrew that row, and the browser took the drag. On touch
+   screens the rows take no touches: the gesture lands on the screen element, which stays. */
+@media (pointer: coarse) {
+  .pane-terminal .xterm-rows { pointer-events: none; }
+}
+
+/* under the chat lens the grid is covered: skip drawing it (xterm pauses its renderer while
+   the screen is not intersecting, and repaints in full on return). The box keeps its size,
+   so the grid never refits to zero */
+.terminal-stack.is-chat .pane-terminal {
+  content-visibility: hidden;
+}

@@ -1,0 +1,9 @@
+{
+  "package": "@openrig/cli",
+  "version": "0.6.7",
+  "license": "Apache-2.0",
+  "files": {
+    "daemon/dist/domain/queue-repository.js": "47f4416e3b4e03f41619a30d734c1beb85cc6d30485e6a27762aa458da09d1a8",
+    "daemon/dist/routes/queue.js": "d8baadafe83e7da0ceeb46cb7fd5e25b1749bc800b66fd92cfe8f3e4f14738e2"
+  }
+}

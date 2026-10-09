@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "TermWeave"
+abstract: "A cmux-style web and Mac client for herdr: docked, numbered panes per workspace, agent icons, a Needs-you list and correct Korean input."
+authors:
+  - name: "VoidLight00"
+license: MIT
+version: "0.3.0"
+date-released: "2026-10-09"
+url: "https://github.com/VoidLight00/termweave"

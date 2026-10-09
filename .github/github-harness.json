@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "profile": "public-full",
+  "intent": {
+    "visibility": "public",
+    "images": "required",
+    "languages": [
+      "en",
+      "ko",
+      "ja",
+      "zh"
+    ],
+    "release": "not_requested",
+    "description": "cmux-style web and Mac client for herdr: split and dock terminals per workspace, numbered panes, agent icons, a Needs-you list and correct Korean input.",
+    "homepage": "",
+    "topics": [
+      "herdr",
+      "terminal",
+      "tmux",
+      "cmux",
+      "terminal-multiplexer",
+      "ai-agents",
+      "claude-code",
+      "codex",
+      "xterm",
+      "web-terminal",
+      "macos",
+      "korean",
+      "ime",
+      "developer-tools",
+      "typescript",
+      "bun"
+    ]
+  },
+  "approvals": {
+    "images": false,
+    "publish": false,
+    "release": false
+  },
+  "local": {
+    "artifacts": "pending",
+    "version": "pending"
+  },
+  "remote": {
+    "push": "pending",
+    "metadata": "pending",
+    "tag": "not_requested",
+    "release": "not_requested",
+    "verification": "pending"
+  },
+  "result": "incomplete"
+}

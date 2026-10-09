@@ -1,0 +1,10 @@
+.frontend-controls { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.frontend-controls .frontend-update { white-space: nowrap; padding: 5px 8px; font-size: 12px; }
+.frontend-controls .frontend-refresh { width: auto; gap: 4px; padding: 0 5px; white-space: nowrap; font-size: 12px; }
+.frontend-refresh svg { width: 14px; height: 14px; }
+.frontend-reload-note { position: fixed; top: calc(var(--header-h) + env(safe-area-inset-top, 0px)); left: 16px; right: 16px; padding: 10px; background: var(--bg-panel); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); z-index: 50; }
+@media (max-width: 640px) {
+  .app-header:has(.frontend-controls) { height: auto; min-height: calc(var(--header-h) + env(safe-area-inset-top, 0px)); flex-wrap: wrap; }
+  .app-header:has(.frontend-controls) .header-meta { flex-wrap: wrap; max-width: 100%; gap: 4px; }
+  .frontend-controls .frontend-refresh { min-height: 36px; }
+}

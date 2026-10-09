@@ -1,0 +1,373 @@
+.settings-dialog {
+  width: min(100%, var(--content-w));
+}
+
+.settings-dialog .icon-button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-section h3 {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--touch-target);
+}
+
+.settings-row > div:first-child {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.settings-label {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.settings-description,
+.settings-hint {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.settings-hint,
+.settings-about p {
+  margin: 0;
+}
+
+.settings-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 0 0 auto;
+}
+
+.settings-stepper output {
+  min-width: var(--touch-target);
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+.settings-font-input {
+  flex: 0 1 50%;
+  min-width: 0;
+}
+
+.settings-toggle {
+  position: relative;
+  flex: 0 0 auto;
+  width: calc(var(--touch-target) + var(--space-2));
+  height: var(--touch-target);
+  padding: var(--space-2) var(--space-1);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.settings-toggle::before {
+  position: absolute;
+  inset: var(--space-3) var(--space-1);
+  content: "";
+  background: var(--bg-elevated);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.settings-toggle-thumb {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-1);
+  width: var(--space-4);
+  height: var(--space-4);
+  background: var(--text-dim);
+  border-radius: var(--radius-pill);
+  transition: transform var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+
+.settings-toggle[aria-checked="true"]::before {
+  background: var(--primary-tint);
+  border-color: var(--primary);
+}
+
+.settings-toggle[aria-checked="true"] .settings-toggle-thumb {
+  background: var(--primary);
+  transform: translateX(var(--space-5));
+}
+
+.settings-shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.settings-shortcuts th,
+.settings-shortcuts td {
+  padding: var(--space-2) 0;
+  border-bottom: var(--hairline) solid var(--border);
+  font-size: var(--fs-sm);
+}
+
+.settings-shortcuts th {
+  color: var(--text);
+  font-weight: var(--fw-regular);
+  text-align: left;
+}
+
+/* the cell stays a table cell (a flex td drops out of the row and splits its rule); the
+   keycaps sit inline, right-aligned */
+.settings-shortcuts td {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.settings-shortcuts td .kbd + .kbd {
+  margin-left: var(--space-1);
+}
+
+.settings-about a:not(.btn) {
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .settings-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .settings-row > .segmented,
+  .settings-row > .settings-stepper {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .settings-row > .settings-font-input {
+    align-self: stretch;
+  }
+
+  /* five languages outgrow a narrow phone: wrap rather than overflow the dialog */
+  .settings-row > .segmented {
+    flex-wrap: wrap;
+  }
+
+  .settings-row:has(> .settings-toggle) {
+    align-items: center;
+    flex-direction: row;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-toggle::before,
+  .settings-toggle-thumb {
+    transition: none;
+  }
+}
+
+.quick-replies-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quick-replies-list li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.quick-replies-list .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Voice input: the key field and its buttons share a row, the notes stay dim */
+.voice-key {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.voice-key-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.voice-error {
+  color: var(--danger-text);
+}
+
+/* Voice input: one card per concern (mic, key, tidying, usage), headed like the usage accounts card */
+.voice-group {
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.voice-group-title {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 var(--space-3);
+  background: var(--bg-elevated);
+  border-bottom: var(--hairline) solid var(--border);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.voice-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+}
+
+/* Subscription usage: one card of accounts, a row each: mark, name, account, then move and show */
+.usage-accounts {
+  margin-top: var(--space-2);
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.usage-accounts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 30px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--bg-elevated);
+  border-bottom: var(--hairline) solid var(--border);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.usage-accounts-reset {
+  padding: 2px var(--space-1);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: normal;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.usage-accounts ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usage-accounts-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 0 var(--space-1) 0 var(--space-3);
+}
+
+.usage-accounts-row + .usage-accounts-row {
+  border-top: var(--hairline) solid var(--border);
+}
+
+.usage-accounts-name {
+  flex: 0 0 auto;
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.usage-accounts-account {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-accounts-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.usage-accounts-actions .icon-button {
+  color: var(--text-dim);
+}
+
+/* the ends of the list cannot move further: that arrow keeps its place in the column, unseen */
+.usage-accounts-actions .icon-button:disabled {
+  visibility: hidden;
+}
+
+.usage-accounts-visibility[aria-checked="true"] {
+  color: var(--text);
+}
+
+/* a hidden account stays in the list, faded, so it can be shown again */
+.usage-accounts-row.is-hidden > :not(.usage-accounts-actions) {
+  opacity: 0.45;
+}
+
+@media (hover: hover) {
+  .usage-accounts-reset:hover {
+    background: var(--bg-hover);
+  }
+}
+
+@media (pointer: fine) {
+  .usage-accounts-actions .icon-button {
+    width: 28px;
+    height: 28px;
+  }
+
+  .usage-accounts-actions .icon-button svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.settings-shortcuts { table-layout: fixed; }
+.settings-shortcuts td .input { width: 100%; min-width: 0; }

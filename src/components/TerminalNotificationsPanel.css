@@ -1,0 +1,15 @@
+.terminal-inbox { width: min(560px, calc(100vw - 24px)); max-height: calc(var(--app-height, 100dvh) - 24px); padding: 0; margin: auto; border: 1px solid var(--border); border-radius: var(--radius-xl); background: var(--bg); color: var(--text); word-break: keep-all; overflow-wrap: anywhere; overflow: hidden; }
+.terminal-inbox::backdrop { background: rgb(0 0 0 / 48%); }
+.terminal-inbox header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.terminal-inbox h2 { margin: 0; font-size: 15px; text-wrap: balance; }
+.terminal-inbox-body { padding: 12px 16px; overflow-y: auto; max-height: calc(var(--app-height, 100dvh) - 100px); }
+.terminal-inbox p { font-size: 12px; line-height: 1.6; text-wrap: pretty; }
+.terminal-inbox ol { list-style: none; margin: 12px 0; padding: 0; }
+.terminal-inbox li { padding-block: 12px; border-bottom: 1px solid var(--border); min-width: 0; }
+.terminal-inbox h3 { font-size: 13px; margin: 8px 0; text-wrap: balance; }
+.terminal-inbox-meta, .terminal-inbox-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; min-width: 0; }
+.terminal-inbox-meta { color: var(--text-muted); font-size: 11px; }
+.terminal-inbox-message { white-space: pre-wrap; }
+.terminal-inbox button { min-height: 36px; max-width: 100%; white-space: normal; }
+.terminal-inbox-clear { padding-top: 12px; }
+@media (max-width: 640px), (pointer: coarse) { .terminal-inbox button { min-height: 44px; } }

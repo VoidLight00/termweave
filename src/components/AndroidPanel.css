@@ -1,0 +1,10 @@
+.android-panel { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.android-panel p { text-wrap: pretty; }
+.android-panel label { display: grid; gap: 6px; margin-block: 10px; }
+.android-panel input, .android-panel select { width: 100%; min-width: 0; font-size: 16px; }
+.android-panel button { min-height: 44px; white-space: normal; }
+.android-panel summary { padding-block: 12px; cursor: pointer; }
+.android-device-list { list-style: none; padding: 0; margin-block: 12px; }
+.android-device-list li { padding-block: 12px; border-bottom: 1px solid var(--border); }
+.android-device-list span { display: block; color: var(--text-dim); font-size: 12px; }
+.android-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }

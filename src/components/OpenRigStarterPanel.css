@@ -1,0 +1,5 @@
+.openrig-starter { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; padding-block: 12px; border-top: 1px solid var(--border); }
+.openrig-starter p { text-wrap: pretty; }
+.openrig-starter h3, .openrig-starter h4 { text-wrap: balance; }
+.openrig-starter input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; font-size: 16px; background: var(--bg-input); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.openrig-starter button { min-height: 44px; max-width: 100%; white-space: normal; }

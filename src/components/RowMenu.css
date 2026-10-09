@@ -1,0 +1,118 @@
+/* The row menu floats over everything that scrolls, and over the phone drawer: the drawer is a
+   layer of its own, and the menu opens from inside it. */
+.row-menu {
+  position: fixed;
+  z-index: calc(var(--z-drawer) + 1);
+  min-width: 208px;
+  max-width: min(280px, calc(100vw - var(--space-4)));
+}
+
+.row-menu .menu-item:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.row-menu .menu-item.is-danger,
+.row-sheet-item.is-danger {
+  color: var(--status-blocked);
+}
+
+.row-menu .menu-item.is-danger svg,
+.row-sheet-item.is-danger svg {
+  color: currentColor;
+}
+
+.row-menu-divider {
+  height: var(--hairline);
+  margin: var(--space-1) 0;
+  background: var(--border);
+}
+
+/* the phone's sheet: a grip, the row's name, then one tall button per action, and Cancel */
+.row-sheet {
+  padding: var(--space-2) var(--space-3) calc(var(--space-5) + env(safe-area-inset-bottom, 0px));
+}
+
+.row-sheet-grip {
+  align-self: center;
+  width: 36px;
+  height: 4px;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+}
+
+.row-sheet-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1) var(--space-2) var(--space-3);
+}
+
+.row-sheet-title {
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-sheet-subtitle {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 48px;
+  padding: 0 var(--space-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-sheet-item svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+}
+
+.row-sheet-item.has-divider {
+  position: relative;
+  margin-top: calc(var(--space-2) + var(--hairline));
+}
+
+.row-sheet-item.has-divider::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--space-1) - var(--hairline));
+  right: 0;
+  left: 0;
+  height: var(--hairline);
+  background: var(--border);
+}
+
+.row-sheet-item:active,
+.row-sheet-item:focus-visible {
+  outline: none;
+  background: var(--bg-hover);
+}
+
+.row-sheet-cancel {
+  height: 44px;
+  margin-top: var(--space-2);
+  font-size: var(--fs-md);
+}

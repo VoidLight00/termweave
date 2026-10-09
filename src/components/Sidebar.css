@@ -1,0 +1,576 @@
+.sidebar-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg-panel);
+}
+
+.workspace-disclosure { opacity: 1; flex: 0 0 auto; }
+.workspace-disclosure[aria-expanded="true"] svg { transform: rotate(90deg); }
+.workspace-terminals[hidden] { display: none; }
+.workspace-terminal-row { display: flex; align-items: center; min-width: 0; }
+.workspace-terminal-row > .workspace-terminal { flex: 1; min-width: 0; }
+
+/* one gutter (--space-3) for the list and the footer: every row's hover fill and the footer
+   buttons share the same left and right edge */
+.sidebar-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2) var(--space-3);
+}
+
+.tree-state {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+/* an empty PC: the words, and the one thing to do about them */
+.tree-state-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+  padding: var(--space-4);
+  border: var(--hairline) dashed var(--border);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.tree-state-empty .tree-state { padding: 0; }
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-md);
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.directory-group {
+  margin-bottom: var(--space-3);
+}
+
+.directory-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--row-h);
+  padding: var(--space-2) var(--space-1);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-dim);
+  text-align: left;
+  cursor: pointer;
+}
+
+.directory-header:hover,
+.directory-header:focus-visible {
+  background: var(--bg-hover);
+}
+
+.directory-header > svg {
+  flex: 0 0 auto;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.directory-copy {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.directory-name,
+.directory-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.directory-name {
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.directory-path {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+}
+
+.directory-contents {
+  margin-left: var(--space-3);
+  border-left: var(--hairline) solid var(--border);
+  padding-left: var(--space-1);
+}
+
+.workspace.is-dragging {
+  opacity: 0.55;
+}
+
+.workspace-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-h);
+  padding: 0 var(--space-1) 0 var(--space-4);
+  border-radius: var(--radius-md);
+}
+
+.workspace-header:hover,
+.workspace-header:focus-within {
+  background: var(--bg-hover);
+}
+
+.workspace-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--control-h);
+  height: var(--control-h);
+  margin-left: calc(-1 * var(--space-2));
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.workspace-toggle:hover,
+.workspace-toggle:focus-visible {
+  color: var(--text-strong);
+}
+
+.workspace-toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.workspace.is-collapsed {
+  margin-bottom: var(--space-1);
+}
+
+.workspace-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: var(--chip-h);
+  height: var(--chip-h);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+}
+
+.workspace-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+  border: 0;
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.workspace-rename-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: calc(var(--control-h) - var(--space-1));
+  padding: 0 var(--space-2);
+}
+
+.workspace-header .badge {
+  flex: 0 0 auto;
+}
+
+.workspace-menu {
+  opacity: 0;
+}
+
+.workspace-header:hover .workspace-menu,
+.workspace-header:focus-within .workspace-menu,
+.workspace-menu[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.sidebar-drag-handle,
+.sidebar-row-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+/* the reorder grip is an affordance, not a control: it shows on hover / focus, and it
+   sits absolutely in the row's left gutter so the row's content never shifts */
+.sidebar-drag-handle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--space-4);
+  height: var(--control-h);
+  transform: translateY(-50%);
+  opacity: 0;
+  cursor: grab;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.pane-item:hover .sidebar-drag-handle,
+.pane-item:focus-within .sidebar-drag-handle,
+.workspace-header:hover .sidebar-drag-handle,
+.workspace-header:focus-within .sidebar-drag-handle {
+  opacity: 1;
+}
+
+.sidebar-drag-handle:active {
+  cursor: grabbing;
+}
+
+.sidebar-drag-handle:hover,
+.sidebar-row-action:hover,
+.sidebar-row-action:focus-visible {
+  color: var(--text-strong);
+}
+
+.sidebar-row-action:hover,
+.sidebar-row-action:focus-visible {
+  background: var(--bg-elevated);
+}
+
+.sidebar-drag-handle svg,
+.sidebar-row-action svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.pane-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pane-item {
+  position: relative;
+  border-radius: var(--radius-md);
+}
+
+.pane-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: var(--row-h);
+  padding-left: var(--space-4);
+  border-radius: var(--radius-md);
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.pane-item:hover .pane-row,
+.pane-item:focus-within .pane-row,
+.pane-item.is-selected .pane-row {
+  background: var(--bg-hover);
+}
+
+/* Selection uses the existing surface tint, never a colored vertical rail. */
+
+.pane-select {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  padding: var(--space-2);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+
+/* the mark box is neutral; amber is spent only on the selected row (rail + box edge) */
+.agent-mark-holder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 var(--avatar-size);
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+}
+
+.pane-item.is-selected .agent-mark-holder {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.agent-mark-holder.is-shell {
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+}
+
+.agent-mark-holder svg {
+  display: block;
+  width: var(--mark-size);
+  height: var(--mark-size);
+}
+
+.pane-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.pane-primary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pane-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* line two: the state word first (it is what a glance looks for), then where the pane lives */
+.pane-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pane-meta .badge {
+  flex: 0 0 auto;
+  height: calc(var(--chip-h) - 2px);
+  padding: 0 var(--space-1);
+}
+
+/* background tasks still running: quieter than the state word beside it, and a number, not a word */
+.badge-background {
+  color: var(--text-dim);
+  border-color: var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge-background svg {
+  width: 10px;
+  height: 10px;
+}
+
+.pane-subtitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pane-rename-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--chip-h);
+  padding: 0 var(--space-1);
+  font-size: var(--fs-sm);
+}
+
+.pane-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding-right: var(--space-1);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.pane-item:hover .pane-actions,
+.pane-item:focus-within .pane-actions,
+.pane-item.is-selected .pane-actions,
+.pane-actions:has([aria-expanded="true"]) {
+  opacity: 1;
+}
+
+.sidebar-inline-error {
+  margin: 0;
+  padding: var(--space-1) var(--space-3) var(--space-2);
+  color: var(--status-blocked);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.sidebar-footer {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+  border-top: var(--hairline) solid var(--border);
+}
+
+.sidebar-footer-action {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+/* Settings keeps the room the plan meters beside it leave */
+.sidebar-footer-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sidebar-footer-row > .sidebar-footer-action {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+.sidebar-install-help {
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.sidebar-brandline {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-2) var(--space-1) 0;
+}
+
+.sidebar-app-name {
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-status-indicators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2) calc(var(--space-4) + var(--space-2));
+}
+
+.workspace-status-indicators:empty { display: none; }
+
+.workspace-status-indicator {
+  min-height: var(--control-h);
+  height: auto;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+}
+
+.workspace-status-indicator:hover { background: var(--bg-elevated); }
+.workspace-status-indicator:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.workspace-status-count { font-variant-numeric: tabular-nums; }
+
+@media (pointer: coarse) {
+  .workspace-status-indicator { min-height: var(--touch-target); }
+  .sidebar-row-action {
+    width: var(--touch-target);
+    height: var(--touch-target);
+  }
+
+  /* no hover on touch: the grip stays, quiet, and the row actions are always there */
+  .sidebar-drag-handle,
+  .pane-actions,
+  .workspace-menu {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace,
+  .pane-row,
+  .pane-actions {
+    transition: none;
+  }
+}
+
+.workspace-terminals { display: flex; flex-direction: column; gap: 3px; padding: 3px 8px 6px 26px; min-width: 0; }
+.workspace-terminal { display: flex; align-items: center; gap: 7px; width: 100%; min-width: 0; padding: 6px; border: 0; border-radius: 5px; color: var(--text-dim); background: transparent; font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.workspace-terminal[aria-current="true"] { background: var(--bg-hover); color: var(--text-strong); }
+.workspace-terminal:focus-visible { outline: 1px solid var(--text-dim); }
+.workspace-terminal-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pane-number { display: inline-block; flex: 0 0 auto; padding: 1px 4px; border-radius: 4px; background: var(--bg-hover); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (pointer: coarse), (max-width: 768px) {
+  .workspace .sidebar-row-action { width: 44px; height: 44px; }
+  .workspace-terminals { padding-left: 12px; }
+  .workspace-terminal-row { gap: 2px; }
+  .workspace-terminal-row > .workspace-terminal {
+    min-height: 44px;
+    flex-wrap: nowrap;
+    gap: 5px;
+    font-size: 12px;
+  }
+  .workspace-terminal .workspace-terminal-title {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .workspace-terminal .badge { margin-left: auto; }
+}
+
+@media (max-width: 768px) {
+  .app .sidebar { width: min(94vw, 360px); }
+}

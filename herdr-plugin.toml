@@ -1,0 +1,17 @@
+id = "VoidLight00.termweave"
+name = "TermWeave"
+version = "0.3.0"
+min_herdr_version = "0.9.0"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["sh", "scripts/preflight.sh"]
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["bun", "install", "--frozen-lockfile", "--ignore-scripts"]
+
+[[build]]
+command = ["bun", "run", "build"]
+
+# One-shot per herdr start: brings the bridge up if it is not already answering.

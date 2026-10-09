@@ -1,0 +1,13 @@
+@font-face { font-family: "TermWeave JetBrains Mono"; src: url('/appearance/jetbrains-mono.woff2') format('woff2'); font-display: swap; font-weight: 400; }
+@font-face { font-family: "TermWeave D2Coding"; src: url('/appearance/d2coding.woff2') format('woff2'); font-display: swap; font-weight: 400; }
+@font-face { font-family: "TermWeave Noto Sans KR"; src: url('/appearance/noto-sans-kr.ttf') format('truetype'); font-display: swap; font-weight: 100 900; }
+.appearance-panel { word-break: keep-all; overflow-wrap: anywhere; min-width: 0; }
+.appearance-panel label { display: grid; gap: 6px; margin-block: 10px; }
+.appearance-panel select, .appearance-panel input { min-width: 0; max-width: 100%; font-size: 16px; }
+.appearance-colors { display: grid; grid-template-columns: repeat(auto-fit,minmax(110px,1fr)); gap: 8px; }
+.appearance-colors input { width: 100%; height: 44px; }
+.appearance-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.appearance-actions .btn { min-height: 44px; white-space: normal; }
+.appearance-actions input { width: 180px; font-size: 12px; }
+.appearance-sample { padding: 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; }
+.appearance-panel summary { padding-block: 10px; cursor: pointer; }

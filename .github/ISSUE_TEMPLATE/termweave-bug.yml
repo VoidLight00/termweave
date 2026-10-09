@@ -1,0 +1,15 @@
+name: TermWeave bug
+description: Report a synthetic reproducible problem
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction and expected result
+      description: Use a test workspace. Never include tokens, pairing codes, personal transcripts or screenshots.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Version, platform and checks
+      description: Include exact source revision and failed commands, without private paths.

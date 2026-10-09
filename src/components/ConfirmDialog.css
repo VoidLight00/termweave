@@ -1,0 +1,28 @@
+.confirm-dialog {
+  width: min(100%, 420px);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+.confirm-dialog .modal-title { text-wrap: balance; }
+.confirm-dialog .confirm-body { text-wrap: pretty; }
+@media (pointer: coarse), (max-width: 768px) {
+  .confirm-dialog .btn { min-height: 44px; min-width: 64px; }
+}
+
+.confirm-dialog:focus {
+  outline: none;
+}
+
+.confirm-body {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.confirm-error {
+  margin: var(--space-2) 0 0;
+  color: var(--status-blocked);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}

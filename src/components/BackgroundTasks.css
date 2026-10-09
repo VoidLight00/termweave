@@ -1,0 +1,236 @@
+/* The toggle sits in the composer's status line; the list opens above the composer, as the
+   slash menu does, so it never covers what is being typed. */
+.bg-tasks {
+  display: inline-flex;
+  flex: none;
+}
+
+.bg-tasks-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--chip-h);
+  padding: 0 var(--space-2);
+  background: var(--status-working-tint);
+  border: 0;
+  border-radius: var(--radius-pill);
+  color: var(--status-working);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+}
+
+.bg-tasks-toggle svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.bg-tasks-count {
+  display: none;
+}
+
+/* a phone's status line is one row: the icon and the number say it, the button's name has the words */
+@media (max-width: 480px) {
+  /* without its words the chip would be a 28px target, an icon alone while nothing runs */
+  .bg-tasks-toggle {
+    justify-content: center;
+    min-width: var(--touch-target);
+  }
+
+  .bg-tasks-label {
+    display: none;
+  }
+
+  .bg-tasks-count {
+    display: inline;
+  }
+}
+
+/* nothing running: the list of what ran stays at hand, without the working tint */
+.bg-tasks-toggle.is-idle {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.bg-tasks-toggle[aria-expanded="true"] {
+  color: var(--text-strong);
+}
+
+/* inside the status line, which keeps to one line: the list wraps as a page does.
+   --bg-tasks-room is the measured room above the composer (BackgroundTasks.tsx): on a short screen
+   the list keeps to it, a gap from each end, and scrolls; never less than one row */
+.bg-tasks-menu {
+  position: absolute;
+  right: var(--space-4);
+  bottom: calc(100% + var(--space-2));
+  left: var(--space-4);
+  z-index: var(--z-popover);
+  max-width: var(--content-w);
+  max-height: max(var(--row-h), min(calc(var(--row-h) * 9), calc(var(--bg-tasks-room, 100vh) - var(--space-2) * 2)));
+  margin-inline: auto;
+  overflow-y: auto;
+  white-space: normal;
+}
+
+.bg-tasks-note {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+.bg-task-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* what ended is one line until asked for: the list is for what runs now */
+.bg-ended-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: var(--row-h);
+  padding: var(--space-1) var(--space-2);
+  background: transparent;
+  border: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bg-task-list + .bg-ended-toggle {
+  margin-top: var(--space-1);
+  border-top: var(--hairline) solid var(--border);
+}
+
+.bg-ended-toggle svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.bg-ended-toggle:hover,
+.bg-ended-toggle[aria-expanded="true"] {
+  color: var(--text);
+}
+
+.bg-ended-failed {
+  color: var(--status-blocked);
+}
+
+.bg-ended-failed::before {
+  content: "·";
+  margin-right: var(--space-1);
+  color: var(--text-dim);
+}
+
+.bg-task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+}
+
+.bg-task-icon {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin-top: 3px;
+  color: var(--text-dim);
+}
+
+.bg-task.is-running .bg-task-icon { color: var(--status-working); }
+.bg-task.is-completed .bg-task-icon { color: var(--status-done); }
+.bg-task.is-failed .bg-task-icon,
+.bg-task.is-lost .bg-task-icon { color: var(--status-blocked); }
+
+.bg-task-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bg-task-title {
+  color: var(--text);
+  font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+
+.bg-task-meta {
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+/* a workflow: its steps wave by wave, a wave's steps side by side as chips that wrap */
+.bg-run {
+  padding: var(--space-1) var(--space-2) var(--space-2);
+}
+
+.bg-run-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.bg-run.is-running .bg-run-head .bg-task-icon { color: var(--status-working); }
+.bg-run.is-completed .bg-run-head .bg-task-icon { color: var(--status-done); }
+.bg-run.is-failed .bg-run-head .bg-task-icon { color: var(--status-blocked); }
+
+.bg-run-waves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0 0 0 calc(14px + var(--space-2));
+  list-style: none;
+}
+
+.bg-run-wave {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.bg-node {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 0 var(--space-2);
+  min-height: var(--chip-h);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.bg-node svg { width: 12px; height: 12px; flex: none; }
+.bg-node.is-running { border-color: var(--status-working); color: var(--text); }
+.bg-node.is-running svg { color: var(--status-working); }
+.bg-node.is-completed svg { color: var(--status-done); }
+.bg-node.is-failed,
+.bg-node.is-blocked { border-color: var(--status-blocked); color: var(--text); }
+.bg-node.is-blocked svg { color: var(--status-blocked); }
+.bg-node.is-failed svg { color: var(--status-blocked); }
+
+.bg-run-error {
+  margin: var(--space-1) 0 0;
+  padding-left: calc(14px + var(--space-2));
+  color: var(--status-blocked);
+  font-size: var(--fs-xs);
+  overflow-wrap: anywhere;
+}
+
+.bg-task .sr-only, .bg-node .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

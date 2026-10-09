@@ -1,0 +1,1 @@
+import{expect,it}from'bun:test';import{serveStatic}from'./static.ts';it('authenticated app cannot be embedded via aliases or redirects',async()=>{for(const path of ['/','/index.html','/nonexistent-spa-route']){const r=await serveStatic(path);expect(r.headers.get('content-security-policy')).toBe("frame-ancestors 'none'");expect(r.headers.get('x-frame-options')).toBe('DENY')}});

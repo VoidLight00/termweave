@@ -1,0 +1,75 @@
+/* the terminal's input line on touch screens (TerminalInput.tsx): above the key bar, one row
+   that grows to four, with a send button that reads Enter while the line is empty */
+.terminal-input {
+  position: relative; /* the dictation pill floats above it */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: end;
+  padding: var(--space-2) var(--space-2) 0;
+  border-top: var(--hairline) solid var(--border);
+  background: var(--bg-panel);
+}
+
+.terminal-input.has-voice {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+/* the same round target as the send button beside it */
+.terminal-input-mic .voice-mic {
+  width: var(--touch-target);
+  height: var(--touch-target);
+}
+
+.terminal-input-mic .voice-mic:not([aria-pressed="true"]) {
+  border-color: var(--border);
+  background: var(--bg-elevated);
+}
+
+.terminal-input-text {
+  min-height: var(--touch-target);
+  padding: var(--space-2) var(--space-3);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: max(16px, var(--fs-md)); /* below 16px iOS zooms the page on focus */
+  line-height: var(--lh-base);
+  resize: none;
+}
+
+.terminal-input-text:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.terminal-input-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+.terminal-input-send:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.terminal-input-send svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.terminal-input-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--fs-xs);
+}

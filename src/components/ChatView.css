@@ -1,0 +1,934 @@
+/*
+ * The chat lens, in the Codex / gajae-code-app register: the transcript is a quiet
+ * document. The user's words are the only raised block, right-aligned; the agent
+ * answers as plain prose with no avatar or name (the composer's status line already
+ * names it), and everything it did in between folds under one "Worked for 7s · 1 edit"
+ * line whose rows stay one line each until opened. Meta (time, copy) is low-emphasis
+ * and fades in on hover.
+ */
+
+/* The chat's text has its own size (Settings → Chat font size): the view scales the type
+   tokens by --chat-scale (lib/settings.ts) and the transcript uses the scaled ones under
+   the same names, so every message, code block and prompt card grows together */
+.chat-view {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-4) var(--space-5);
+  background: var(--bg);
+  --chat-fs-2xs: calc(var(--fs-2xs) * var(--chat-scale, 1));
+  --chat-fs-xs: calc(var(--fs-xs) * var(--chat-scale, 1));
+  --chat-fs-sm: calc(var(--fs-sm) * var(--chat-scale, 1));
+  --chat-fs-md: calc(var(--fs-md) * var(--chat-scale, 1));
+  --chat-fs-lg: calc(var(--fs-lg) * var(--chat-scale, 1));
+  --chat-fs-xl: calc(var(--fs-xl) * var(--chat-scale, 1));
+}
+
+.chat-transcript {
+  --fs-2xs: var(--chat-fs-2xs);
+  --fs-xs: var(--chat-fs-xs);
+  --fs-sm: var(--chat-fs-sm);
+  --fs-md: var(--chat-fs-md);
+  --fs-lg: var(--chat-fs-lg);
+  --fs-xl: var(--chat-fs-xl);
+  width: min(100%, var(--content-w));
+  min-height: 100%;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  /* Settings -> Chat font (lib/settings.ts): the prose only; code, work rows and paths keep --font-mono */
+  font-family: var(--font-chat, var(--font-ui));
+  font-size: var(--fs-md);
+}
+
+.chat-turn {
+  width: 100%;
+}
+
+.chat-terminal-fallback {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+.chat-terminal-fallback summary { cursor: pointer; }
+.chat-terminal-fallback pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* a user turn opens a new exchange: a hairline separates it from the answer above */
+.chat-turn-user {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  padding-top: var(--space-4);
+  border-top: var(--hairline) solid var(--border);
+}
+
+.chat-turn-user:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* the user's turn is a raised neutral card, not a colored one: amber stays reserved for
+   selection and the send action, so a long thread does not turn into a wall of color */
+.chat-bubble {
+  max-width: 80%;
+  padding: var(--space-3) var(--space-4);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+/* meta rows fade in on hover / focus: the transcript reads as text, not as controls */
+.chat-turn-meta {
+  min-height: var(--chip-h);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.chat-turn:hover .chat-turn-meta,
+.chat-turn:focus-within .chat-turn-meta {
+  opacity: 1;
+}
+
+.chat-copy {
+  width: var(--chip-h);
+  height: var(--chip-h);
+  min-width: var(--chip-h);
+}
+
+.chat-copy svg,
+.chat-meta-btn svg,
+.markdown-code-copy svg {
+  width: var(--fs-sm);
+  height: var(--fs-sm);
+}
+
+.chat-turn-agent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--text);
+}
+
+.chat-agent-meta {
+  gap: var(--space-2);
+}
+
+.chat-agent-meta time {
+  margin-left: var(--space-1);
+}
+
+/* "MD" / "TXT": a copy glyph and a two-letter format, like Codex's copy control */
+.chat-meta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--chip-h);
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  cursor: pointer;
+}
+
+.chat-meta-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.markdown {
+  width: 100%;
+  font-size: var(--fs-md);
+  line-height: var(--lh-base);
+  overflow-wrap: anywhere;
+}
+
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+
+.markdown-math-display {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-bottom: var(--space-3);
+}
+
+.markdown p,
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6,
+.markdown blockquote,
+.markdown-list {
+  margin: 0 0 var(--space-3);
+}
+
+.markdown h1 { font-size: var(--fs-xl); }
+.markdown h2 { font-size: var(--fs-lg); }
+.markdown h3 { font-size: var(--fs-md); }
+/* below h3 the size stops shrinking: the weight, then the dim colour, tell the levels apart */
+.markdown h4,
+.markdown h5,
+.markdown h6 { font-size: var(--fs-md); }
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5 { color: inherit; font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
+.markdown h6 { color: var(--text-dim); font-weight: var(--fw-semibold); line-height: var(--lh-tight); }
+
+.markdown-list {
+  padding-left: var(--space-5);
+}
+
+.markdown-list .markdown-list {
+  margin: var(--space-1) 0 0;
+}
+
+/* a table or text below it in a list item: a little air above and below, as between two items */
+.markdown-list .markdown-table-wrap,
+.markdown-list p {
+  margin: var(--space-1) 0;
+}
+
+.markdown blockquote {
+  padding-left: var(--space-3);
+  border-left: var(--rail-w) solid var(--border-strong);
+  color: var(--text-dim);
+}
+
+.markdown :not(pre) > code {
+  padding-inline: var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.chat-bubble .markdown :not(pre) > code {
+  background: var(--bg-hover);
+}
+
+.markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.chat-bubble .markdown pre,
+.chat-bubble .markdown-code {
+  background: var(--bg-panel);
+}
+
+.markdown hr {
+  margin: var(--space-4) 0;
+  border: 0;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.markdown-code {
+  width: 100%;
+  margin-bottom: var(--space-3);
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--text);
+}
+
+.markdown-code-header {
+  min-height: var(--control-h);
+  padding-inline: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: var(--hairline) solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+}
+
+/* no height cap: an inner scroll hid the rest of the block on phones */
+.markdown-code pre {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-base);
+  white-space: pre;
+}
+
+.markdown-code-more {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-top: var(--hairline) solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-align: left;
+  cursor: pointer;
+}
+
+.markdown-code-more:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.markdown-table-wrap {
+  width: 100%;
+  margin-bottom: var(--space-3);
+  overflow-x: auto;
+}
+
+.markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.markdown th,
+.markdown td {
+  padding: var(--space-2);
+  border: var(--hairline) solid var(--border);
+  text-align: left;
+}
+
+.markdown th {
+  background: var(--bg-elevated);
+  color: var(--text-strong);
+  font-weight: var(--fw-semibold);
+}
+
+/* ---------- work block: "Worked for 7s · 1 edit" over one-line rows ---------- */
+
+.work-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.work-block-head,
+.work-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.work-block-head:hover,
+.work-row-head:hover {
+  background: var(--bg-hover);
+}
+
+.work-row-caret {
+  flex: none;
+  display: inline-flex;
+  width: var(--fs-md);
+  height: var(--fs-md);
+  color: var(--text-dim);
+}
+
+.work-row-caret svg {
+  width: 100%;
+  height: 100%;
+}
+
+.work-block-title {
+  flex: none;
+  color: var(--text);
+  font-weight: var(--fw-medium);
+}
+
+.work-block.is-live .work-block-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--status-working);
+}
+
+/* the dot breathes, the words hold still (same rule as the RUN badge) */
+.work-block.is-live .work-block-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  animation: pulse var(--dur-pulse) var(--ease-pulse) infinite;
+}
+
+.work-block-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* rows hang under the header, indented past its caret */
+.work-block-rows {
+  display: flex;
+  flex-direction: column;
+  padding-left: var(--space-5);
+}
+
+.work-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.work-row-head {
+  min-height: calc(var(--control-h) - var(--space-2));
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+}
+
+.work-row-icon {
+  flex: none;
+  width: var(--fs-sm);
+  height: var(--fs-sm);
+}
+
+.work-row-name {
+  flex: none;
+  color: var(--text);
+  font-weight: var(--fw-medium);
+}
+
+.work-row-sep {
+  flex: none;
+}
+
+.work-row-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.work-row-head[aria-expanded="true"] .work-row-summary {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.work-row-thinking .work-row-name {
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+/* what the agent said mid-work: prose, but dim and one step smaller than the answer */
+.work-narration {
+  padding: var(--space-1) var(--space-1) var(--space-2);
+  color: var(--text-dim);
+}
+
+.work-narration .markdown {
+  font-size: var(--fs-sm);
+}
+
+.work-row-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 var(--space-2) calc(var(--fs-md) + var(--space-2));
+  padding-left: var(--space-3);
+  border-left: var(--hairline) solid var(--border);
+}
+
+.work-thinking-text {
+  color: var(--text-dim);
+  font-style: italic;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-tool-io {
+  width: 100%;
+  max-height: calc(var(--row-h) * 5);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  overflow: auto;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-base);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chat-tool-io pre,
+.chat-tool-io p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.chat-tool-io > :not(:first-child) { margin-top: var(--space-2); }
+
+/* a tool's own pictures (pi reads a file into the result): left-aligned, unlike a user's
+   attachments, and only fetched when the row is opened, so the bytes are not on the page */
+.chat-tool-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.chat-tool-file { color: var(--text-strong); }
+.chat-tool-io-meta { color: var(--text-dim); font-size: var(--fs-2xs); }
+.chat-diff { display: block; white-space: pre; overflow-x: auto; }
+.chat-diff-add { color: var(--status-done); }
+.chat-diff-del { color: var(--status-blocked); }
+.chat-diff-head { color: var(--text-dim); font-weight: var(--fw-semibold); }
+
+.chat-tool-output {
+  width: 100%;
+}
+
+.chat-tool-output h4 {
+  margin: 0 0 var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+.chat-checklist {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  list-style: none;
+  font-size: var(--fs-xs);
+}
+
+.chat-checklist-box { display: inline-block; width: var(--space-4); color: var(--text-dim); }
+.chat-checklist li.is-done { color: var(--text-dim); text-decoration: line-through; }
+.chat-checklist li.is-active .chat-checklist-box { color: var(--status-working); }
+.chat-checklist-phase { margin-top: var(--space-2); color: var(--text-dim); font-weight: var(--fw-semibold); }
+
+/* the top of what is loaded: the way to the page before it */
+.chat-older {
+  align-self: center;
+  min-height: var(--control-h);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.chat-inline-state,
+.chat-endcap {
+  align-self: center;
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.chat-inline-error { color: var(--status-blocked); }
+
+.chat-endcap {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.chat-endcap::before,
+.chat-endcap::after {
+  content: "";
+  flex: 1 1 auto;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.chat-empty {
+  flex: 1 1 auto;
+  min-height: calc(var(--row-h) * 4);
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-3);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.chat-empty p { margin: 0; font-size: var(--fs-sm); }
+
+.chat-new-messages {
+  position: sticky;
+  z-index: var(--z-popover);
+  bottom: var(--space-2);
+  left: 50%;
+  min-height: var(--control-h);
+  transform: translateX(-50%);
+  box-shadow: var(--shadow-pop);
+}
+
+.chat-new-messages svg { width: var(--icon-size); height: var(--icon-size); }
+
+/* chat mode is ONE surface: the stack, the transcript and the composer region all sit on
+   --bg; the only card is the composer's input box, on the same column as the transcript */
+.terminal-stack.is-chat {
+  background: var(--bg);
+}
+
+.terminal-stack.is-chat .composer {
+  background: transparent;
+}
+
+@media (pointer: coarse) {
+  .work-block-head,
+  .work-row-head,
+  .chat-copy,
+  .markdown-code-copy,
+  .markdown-code-more {
+    min-height: var(--touch-target);
+  }
+
+  .chat-copy,
+  .markdown-code-copy { width: var(--touch-target); }
+
+  /* no hover on touch: the meta rows are always there, quietly */
+  .chat-turn-meta { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .chat-view { padding-inline: var(--space-3); }
+  .chat-bubble { max-width: 92%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-turn-meta { transition: none; }
+  .work-block.is-live .work-block-title::before { animation: none; }
+}
+
+.todo-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-phase {
+  margin: var(--space-2) 0 var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--chat-fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-size: var(--chat-fs-sm);
+  line-height: var(--lh-base);
+}
+
+.todo-icon {
+  flex: none;
+  width: calc(var(--icon-size) * 0.9);
+  height: calc(var(--icon-size) * 0.9);
+  margin-top: 0.15em;
+  color: var(--text-dim);
+}
+
+.todo-label { min-width: 0; overflow-wrap: anywhere; }
+.todo-note { display: block; color: var(--text-dim); font-size: var(--chat-fs-xs); }
+.todo-item.is-completed { color: var(--text-dim); }
+.todo-item.is-completed .todo-icon { color: var(--status-done); }
+.todo-item.is-in_progress { color: var(--text-strong); font-weight: var(--fw-medium); }
+.todo-item.is-in_progress .todo-icon { color: var(--status-working); }
+.todo-item.is-blocked .todo-icon { color: var(--status-blocked); }
+.todo-item.is-dropped { color: var(--text-dim); text-decoration: line-through; }
+
+/* a todo call's detail in the work block shows the list after it */
+.work-row-detail .todo-list { padding: var(--space-1) var(--space-3); }
+
+.todo-list .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* a file path in an answer: opens the file viewer, reads as the text or code it is */
+.markdown-file {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: var(--space-1);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.markdown-file.is-code {
+  text-decoration: none;
+}
+
+.markdown-code-link {
+  text-decoration: none;
+}
+
+.markdown-code-link code {
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+
+.markdown-code-link:hover code {
+  text-decoration-style: solid;
+}
+
+.markdown-file.is-code code {
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+}
+
+.markdown-file:hover,
+.markdown-file:hover code {
+  text-decoration-style: solid;
+}
+
+/* a call that failed: its name in the alert colour and a word that says so, even folded */
+.work-row.is-error .work-row-name,
+.work-row.is-error .work-row-icon {
+  color: var(--status-blocked);
+}
+
+.work-row-failed {
+  flex: none;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--status-blocked-tint);
+  color: var(--status-blocked);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+}
+
+/* a file a tool call names opens in the viewer: a link in look, a button underneath */
+.chat-tool-file-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.2em;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.chat-tool-file-link:hover {
+  color: var(--accent);
+  text-decoration-style: solid;
+}
+
+/* the way back to the end while reading up: the pill's round, wordless form */
+.chat-new-messages.is-icon {
+  width: var(--control-h);
+  padding: 0;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+@media (pointer: coarse) {
+  .chat-new-messages.is-icon {
+    width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}
+
+/* images the user sent: thumbnails above their bubble, opened full size on a tap */
+.chat-user-images {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.chat-user-image {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  cursor: zoom-in;
+}
+
+/* a fixed box: a lazy thumbnail must not grow the bubble (and shift the scroll) when it loads */
+.chat-user-image img {
+  display: block;
+  width: min(9rem, 38vw);
+  height: 7rem;
+  object-fit: cover;
+}
+
+/* where a compaction folded the conversation: a quiet divider, its summary on request */
+.chat-compact {
+  margin: var(--space-4) 0;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+.chat-compact > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.chat-compact > summary::before,
+.chat-compact > summary::after {
+  content: "";
+  flex: 1 1 auto;
+  border-top: var(--hairline) solid var(--border);
+}
+
+.chat-compact > summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat-compact-text {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* a runtime notice is job output, not prose: verbatim, wrapped, and bounded like a whole tool output */
+.chat-notice-text {
+  margin-bottom: 0;
+  max-height: 60vh;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* a cut output's rest, on request; once whole, it scrolls in its own box instead of growing the page */
+.chat-tool-more {
+  margin-top: var(--space-1);
+  font-size: var(--fs-xs);
+}
+
+.chat-tool-io.is-whole {
+  max-height: 60vh;
+  overflow: auto;
+}
+
+/* Skills remain discoverable when the work rows are folded. */
+.chat-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.chat-skill {
+  max-width: 100%;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-size: var(--fs-xs);
+}
+.chat-skill > summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  cursor: pointer;
+}
+.chat-skill > summary > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.chat-skill-name { overflow-wrap: anywhere; }
+.chat-skill-status { color: var(--text-dim); }
+.chat-skill.is-error { border-color: var(--status-blocked); }
+.chat-skill-detail { padding: 0 var(--space-2) var(--space-2); overflow-wrap: anywhere; }
+.chat-skill-detail p { margin: 0 0 var(--space-1); color: var(--text-dim); }
+
+.chat-skill[open] .chat-skill-caret { transform: rotate(180deg); }
+
+/* omo's goal as the turn left it: one line beside the skills, the whole objective on request */
+.chat-goal {
+  min-width: 0;
+  max-width: 100%;
+  margin-bottom: var(--space-2);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  font-size: var(--fs-xs);
+}
+.chat-goal > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  cursor: pointer;
+  list-style: none;
+}
+.chat-goal > summary::-webkit-details-marker { display: none; }
+.chat-goal > summary > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.chat-goal-label { font-weight: var(--fw-medium); }
+.chat-goal-objective { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); }
+.chat-goal-status { flex-shrink: 0; color: var(--text-dim); }
+.chat-goal.is-active .chat-goal-status, .chat-goal.is-active > summary > svg:first-child { color: var(--status-working); }
+.chat-goal.is-complete .chat-goal-status, .chat-goal.is-complete > summary > svg:first-child { color: var(--status-done); }
+.chat-goal.is-blocked, .chat-goal.is-budget_limited { border-color: var(--status-blocked); }
+.chat-goal.is-blocked .chat-goal-status, .chat-goal.is-budget_limited .chat-goal-status { color: var(--status-blocked); }
+.chat-goal[open] .chat-skill-caret { transform: rotate(180deg); }
+/* opened, the whole objective is right below: the cut copy would say it twice */
+.chat-goal[open] .chat-goal-objective { visibility: hidden; }
+.chat-goal-detail { padding: 0 var(--space-2) var(--space-2); overflow-wrap: anywhere; }
+.chat-goal-detail p { margin: 0 0 var(--space-1); }
+.chat-goal-text { white-space: pre-wrap; }
+.chat-goal-reason, .chat-goal-spent { color: var(--text-dim); }
+
+/* under the message that invoked it, on the message's side */
+.chat-turn-user .chat-skills { justify-content: flex-end; margin: 0; }
+
+/* pi moved its leaf and wrote nothing: the turns above are not all the file holds, and this is
+   the only place that can say so. Read-only, so it is quieter than a compaction, which changed
+   what the agent answers from. */
+.chat-abandoned { margin: var(--space-2) 0; }
+.chat-abandoned > summary { font-style: italic; }
+.chat-abandoned-note { margin: var(--space-2) 0 0; color: var(--text-dim); }
+
+.chat-copy-fallback { display: block; width: 100%; max-height: 10rem; padding: 8px; color: inherit; background: var(--bg-input); white-space: pre-wrap; overflow-wrap: anywhere; }

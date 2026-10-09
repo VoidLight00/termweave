@@ -1,0 +1,6 @@
+import './test-herdr.ts';import assert from 'node:assert/strict';import {mkdtempSync,mkdirSync,writeFileSync,rmSync,existsSync} from 'node:fs';import {join} from 'node:path';import {createServer} from '../server/index.ts';import {uninstallOwned} from './uninstall.ts';
+const root=mkdtempSync(join(process.env.TERMWEAVE_TEST_ROOT!,'install-owned-'));const owned=join(root,'termweave');mkdirSync(owned);writeFileSync(join(owned,'.termweave-owned.json'),JSON.stringify({product:'termweave',root:owned,inventory:{}}));
+const server=createServer({port:0,hostname:'127.0.0.1',stateDir:owned,token:'synthetic-install-token'});
+try{const response=await fetch(`http://127.0.0.1:${server.port}/api/health`);assert.equal(response.status,200);assert.equal((await fetch(`http://127.0.0.1:${server.port}/api/session`)).status,401);}finally{server.stop(true);}
+for(const name of (await import("node:fs")).readdirSync(owned))if(name!==".termweave-owned.json")rmSync(join(owned,name),{recursive:true,force:true});
+uninstallOwned(owned,true);assert.equal(existsSync(owned),false);rmSync(root,{recursive:true,force:true});console.log('PASS owned clean-state start/auth/stop/uninstall; harness verifies owned native PID/socket shutdown');

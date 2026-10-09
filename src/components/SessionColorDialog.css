@@ -1,0 +1,6 @@
+.session-color-dialog { width: min(360px, calc(100vw - 32px)); }
+.session-color-palette { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.session-color-choice { display: flex; align-items: center; gap: 8px; justify-content: flex-start; min-width: 0; }
+.session-color-choice[aria-pressed="true"] { outline: 2px solid var(--accent, currentColor); outline-offset: 1px; }
+.session-color-choice:last-child { grid-column: 1 / -1; justify-content: center; }
+.session-color-dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }

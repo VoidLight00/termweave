@@ -1,0 +1,135 @@
+.palette-scrim {
+  align-items: flex-start;
+  padding-top: var(--palette-top);
+}
+
+.command-palette {
+  width: min(100%, var(--palette-w));
+  max-height: calc(100% - var(--palette-top) - var(--space-4));
+  padding: 0;
+}
+
+.palette-search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--bg-panel);
+  border-bottom: var(--hairline) solid var(--border);
+}
+
+.palette-search .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.palette-search .icon-button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.palette-results {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-1);
+}
+
+/* every row is the full menu width: the hover fill and the right-aligned badge/shortcut line up */
+.command-palette .menu-item {
+  width: 100%;
+}
+
+.palette-pane {
+  min-height: var(--row-h);
+}
+
+.palette-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  color: var(--text-dim);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+}
+
+.palette-row-title,
+.palette-row-subtitle {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-row-title {
+  gap: var(--space-2);
+  color: var(--text-strong);
+  font-weight: var(--fw-medium);
+}
+
+.palette-row-subtitle {
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}
+
+.palette-selected {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.palette-shortcut {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.palette-empty {
+  margin: var(--space-6) var(--space-3);
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  text-align: center;
+}
+
+@media (pointer: coarse) {
+  .command-palette .menu-item {
+    min-height: var(--touch-target);
+  }
+}
+
+@media (max-width: 640px) {
+  .palette-scrim {
+    align-items: flex-end;
+    padding-top: 0;
+  }
+
+  .command-palette {
+    width: 100%;
+    max-height: calc(100% - var(--space-8));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  .palette-search {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-popover);
+    padding-top: var(--space-4);
+  }
+}
+
+/* a phone-width screen is touched, not typed on: the key hints only take the row's room */
+@media (max-width: 480px) {
+  .palette-shortcut { display: none; }
+}

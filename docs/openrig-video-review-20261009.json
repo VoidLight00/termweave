@@ -1,0 +1,408 @@
+{
+  "reviewedAt": "2026-10-09",
+  "channel": "https://www.youtube.com/@OpenRigTutorials/videos",
+  "sourceCommit": "29c2a56104e6247d289267685264b96fac46ec2a",
+  "sourceVersion": "0.6.7",
+  "fullVisualWatch": false,
+  "videos": [
+    {
+      "id": "WawXX4DJo_s",
+      "title": "OpenRig and Your Computer: What It Changes, What to Back Up",
+      "url": "https://www.youtube.com/watch?v=WawXX4DJo_s",
+      "durationSeconds": 315,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "13692e94872b95378f6b816f17172db8c4f29f0682773e5155309a194dfaa87a",
+      "application": "설치·설정·실행 시 바뀌는 파일을 구분합니다. 현재 Claude/Codex 설정과 후크를 보존하는 사전 비교가 필요합니다."
+    },
+    {
+      "id": "m5o6Ihwj-cY",
+      "title": "OpenRig Tutorials: Start Here (What This Channel Is For)",
+      "url": "https://www.youtube.com/watch?v=m5o6Ihwj-cY",
+      "durationSeconds": 88,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "4cee5429aa923dcbfdaa092e15b8b4d238c333567808239dd1e84e29beb2ba63",
+      "application": "비공식 팬 제작 채널입니다. 영상 설명을 공식 소스와 교차 확인하는 기준으로 삼았습니다."
+    },
+    {
+      "id": "cWoa-PdBgmA",
+      "title": "Your AI Team on a Server Nobody Can See: OpenRig + Tailscale Setup",
+      "url": "https://www.youtube.com/watch?v=cWoa-PdBgmA",
+      "durationSeconds": 832,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "56ea68bc16fac20ef7bd551a150ca49ece30ee210170f6ada653c3a192555174",
+      "application": "서버에서 팀을 계속 실행하고 노트북은 화면으로 사용하는 구조입니다. 영상은 Tailscale을 사용하므로 ‘Tailscale 없이 LTE로 접속’하는 요구의 검증 근거가 되지 않습니다."
+    },
+    {
+      "id": "fUmtxT6ADBE",
+      "title": "The Whole Picture: OpenRig from Start to Finish + Cheat Sheet | Ep 24",
+      "url": "https://www.youtube.com/watch?v=fUmtxT6ADBE",
+      "durationSeconds": 233,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "296a32f3f0c50b765c111d9da201e4bd979dfbebc6c08110eb72ba9236f6b7c0",
+      "application": "설치부터 검증·복구까지의 전체 흐름입니다. TermWeave의 팀 시작 안내와 운영 점검에 적용합니다."
+    },
+    {
+      "id": "E-5PRsCoIf8",
+      "title": "Keeping OpenRig Healthy: Upgrades, Settings and Clean-ups | Ep 23",
+      "url": "https://www.youtube.com/watch?v=E-5PRsCoIf8",
+      "durationSeconds": 251,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "59a65048a23c2e51958f9dd95b3e255898ab85616679637e5e5bbec38d647160",
+      "application": "실행 중 에이전트와 관리 프로그램의 업데이트를 구분합니다. 업데이트 전후 같은 터미널·대화가 유지되는지 확인합니다."
+    },
+    {
+      "id": "QTzJT1xWBwM",
+      "title": "More Machines and Connections in OpenRig: Hosts, Slack and Usage | Ep 22",
+      "url": "https://www.youtube.com/watch?v=QTzJT1xWBwM",
+      "durationSeconds": 257,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "a751d6a3ffb6affbf8026754f663561aca4151edb3c129e18a6add69a9f852d1",
+      "application": "다른 호스트와 Slack, 사용량을 다룹니다. 호스트 식별과 전달 결과를 분리하고, Slack 실전 연동은 선택 기능으로 둡니다."
+    },
+    {
+      "id": "1WlqKwob_AI",
+      "title": "Every Way AI Agents Talk to Each Other in OpenRig | Ep 21",
+      "url": "https://www.youtube.com/watch?v=1WlqKwob_AI",
+      "durationSeconds": 266,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "51714d4a58f35ef66a602b6329f27f2e29737d6c7a35207067d60d0e55098cb3",
+      "application": "메시지·작업 기록·팀 채팅·출력 검색의 용도가 다릅니다. 메시지를 보냈다는 표시를 작업 완료로 취급하지 않습니다."
+    },
+    {
+      "id": "kUpK5U4IGXo",
+      "title": "Running Bigger AI Agent Teams with OpenRig | Ep 20",
+      "url": "https://www.youtube.com/watch?v=kUpK5U4IGXo",
+      "durationSeconds": 424,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "9e9db084d7094b5ba95d776f096bbd7f5f19e8d060ba813429ebad08e82a1d0f",
+      "application": "팀 확장에는 파일 소유권과 독립 검토가 필요합니다. 기본은 두 좌석으로 시작하고 실제 필요에 따라 늘립니다."
+    },
+    {
+      "id": "NNeF6TGeF8I",
+      "title": "Workflows: Recipes for Repeat Work in OpenRig | Ep 19",
+      "url": "https://www.youtube.com/watch?v=NNeF6TGeF8I",
+      "durationSeconds": 281,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "f0e9095a18bab070e7f0175bd08d1664248869d7e130c115475a7f0732835417",
+      "application": "반복 작업의 다음 담당자를 정합니다. 흐름 완료와 결과물 품질 검증은 별도로 표시합니다."
+    },
+    {
+      "id": "QpSTvJFa-YY",
+      "title": "Proof, Not Promises: How OpenRig Agents Show the Work Is Done | Ep 18",
+      "url": "https://www.youtube.com/watch?v=QpSTvJFa-YY",
+      "durationSeconds": 286,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "080f5ba1082741f0f5e1db12503a5bc06dced9ec94412b2283870fa998e62794",
+      "application": "검증한 코드 버전과 증거·미검증 범위를 기록합니다. TermWeave 완료 화면에 결과 링크와 검사 버전을 붙입니다."
+    },
+    {
+      "id": "O9adksUuQoI",
+      "title": "Plan Real Work in OpenRig: Projects, Missions and Slices | Ep 17",
+      "url": "https://www.youtube.com/watch?v=O9adksUuQoI",
+      "durationSeconds": 277,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "b92c92e31d2b3fc8b88585fe11c6ddcb6281c0620e3bdd48dda03b7b5692e6f7",
+      "application": "프로젝트·목표·검증 가능한 작업 단위로 분리합니다. 터미널별 대화와 장기 작업 계획을 연결합니다."
+    },
+    {
+      "id": "vvr7GUGHMxQ",
+      "title": "OpenRig Teams That Run Software, and Sharing Your Team | Ep 16",
+      "url": "https://www.youtube.com/watch?v=vvr7GUGHMxQ",
+      "durationSeconds": 253,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "89ff6dfa23ae6e2f0b45fbdbf91e5611b30fa8e6c79c71554401ab728f837c16",
+      "application": "서비스를 포함한 팀과 배포 묶음을 다룹니다. 묶음 무결성 검사는 작성자 신뢰나 안전한 실행의 증거가 아닙니다."
+    },
+    {
+      "id": "f2j761BHhoc",
+      "title": "Add, Remove or Swap AI Agents in OpenRig Without a Restart | Ep 15",
+      "url": "https://www.youtube.com/watch?v=f2j761BHhoc",
+      "durationSeconds": 269,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "5d1b2ca76f83f346fdf3d3c09e6bf3a6b9d81945e01c5e7842e085ce05ec7dda",
+      "application": "좌석 추가·제거·복제·교대를 구분합니다. 제거 전 담당 작업을 넘기고, 실행 중 변경을 원래 설정에도 반영할지 명시합니다."
+    },
+    {
+      "id": "Msd0KxIIHyg",
+      "title": "OpenRig Culture, Skills and Context: Shaping What Your Agents Know | Ep 14",
+      "url": "https://www.youtube.com/watch?v=Msd0KxIIHyg",
+      "durationSeconds": 263,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "06a862f268dd7781cde1baf61b4eebe637f8be6dbca55a5de8a470d3186af06b",
+      "application": "공통 규칙·역할별 기억·작업 문맥을 구분합니다. 기존 AGENTS.md를 덮어쓰지 않고 필요한 지침만 전달합니다."
+    },
+    {
+      "id": "kFJiTlzPM-4",
+      "title": "What Makes Each Agent Different: The OpenRig AgentSpec | Ep 13",
+      "url": "https://www.youtube.com/watch?v=kFJiTlzPM-4",
+      "durationSeconds": 256,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "1931ce09138810df984bbe398883de9dd55108e1c14dbffbbf7c4bea0b2892f5",
+      "application": "에이전트별 실행 환경과 자료를 정의합니다. 설정 유효성과 실제 에이전트 성공을 따로 검증합니다."
+    },
+    {
+      "id": "0akd34O7mFc",
+      "title": "Design Your Own AI Team: The OpenRig RigSpec (rig.yaml) | Ep 12",
+      "url": "https://www.youtube.com/watch?v=0akd34O7mFc",
+      "durationSeconds": 252,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "54cd58364afb4f2d3baccbc39b9ccb00aeffe442709859a1dc51a04e4698a08a",
+      "application": "팀 구성을 YAML로 저장합니다. 팀 정의 검사와 현재 컴퓨터에서 실행 가능한지 확인하는 검사를 구분합니다."
+    },
+    {
+      "id": "axaQljZWxZM",
+      "title": "AI Agent Permissions and Safety in OpenRig | Ep 11",
+      "url": "https://www.youtube.com/watch?v=axaQljZWxZM",
+      "durationSeconds": 273,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "ee23691e06236f0b2ff5e77003a00feeb7f1bf99790ecd970123f335f7766a42",
+      "application": "승인 방식과 접근 가능 범위는 별개입니다. 자동 승인이나 전체 권한 허용을 기본으로 채택하지 않습니다."
+    },
+    {
+      "id": "UvNrHxSxAHU",
+      "title": "When Something Goes Wrong: Fixing OpenRig Problems Calmly | Ep 10",
+      "url": "https://www.youtube.com/watch?v=UvNrHxSxAHU",
+      "durationSeconds": 247,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "c70abe3aa91216966946285a07273fc01f82c4a8b2999a3fedd4b9d18e81fe3a",
+      "application": "문제 증거를 먼저 확인하고 전체 재시작을 피합니다. 진단 결과가 비어 있다는 이유로 정상이라고 표시하지 않습니다."
+    },
+    {
+      "id": "LTCpqoHk7L4",
+      "title": "Is My AI Agent Stuck? OpenRig Agent States and Keeping Work Moving | Ep 9",
+      "url": "https://www.youtube.com/watch?v=LTCpqoHk7L4",
+      "durationSeconds": 291,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "21544cf3e926e28936a3415c03b150757557f13ea9d32cb334b1a4e2d2199507",
+      "application": "프로세스 존재·활동·복구 가능성을 구분합니다. 알림 반복으로 토큰을 낭비하지 않도록 깨우기 횟수를 제한합니다."
+    },
+    {
+      "id": "rmXfl4lCKGQ",
+      "title": "Stop, Save and Come Back: OpenRig Snapshots and Restore | Ep 8",
+      "url": "https://www.youtube.com/watch?v=rmXfl4lCKGQ",
+      "durationSeconds": 262,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "ff48d407fc8e7a55f7d686e13cb2ed8fb30a0cab5f0b42538562bbcdb6c9ca60",
+      "application": "대화 복원과 새 대화 시작을 구분합니다. 재부팅은 실행 중 프로세스 보존이 아니라 저장된 대화와 팀 구성의 재개입니다."
+    },
+    {
+      "id": "2iBJjXG1C6s",
+      "title": "When Your OpenRig Team Needs You: Decisions, Not Babysitting | Ep 7",
+      "url": "https://www.youtube.com/watch?v=2iBJjXG1C6s",
+      "durationSeconds": 242,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "f30030087ec3f60dfeac4a69f6c80e8ca60f7d1af797dade7533a4f0ce2fa9b4",
+      "application": "사람에게 필요한 결정만 모으고 입력 중 자동 메시지를 막습니다. 읽음과 승인도 분리합니다."
+    },
+    {
+      "id": "h5RmiDE__F0",
+      "title": "Giving Your AI Agents Work in OpenRig: Messages and the Queue | Ep 6",
+      "url": "https://www.youtube.com/watch?v=h5RmiDE__F0",
+      "durationSeconds": 226,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "04652f59e240cd6e881364aec363a05cf8fbbdddd53b7e07c6ece4f4314dba5e",
+      "application": "작업마다 한 명의 담당자와 이력을 남깁니다. 인수인계와 독립 검토를 TermWeave에 표시합니다."
+    },
+    {
+      "id": "eNNxJxB4tPA",
+      "title": "See Every Agent at Once: The herdr Terminal Wall for OpenRig | Ep 5b",
+      "url": "https://www.youtube.com/watch?v=eNNxJxB4tPA",
+      "durationSeconds": 215,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "9a10e922f03db0b0895ed8a1537ec93343c251df0f633d3d1cd10b88a09c008f",
+      "application": "Herdr를 에이전트 화면으로 사용합니다. 화면 닫기와 실제 에이전트 종료가 다르다는 점을 현재 삭제 기능에 반영해야 합니다."
+    },
+    {
+      "id": "Flx7MsKay4c",
+      "title": "Watching Your AI Agent Team: The OpenRig Dashboard | Ep 5",
+      "url": "https://www.youtube.com/watch?v=Flx7MsKay4c",
+      "durationSeconds": 249,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "96656d7166155420fbf69b045f9ec23802fc3b12ff86927c61614e92fb98d3a7",
+      "application": "팀·좌석·최근 활동·사람의 결정 요청을 모읍니다. 터미널 공간을 줄이지 않는 별도 팀 보기로 적용합니다."
+    },
+    {
+      "id": "jx-UQDJC5uI",
+      "title": "Your OpenRig Cockpit: Your Whole AI Team on One Screen with herdr | Ep 4b",
+      "url": "https://www.youtube.com/watch?v=jx-UQDJC5uI",
+      "durationSeconds": 157,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "0e643586080cad98b7633b744f5b5a786ea0b4bc7637c6969b233f725950fde9",
+      "application": "Herdr에 팀 화면과 대시보드를 함께 배치합니다. 기존 TermWeave 렌더링 계층의 재사용 가능성을 검토할 근거입니다."
+    },
+    {
+      "id": "KEuHcHFtJq4",
+      "title": "Launch Your First AI Agent Team with OpenRig | Ep 4",
+      "url": "https://www.youtube.com/watch?v=KEuHcHFtJq4",
+      "durationSeconds": 251,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "77209a96d56d9adf0910f98f723e185330fa5984bedc0de1ac8423d3f87d1e48",
+      "application": "두 좌석의 준비 상태를 확인한 뒤 작업을 줍니다. 관리 서버만 켜졌다고 팀 준비 완료로 표시하지 않습니다."
+    },
+    {
+      "id": "2YtQZg5jIgM",
+      "title": "Before You Install OpenRig: What You Need and What It Changes | Ep 3",
+      "url": "https://www.youtube.com/watch?v=2YtQZg5jIgM",
+      "durationSeconds": 252,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "58bd84e7145f6223a61ed912357d58dd3196805d08264d07eba5267915f6bc1d",
+      "application": "Node·tmux·로그인과 설치 변경점을 확인합니다. 현재 계정과 환경에 영향을 주는 설정 자동 변경은 분리합니다."
+    },
+    {
+      "id": "wumLiX18eDY",
+      "title": "Rigs, Pods, Seats and Edges: How an OpenRig Team Fits Together | Ep 2",
+      "url": "https://www.youtube.com/watch?v=wumLiX18eDY",
+      "durationSeconds": 248,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "188132b747378e4ac227d0356190d10fc75411574bc977f0c13772b51ecbb57e",
+      "application": "팀·그룹·좌석·실행 중 대화를 구분합니다. 좌석 주소와 화면 P 번호를 같은 ID로 취급하지 않습니다."
+    },
+    {
+      "id": "j4oO2uOdqh8",
+      "title": "What OpenRig Actually Is (and Why AI Agents Need a Manager) | Ep 1",
+      "url": "https://www.youtube.com/watch?v=j4oO2uOdqh8",
+      "durationSeconds": 245,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "6a672339bed9a5984f002f0e47668bdd195715bf7552b8f2b3508d664626de05",
+      "application": "여러 코딩 에이전트를 지속적으로 운영하는 관리 계층입니다. 휴대폰 화면 제어 도구는 아닙니다."
+    },
+    {
+      "id": "X4o3DZv6NsM",
+      "title": "OpenRig in 4 Minutes: Turn AI Coding Agents into a Team",
+      "url": "https://www.youtube.com/watch?v=X4o3DZv6NsM",
+      "durationSeconds": 201,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "f63205cd688b85c8f76cd64a365277d7febb550f5af0fdaf6217cb2de181a1b4",
+      "application": "전체 개요입니다. TermWeave는 화면과 조작을, OpenRig는 팀 운영을 담당하는 구조를 제안합니다."
+    },
+    {
+      "id": "wH2PxnXYX_w",
+      "title": "Who writes the code? Who checks it? #shorts",
+      "short": true,
+      "url": "https://www.youtube.com/watch?v=wH2PxnXYX_w",
+      "durationSeconds": 44,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "a2c2a721349fa61908ffb4e7cb1bd6e0e64aba673bac70137770fe1e576df30b",
+      "application": "작성자와 검토자를 분리하고 같은 코드 버전을 확인해야 한다는 요약입니다."
+    },
+    {
+      "id": "kZvzgzJERQs",
+      "title": "Let an AI agent run without asking you? #shorts",
+      "short": true,
+      "url": "https://www.youtube.com/watch?v=kZvzgzJERQs",
+      "durationSeconds": 45,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "6a810605c70483dc45a5a7b7be79b239104c50018295b269a550eb54d8132213",
+      "application": "권한을 전부 허용하면 영향도 커집니다. 승인 프롬프트에 일반 메시지를 보내지 않는 보호를 유지합니다."
+    },
+    {
+      "id": "9cYy1RN4ino",
+      "title": "Setting up your AI agent team by hand every time? #shorts",
+      "short": true,
+      "url": "https://www.youtube.com/watch?v=9cYy1RN4ino",
+      "durationSeconds": 45,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "bc2a8b65b4053b386810e86cbfa8f6cb60b7b685ebd60700760064658b362d95",
+      "application": "매번 수동으로 창을 구성하는 대신 저장된 팀 정의를 사용합니다."
+    },
+    {
+      "id": "KlG2Giwpmco",
+      "title": "Still copy-pasting between AI agents? #shorts",
+      "short": true,
+      "url": "https://www.youtube.com/watch?v=KlG2Giwpmco",
+      "durationSeconds": 45,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "7a4d9b760c9dfadd88517674bf48c43d74ec700305fa41e714880f1b2c98ffa3",
+      "application": "대화 전달과 담당자가 있는 작업 기록을 구분해 복사·붙여넣기 부담을 줄입니다."
+    },
+    {
+      "id": "4NGuoz8zsls",
+      "title": "Your AI agent says \"done\". Does it actually work? #shorts",
+      "short": true,
+      "url": "https://www.youtube.com/watch?v=4NGuoz8zsls",
+      "durationSeconds": 43,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "7b2f20c9f74f0bb8522b1091b52318e645f95c0ab895ff64a7c335c3a3598bb8",
+      "application": "완료라는 답변보다 실제 실행 증거를 우선합니다."
+    },
+    {
+      "id": "jUae0t2qYwk",
+      "title": "Juggling AI coding agents? Lost track of who's doing what? #shorts",
+      "short": true,
+      "url": "https://www.youtube.com/watch?v=jUae0t2qYwk",
+      "durationSeconds": 51,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "1fd6c97b38d15b3643dd3a35bc5c14823cb9f4f240ff977a4daaf5745a5cd36b",
+      "application": "여러 창을 팀 구조와 담당 업무로 묶어 보여줍니다."
+    },
+    {
+      "id": "5LnAK4fB_KE",
+      "title": "Your PC restarts. Did your AI agents forget everything? #shorts",
+      "short": true,
+      "url": "https://www.youtube.com/watch?v=5LnAK4fB_KE",
+      "durationSeconds": 45,
+      "transcriptReviewed": true,
+      "visualFullWatch": false,
+      "transcriptSha256": "599ba9ff4b4e545a1be9ba382a8400c5beecc694e3299b6707e1db31df4a3841",
+      "application": "재부팅 뒤 대화 재개에 관한 요약입니다. 휴대폰 화면 공유 권한 복구와는 관련이 없습니다."
+    }
+  ],
+  "metadata": {
+    "schema_version": 1,
+    "project": "TermWeave",
+    "document_type": "video-review-ledger",
+    "author": "Codex",
+    "created_at": "2026-10-09T00:04:48+09:00",
+    "created_at_basis": "filesystem_birthtime",
+    "updated_at": "2026-10-09T00:42:49+09:00",
+    "saved_at": "2026-10-09T00:42:49+09:00",
+    "timezone": "Asia/Seoul",
+    "official_docs_checked_at": "2026-10-09T00:42:49+09:00",
+    "official_docs_version": "0.6.6",
+    "installed_package_version": "0.6.7",
+    "visibility": "repository-local",
+    "verification_scope": "video-descriptions-and-transcripts; not-full-visual-review",
+    "sources": [
+      "https://openrig.dev/docs/coordination",
+      "https://openrig.dev/docs/continuity",
+      "https://openrig.dev/specs/rigspec",
+      "https://openrig.dev/docs/architecture"
+    ]
+  }
+}

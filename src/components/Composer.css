@@ -1,0 +1,729 @@
+/* The composer is a centered chat surface; PaneTerminal owns its placement above the mobile
+   keyboard. Its horizontal padding equals .chat-view's, so the status line, the quick replies,
+   the box and the transcript share one column edge. */
+.composer {
+  position: relative;
+  flex: none;
+  width: 100%;
+  /* one bottom space: the composer's own, or most of the home indicator's when that is taller.
+     The indicator is a thin bar near the bottom edge: the box may sit 16px into its 34px inset
+     and still clear it, and the full inset left a band of nothing under the box */
+  padding: 0 var(--space-4) max(var(--space-4), calc(env(safe-area-inset-bottom, 0px) - var(--space-4)));
+  background: var(--bg-panel);
+}
+
+/* the soft keyboard covers the home indicator: the box sits just above the keyboard */
+[data-keyboard] .composer {
+  padding-bottom: var(--space-2);
+}
+
+.composer-status,
+.composer-quick,
+.composer-surface,
+.composer-note {
+  width: min(100%, var(--content-w));
+  margin-inline: auto;
+}
+
+/* the dictation pill floats above the composer, on the same column edge */
+.composer > .voice-pill[data-align="start"] {
+  left: calc(var(--space-4) + max(0px, (100% - 2 * var(--space-4) - var(--content-w)) / 2));
+}
+
+/* one row, always: a second row is taken from the conversation, and a phone has none to spare.
+   What does not fit gives way in this order: the model's name shortens to a few letters, then
+   the reasoning level, then the opened context text; nothing overlaps its neighbour, and the
+   context ring at the end is never the part that is cut. */
+.composer-status {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--chip-h);
+  padding: 0 var(--space-2) var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.composer-model-info {
+  /* no box of its own: the name and the level sit in the status line itself, so the name can
+     give way before anything else does and the level never overlaps what follows */
+  display: contents;
+}
+
+.composer-model {
+  flex: 0 100 auto;
+  min-width: 3ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.composer-reasoning-short {
+  display: none;
+}
+
+.composer-reasoning {
+  flex: 0 10 auto;
+  min-width: 2ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-inline: var(--space-1);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* what is left of the context: plain until a compaction is near */
+/* the context left: a ring filled by what is used, its number on hover or a tap */
+.composer-context {
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 14px;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.composer-context svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+
+.composer-context-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.composer-context-track,
+.composer-context-used {
+  fill: none;
+  stroke-width: 2.5;
+}
+
+.composer-context-track {
+  stroke: var(--border);
+}
+
+.composer-context-used {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.composer-context.is-low {
+  color: var(--status-blocked);
+}
+
+.composer-status .agent-mark {
+  display: inline-flex;
+  flex: none;
+}
+
+.composer-status strong {
+  flex: none;
+  color: var(--text-strong);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--tracking-caps);
+}
+
+.composer-status[data-status="working"] strong {
+  color: var(--status-working);
+}
+
+.composer-status[data-status="blocked"] strong {
+  color: var(--status-blocked);
+}
+
+.composer-status[data-status="done"] strong {
+  color: var(--status-done);
+}
+
+.composer-status-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* one row: attach | textarea | actions. The controls sit at the bottom of their cells so a
+   grown textarea keeps them beside its last line, like a chat app; the attachment strip is
+   its own row above */
+.composer-surface {
+  --composer-control-h: var(--control-h);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "attachments attachments attachments"
+    "left text right";
+  align-items: end;
+  background: var(--bg-elevated);
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+/* focus is the surface's: the accent border on the rounded box, not a rectangle on the
+   textarea inside it (the global :focus-visible ring is suppressed below) */
+.composer-surface:focus-within {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-card), 0 0 0 var(--hairline) var(--accent-tint);
+}
+
+.composer-surface.is-dragging {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 var(--hairline) var(--accent);
+}
+
+/* the resize grip: a short bar on the box's top edge. Its hit area rises from the border into
+   the status line's gap and never reaches into the box, so a tap at the box's top still lands
+   on the text and a remove button in the attachment strip stays reachable */
+.composer-resize {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: end center;
+  width: 48px;
+  height: 12px;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+/* the bar sits on the border; its half over the box is drawn, not hit */
+.composer-resize::before {
+  content: "";
+  width: var(--space-8);
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--border-strong);
+  transform: translateY(2px);
+  pointer-events: none;
+  transition: background-color var(--dur-fast) var(--ease-out);
+}
+
+.composer-resize:hover::before,
+.composer-resize:active::before,
+.composer-resize:focus-visible::before {
+  background: var(--accent);
+}
+
+.composer-resize:focus-visible {
+  outline-offset: 0;
+  border-radius: var(--radius-sm);
+}
+
+.composer-text {
+  grid-area: text;
+  width: 100%;
+  min-width: 0;
+  min-height: calc(var(--composer-control-h) + var(--space-2));
+  max-height: 10lh;
+  padding: calc((var(--composer-control-h) + var(--space-2) - 1lh) / 2) var(--space-1);
+  resize: none;
+  overflow-y: auto;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  color: var(--text-strong);
+  font-family: var(--font-ui);
+  font-size: var(--fs-input);
+  line-height: var(--lh-base);
+}
+
+.composer-text:focus-visible {
+  outline: 0;
+}
+
+/* a height set with the grip: the grip's own limits, re-applied when a keyboard or a rotation
+   shrinks the viewport, so the saved height comes back once there is room again */
+.composer-text.is-sized {
+  max-height: min(50vh, 480px);
+  max-height: min(calc(var(--app-height, 100dvh) / 2), 480px);
+}
+
+.composer-text::placeholder {
+  color: var(--text-dim);
+}
+
+.composer-text:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.composer-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--control-h);
+}
+
+.composer-controls-left {
+  grid-area: left;
+  padding: var(--space-1) 0 var(--space-1) var(--space-2);
+}
+
+.composer-controls-right {
+  grid-area: right;
+  padding: var(--space-1) var(--space-2) var(--space-1) 0;
+}
+
+.composer-controls .icon-button,
+.composer-action,
+.composer-attachment button {
+  flex: none;
+  cursor: pointer;
+}
+
+.composer-controls .icon-button {
+  color: var(--text-dim);
+  border-radius: var(--radius-pill);
+}
+
+.composer-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  border: var(--hairline) solid transparent;
+  border-radius: var(--radius-pill);
+  color: var(--primary-text);
+}
+
+.composer-action svg,
+.composer-queue-button svg,
+.composer-attachment button svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.composer-send {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.composer-stop {
+  background: var(--status-blocked-tint);
+  border-color: var(--status-blocked);
+  color: var(--status-blocked);
+}
+
+.composer-queue-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--control-h);
+  padding: 0 var(--space-2);
+  background: var(--primary-tint);
+  border: var(--hairline) solid var(--primary);
+  border-radius: var(--radius-pill);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+}
+
+.composer-action:disabled,
+.composer-queue-button:disabled,
+.composer-controls .icon-button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .composer-send:hover:not(:disabled) {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  .composer-stop:hover:not(:disabled) {
+    background: var(--danger-tint);
+  }
+
+  .composer-queue-button:hover:not(:disabled),
+  .composer-controls .icon-button:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+}
+
+.composer-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--space-2));
+  left: 0;
+  z-index: var(--z-popover);
+  max-height: calc(var(--row-h) * 5);
+  overflow-y: auto;
+}
+
+/* The menu is a column flex container, which shrinks every row to make forty of them fit the
+   height, and a shrunk row spills its own text over the next one. */
+.composer-menu .menu-item {
+  flex-shrink: 0;
+}
+
+.composer-menu-group {
+  display: contents;
+}
+
+.composer-menu .menu-item {
+  width: 100%;
+  text-align: left;
+}
+
+.composer-menu .menu-item-main {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* What the command is stays readable and what it does gives way: a hint that never shrinks
+   squeezed the command itself to nothing — at 390px wide `/export` measured 0px. */
+.composer-menu .menu-item-main {
+  flex: 0 0 auto;
+  /* but it may not outgrow the row. A prompt template is named after its file, and a long name
+     measured 15px past the row on a 390px phone (2097px with a pathological one), its tail under
+     whatever sits beside the menu. Capped at the row, the ellipsis the rule above already asks for
+     is finally reached, and the description still takes the line below it on a phone */
+  max-width: 100%;
+}
+
+.composer-menu .menu-item-hint {
+  margin-left: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-attachments {
+  grid-area: attachments;
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3) 0;
+  overflow-x: auto;
+}
+
+.composer-attachment {
+  position: relative;
+  flex: 0 0 auto;
+  width: calc(var(--control-h) * 2);
+  height: calc(var(--control-h) * 2);
+  overflow: visible;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+}
+
+.composer-attachment img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.composer-attachment-state {
+  position: absolute;
+  inset: auto var(--space-1) var(--space-1);
+  padding: var(--hairline) var(--space-1);
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--bg-panel);
+  color: var(--text-strong);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-tight);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-attachment.is-error {
+  border-color: var(--status-blocked);
+}
+
+.composer-attachment button {
+  position: absolute;
+  top: calc(-1 * var(--space-2));
+  right: calc(-1 * var(--space-2));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--chip-h);
+  height: var(--chip-h);
+  padding: 0;
+  background: var(--bg-panel);
+  border: var(--hairline) solid var(--border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--text-strong);
+}
+
+.composer-note {
+  margin-top: var(--space-1);
+  padding: 0 var(--space-2);
+  color: var(--danger-text);
+  font-size: var(--fs-xs);
+}
+
+@media (max-width: 480px) {
+  .composer {
+    padding-inline: var(--space-2);
+  }
+
+  .composer-agent-label,
+  .composer-status-separator,
+  .composer-status-hint {
+    display: none;
+  }
+
+  /* the chip keeps the level and drops the word; a screen reader still reads the whole of it */
+  .composer-reasoning-full {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .composer-reasoning-short {
+    display: inline;
+  }
+
+  /* A phone fits neither half of a pi command's row, and pi writes explanations twice as long as
+     the line is wide, so the description takes a line to itself and wraps onto more. */
+  .composer-menu .menu-item {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    row-gap: 0;
+  }
+
+  .composer-menu .menu-item-hint {
+    flex: 1 1 100%;
+    margin-left: 0;
+    white-space: normal;
+    text-overflow: clip;
+    line-height: 1.35;
+  }
+}
+
+@media (pointer: coarse) {
+  .composer-surface {
+    --composer-control-h: var(--touch-target);
+  }
+
+  .composer-controls .icon-button,
+  .composer-action,
+  .composer-queue-button,
+  .composer-attachment button {
+    min-width: var(--touch-target);
+    min-height: calc(var(--touch-target) + var(--space-1));
+  }
+
+  .composer-resize {
+    width: 64px;
+    height: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-surface,
+  .composer-resize::before {
+    transition: none;
+  }
+}
+
+/* A bounded, scrollable list leaves room for the chat and composer on phones. */
+.composer-queue {
+  min-height: 0;
+  max-height: min(34dvh, 22rem);
+  overflow-y: auto;
+  flex-shrink: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-top: var(--hairline) solid var(--border);
+  background: var(--accent-tint);
+}
+
+.terminal-stack.is-chat .composer-queue {
+  width: min(100%, var(--content-w));
+  margin: 0 auto;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.composer-queue-label {
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.composer-queue-text {
+  min-height: 2lh;
+  padding: var(--space-1) var(--space-2);
+  resize: none;
+  border: var(--hairline) solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+
+.composer-queue-text:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.composer-queue-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.composer-queue-send,
+.composer-queue-discard {
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+}
+
+.composer-queue-send {
+  border: var(--hairline) solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.composer-queue-discard {
+  background: transparent;
+  border: 0;
+  color: var(--text-dim);
+}
+
+/* a file without a thumbnail: its icon and name fill the tile */
+.composer-attachment-file {
+  width: 100%;
+  height: 100%;
+  padding: var(--space-1) var(--space-1) calc(var(--space-1) + var(--fs-2xs) * 1.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  overflow: hidden;
+  color: var(--text-dim);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-tight);
+  text-align: center;
+}
+
+.composer-attachment-file svg {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.composer-attachment-file span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* one-tap replies above the box: one row that scrolls sideways, never a second line */
+.composer-quick {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.composer-quick::-webkit-scrollbar {
+  display: none;
+}
+
+.composer-quick-reply {
+  flex: 0 0 auto;
+  max-width: 16em;
+  min-height: var(--control-h);
+  padding: 0 var(--space-3);
+  overflow: hidden;
+  border: var(--hairline) solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.composer-quick-reply:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.composer-quick-reply:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+
+@media (pointer: coarse) {
+  .composer-quick-reply {
+    min-height: calc(var(--touch-target) + var(--space-1));
+  }
+}
+
+/* the agent's suggestion: a dashed chip, on touch screens only (a keyboard takes it with Tab) */
+.composer-suggestion {
+  max-width: 100%;
+  border-style: dashed;
+  color: var(--text-dim);
+}
+
+@media (pointer: fine) {
+  .composer-suggestion-row {
+    display: none;
+  }
+}
+
+.composer-queue-heading { display: grid; gap: var(--space-1); font-size: var(--fs-sm); }
+.composer-queue-list { margin: 0; padding: 0; list-style: none; }
+.composer-queue-item { display: grid; gap: var(--space-1); padding: var(--space-2) 0; }
+.composer-queue-item + .composer-queue-item { border-top: var(--hairline) solid var(--border); }
+.composer-queue-error { margin: 0; color: var(--text); font-size: var(--fs-xs); }
+
+/* A command the agent runs but the chat cannot finish. Advice, not a failure: it reads quieter than
+   .composer-note, which means the message did not go */
+.composer-hint {
+  margin-top: var(--space-1);
+  padding: 0 var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--fs-xs);
+}

@@ -1,0 +1,6 @@
+import {it,expect} from 'bun:test';import ts from 'typescript';import {readdirSync,readFileSync} from 'node:fs';import {join} from 'node:path';
+it('visible JSX and static accessible labels are translated or explicit protocol/brand literals',()=>{
+ const allowed=new Set(['TermWeave','TermWeave v','herdr','tmux','Ctrl+b','q','d','project-1','MD','TXT','px','Esc','Tab','Ctrl','^C','devbox or user@192.168.1.20','~/.ssh/id_ed25519','https://example.com/','000 000','sk-...']);const failures:string[]=[];
+ const root=join(import.meta.dir,'../src/components');for(const name of readdirSync(root).filter(n=>n.endsWith('.tsx'))){const source=ts.createSourceFile(name,readFileSync(join(root,name),'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);const walk=(node:ts.Node)=>{let literal:string|undefined;if(ts.isJsxText(node))literal=node.text.trim();if(ts.isJsxAttribute(node)&&['aria-label','title','placeholder'].includes(node.name.getText(source))&&node.initializer&&ts.isStringLiteral(node.initializer))literal=node.initializer.text;if(literal&&/[a-zA-Z가-힣]/.test(literal)&&!allowed.has(literal))failures.push(name+':'+literal);ts.forEachChild(node,walk);};walk(source);}
+ expect(failures).toEqual([]);
+});

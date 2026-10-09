@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 1,
+  "evidence": [
+    {
+      "id": "readme-quickstart",
+      "path": "README.md",
+      "lines": [
+        7,
+        15
+      ],
+      "status": "documented"
+    },
+    {
+      "id": "dock-split",
+      "path": "src/components/DockGroup.tsx",
+      "lines": [
+        40,
+        64
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "pane-number",
+      "path": "src/lib/paneNumber.ts",
+      "lines": [
+        3,
+        7
+      ],
+      "status": "code-verified"
+    },
+    {
+      "id": "agent-marks",
+      "path": "src/components/AgentMark.tsx",
+      "lines": [
+        160,
+        167
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "needs-input",
+      "path": "src/components/Sidebar.tsx",
+      "lines": [
+        254,
+        255
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "session-color",
+      "path": "src/components/Sidebar.tsx",
+      "lines": [
+        161,
+        161
+      ],
+      "status": "code-verified"
+    },
+    {
+      "id": "folder-session",
+      "path": "src/components/NewSessionDialog.tsx",
+      "lines": [
+        39,
+        64
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "ime-diff",
+      "path": "src/lib/imeDiff.ts",
+      "lines": [
+        1,
+        25
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "ime-terminal",
+      "path": "src/components/PaneTerminal.tsx",
+      "lines": [
+        308,
+        331
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "hangul-row",
+      "path": "src/lib/terminalGlyphs.ts",
+      "lines": [
+        270,
+        273
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "default-view",
+      "path": "src/lib/settings.ts",
+      "lines": [
+        117,
+        117
+      ],
+      "status": "code-verified"
+    },
+    {
+      "id": "access-local",
+      "path": "server/access.ts",
+      "lines": [
+        84,
+        95
+      ],
+      "status": "code-verified"
+    },
+    {
+      "id": "machine-name",
+      "path": "server/machines.ts",
+      "lines": [
+        92,
+        93
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "openrig-panel",
+      "path": "src/components/OpenRigPanel.tsx",
+      "lines": [
+        114,
+        120
+      ],
+      "status": "execution-verified"
+    },
+    {
+      "id": "terminal-menu",
+      "path": "src/components/TerminalMenu.tsx",
+      "lines": [
+        24,
+        25
+      ],
+      "status": "code-verified"
+    },
+    {
+      "id": "license",
+      "path": "LICENSE",
+      "lines": [
+        1,
+        3
+      ],
+      "status": "documented"
+    },
+    {
+      "id": "changelog",
+      "path": "CHANGELOG.termweave.md",
+      "lines": [
+        1,
+        6
+      ],
+      "status": "documented"
+    }
+  ],
+  "claims": {
+    "workspaces": [
+      "dock-split",
+      "pane-number",
+      "agent-marks"
+    ],
+    "needs-you": [
+      "needs-input",
+      "default-view"
+    ],
+    "korean": [
+      "ime-diff",
+      "ime-terminal",
+      "hangul-row"
+    ],
+    "herdr": [
+      "readme-quickstart"
+    ],
+    "server": [
+      "access-local"
+    ],
+    "clients": [
+      "default-view",
+      "openrig-panel"
+    ],
+    "multi-agent": [
+      "agent-marks",
+      "pane-number",
+      "needs-input"
+    ],
+    "folders": [
+      "folder-session",
+      "session-color",
+      "terminal-menu"
+    ],
+    "share-screen": [
+      "machine-name"
+    ],
+    "herdr-required": [
+      "readme-quickstart"
+    ],
+    "not-official": [
+      "license",
+      "agent-marks"
+    ],
+    "manual-checks": [
+      "readme-quickstart",
+      "openrig-panel"
+    ],
+    "ime-test": [
+      "ime-diff",
+      "ime-terminal"
+    ],
+    "screens": [
+      "dock-split",
+      "machine-name"
+    ],
+    "unit": [
+      "changelog"
+    ],
+    "quickstart": [
+      "readme-quickstart"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "purpose": "approved-source-baseline-not-latest-observation",
+  "compatibility_status": "UNKNOWN",
+  "entries": [
+    {"upstream":"herdr-web-ui","repository":"devswha/herdr-web-ui","revision":"6bcb9bca4980b5a21b563dafac805a6a6c39ed61","version":"0.3.45","use":"curated-source-baseline","approval":"SOURCE_BASELINE_ONLY","compatibility":"UNKNOWN","evidence":["docs/P0-P1.md","docs/source-provenance.json"]},
+    {"upstream":"herdr","repository":"herdrdev/herdr","revision":null,"version":null,"use":"external-runtime","approval":"PENDING_RUNTIME_VERIFICATION","compatibility":"UNKNOWN","evidence":[]},
+    {"upstream":"cmux","repository":"manaflow-ai/cmux","revision":null,"version":null,"use":"behavior-reference-only","approval":"NO_CODE_IMPORT","compatibility":"NOT_APPLICABLE","evidence":[]}
+  ]
+}

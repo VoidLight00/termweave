@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 1,
+  "visuals": [
+    {
+      "path": "assets/hero.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "real-screenshot",
+      "locale": "en"
+    },
+    {
+      "path": "assets/architecture.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "explanatory-diagram",
+      "locale": "en"
+    },
+    {
+      "path": "assets/og.png",
+      "width": 1200,
+      "height": 630,
+      "kind": "explanatory-diagram",
+      "locale": "en"
+    },
+    {
+      "path": "assets/gallery-1.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "en"
+    },
+    {
+      "path": "assets/gallery-2.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "en"
+    },
+    {
+      "path": "assets/gallery-3.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "en"
+    },
+    {
+      "path": "assets/ko/hero.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "real-screenshot",
+      "locale": "ko"
+    },
+    {
+      "path": "assets/ko/architecture.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "explanatory-diagram",
+      "locale": "ko"
+    },
+    {
+      "path": "assets/ko/og.png",
+      "width": 1200,
+      "height": 630,
+      "kind": "explanatory-diagram",
+      "locale": "ko"
+    },
+    {
+      "path": "assets/ko/gallery-1.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "ko"
+    },
+    {
+      "path": "assets/ko/gallery-2.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "ko"
+    },
+    {
+      "path": "assets/ko/gallery-3.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "ko"
+    },
+    {
+      "path": "assets/ja/hero.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "real-screenshot",
+      "locale": "ja"
+    },
+    {
+      "path": "assets/ja/architecture.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "explanatory-diagram",
+      "locale": "ja"
+    },
+    {
+      "path": "assets/ja/og.png",
+      "width": 1200,
+      "height": 630,
+      "kind": "explanatory-diagram",
+      "locale": "ja"
+    },
+    {
+      "path": "assets/ja/gallery-1.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "ja"
+    },
+    {
+      "path": "assets/ja/gallery-2.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "ja"
+    },
+    {
+      "path": "assets/ja/gallery-3.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "ja"
+    },
+    {
+      "path": "assets/zh/hero.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "real-screenshot",
+      "locale": "zh"
+    },
+    {
+      "path": "assets/zh/architecture.png",
+      "width": 1600,
+      "height": 900,
+      "kind": "explanatory-diagram",
+      "locale": "zh"
+    },
+    {
+      "path": "assets/zh/og.png",
+      "width": 1200,
+      "height": 630,
+      "kind": "explanatory-diagram",
+      "locale": "zh"
+    },
+    {
+      "path": "assets/zh/gallery-1.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "zh"
+    },
+    {
+      "path": "assets/zh/gallery-2.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "zh"
+    },
+    {
+      "path": "assets/zh/gallery-3.png",
+      "width": 1200,
+      "height": 1200,
+      "kind": "real-screenshot",
+      "locale": "zh"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+.terminal-host > .split-workspace { width: 100%; height: 100%; }
+.dock-root { flex: 1; min-height: 0; min-width: 0; display: flex; }
+.dock-root > * { flex: 1; }
+.dock-split { display: grid; min-width: 0; min-height: 0; position: relative; overflow: hidden; }
+.dock-split { width: 100%; height: 100%; }
+.dock-group { width: 100%; height: 100%; }
+.dock-columns { grid-template-rows: minmax(0, 1fr); }
+.dock-rows { grid-template-columns: minmax(0, 1fr); }
+.dock-split > * { min-width: 0; min-height: 0; }
+.dock-tabs { display: flex; flex-direction: column; gap: 3px; padding: 4px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+.dock-tab-strip { display: flex; align-items: center; gap: 3px; min-width: 0; overflow-x: auto; }
+.dock-tab-strip button { flex: 0 0 auto; white-space: nowrap; }
+.dock-tab-actions { display: flex; gap: 3px; overflow-x: auto; }
+.dock-tab-actions button { flex: 0 0 auto; white-space: nowrap; }
+.dock-strip-end { flex: 1 0 32px; align-self: stretch; min-height: 24px; border-radius: var(--radius-sm); }
+.dock-tab-strip [data-insert], .dock-insert-end { outline: 1px dashed var(--text-dim); background: var(--bg-hover); }
+.dock-tab-strip [data-insert="before"] { border-radius: 10px 3px 3px 10px; }
+.dock-tab-strip [data-insert="after"] { border-radius: 3px 10px 10px 3px; }
+.dock-tabs button { font: inherit; font-size: 11px; padding: 5px 7px; color: var(--text-dim); background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; }
+.dock-tabs button[aria-selected="true"] { color: var(--text-strong); background: var(--bg-hover); border-color: var(--border-strong); }
+.dock-tabs button:focus-visible { outline: 1px solid var(--text-dim); }
+.dock-keyboard { padding: 3px 8px; font-size: 11px; color: var(--text-dim); }
+.dock-keyboard summary { cursor: pointer; }
+.dock-keyboard label { display: inline-flex; gap: 4px; padding: 3px; }
+.dock-keyboard select, .split-toolbar select { max-width: 180px; background: var(--bg-input); color: var(--text); border: 1px solid var(--border); font: inherit; font-size: 11px; }
+.dock-keyboard button { background: var(--bg-hover); color: var(--text); border: 1px solid var(--border); font: inherit; margin: 3px; }
+.dock-drop-body { position: relative; display: flex; flex: 1; min-height: 0; min-width: 0; }
+.dock-drop-hint { position: absolute; z-index: 5; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--text-strong); background: var(--bg-hover); opacity: .85; pointer-events: none; }
+.dock-drop-left .dock-drop-hint { right: 50%; }
+.dock-drop-right .dock-drop-hint { left: 50%; }
+.dock-drop-top .dock-drop-hint { bottom: 50%; }
+.dock-drop-bottom .dock-drop-hint { top: 50%; }
+.dock-divider { position: relative; background: var(--border); z-index: 8; touch-action: none; }
+.dock-divider-columns { cursor: col-resize; }
+.dock-divider-rows { cursor: row-resize; }
+.dock-divider::after { content: ""; position: absolute; background: transparent; }
+.dock-divider-columns::after { inset: 0 -5px; }
+.dock-divider-rows::after { inset: -5px 0; }
+.dock-divider:focus-visible { outline: 1px solid var(--text-dim); }
+.dock-resizing, .dock-resizing * { user-select: none !important; }
+.dock-search { padding: 3px 8px; font-size: 11px; color: var(--text-dim); }
+.dock-search summary { cursor: pointer; }
+.dock-search input { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); padding: 5px; }
+.dock-search button { background: var(--bg-hover); color: var(--text); border: 1px solid var(--border); padding: 5px; }
+.dock-search pre { max-height: 120px; overflow: auto; white-space: pre-wrap; margin: 4px 0; }
+@media (max-width: 760px) { .dock-tabs button { min-height: 32px; } }
+
+.dock-address { padding: 3px 8px; font-size: 11px; color: var(--text-dim); }
+.dock-address summary { cursor: pointer; }
+.dock-address label { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.dock-address input { flex: 1; min-width: 0; padding: 5px; font: inherit; background: var(--bg-input); color: var(--text); border: 1px solid var(--border); }
+.dock-address button { margin-top: 4px; padding: 5px; font: inherit; white-space: nowrap; background: var(--bg-hover); color: var(--text); border: 1px solid var(--border); }
+.dock-address p { margin: 5px 0; overflow-wrap: anywhere; }
+
+.dock-view-controls { display: inline-flex; flex: 0 0 auto; gap: 2px; }
+.dock-view-controls button { word-break: keep-all; overflow-wrap: anywhere; }
+.dock-view-controls button[aria-pressed="true"] { background: var(--bg-hover, #353535); box-shadow: inset 0 -2px currentColor; }
+
+/* Keep the terminal canvas clear; secondary tools only overlay on request. */
+.dock-tabs { position: relative; }
+.dock-tab-actions { align-items: center; overflow: visible; flex-wrap: wrap; }
+.dock-tab-actions button { min-height: 36px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.dock-tab-actions .dock-add, .dock-tab-actions .dock-delete { color: var(--text-strong); border-color: var(--border-strong); background: var(--bg-hover); padding-inline: 10px; font-weight: 600; }
+.dock-tab-actions .dock-delete:hover { color: #ef8989; }
+.dock-tools-toggle { margin-left: auto; }
+.dock-tools-panel { position: absolute; z-index: 20; top: 100%; right: 4px; width: min(390px, calc(100% - 8px)); max-height: min(60vh, 440px); overflow: auto; padding: 8px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg-panel); box-shadow: 0 8px 24px #0006; word-break: keep-all; overflow-wrap: anywhere; }
+.dock-tools-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px; }
+.dock-secondary-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.dock-tools-panel button { white-space: normal; }
+.dock-tools-panel summary { padding-block: 8px; }
+@media (max-width: 760px) { .dock-tab-actions button, .dock-tools-panel button { min-height: 44px; min-width: 44px; } .dock-tools-panel input, .dock-tools-panel select { font-size: 16px; max-width: 100%; } }

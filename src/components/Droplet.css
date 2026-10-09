@@ -1,0 +1,231 @@
+/*
+ * In-app alert (Droplet.tsx). A black drop falls from above the top edge, spreads into a card
+ * under the safe area, and folds back up when it leaves. The drop and a hidden anchor above
+ * the edge sit in one layer under an SVG "goo" filter (blur, then a sharp alpha edge), so where
+ * they touch they read as one liquid. The card's text is a separate layer over that, unfiltered.
+ *
+ * Geometry hangs from env(safe-area-inset-top) only: under a Dynamic Island, under a notch, and
+ * in a desktop window (inset 0) the card sits --space-3 below the top of what can be seen.
+ * The card is island black in both themes, so its colors are the --droplet-* group.
+ */
+
+.droplet {
+  --droplet-top: calc(env(safe-area-inset-top, 0px) + var(--space-3));
+  --droplet-w: min(396px, calc(100vw - 2 * var(--space-4) - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  --droplet-h: 64px;
+  --droplet-drop: 44px;
+  --droplet-radius: 24px;
+  /* the goo layer reaches this far above the screen, room for the anchor and a falling drop */
+  --droplet-above: 80px;
+  --droplet-rise: calc(-1 * (var(--droplet-top) + var(--droplet-drop) + var(--space-2)));
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 0;
+  z-index: var(--z-droplet);
+  pointer-events: none;
+}
+
+.droplet-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.droplet-goo {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--droplet-above));
+  height: calc(var(--droplet-above) + var(--droplet-top) + var(--droplet-h) + var(--space-8));
+  filter: url(#droplet-goo) drop-shadow(0 10px 14px var(--droplet-shadow));
+}
+
+/* the island the drop leaves from: just above the screen, so only the liquid neck shows */
+.droplet-anchor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  top: calc(var(--droplet-above) - 4px - 37px);
+  width: 126px;
+  height: 37px;
+  border-radius: 19px;
+  background: var(--droplet-bg);
+}
+
+.droplet-blob,
+.droplet-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: var(--droplet-w);
+  height: var(--droplet-h);
+  border-radius: var(--droplet-radius);
+  translate: 0 var(--droplet-drag, 0px);
+}
+
+.droplet-blob {
+  top: calc(var(--droplet-above) + var(--droplet-top));
+  background: var(--droplet-bg);
+  animation:
+    droplet-fall 620ms cubic-bezier(0.3, 1.3, 0.55, 1) both,
+    droplet-spread 540ms 340ms cubic-bezier(0.3, 1.15, 0.5, 1) both;
+}
+
+.droplet[data-phase="out"] .droplet-blob {
+  animation:
+    droplet-fold 420ms 100ms cubic-bezier(0.5, 0, 0.6, 1) both,
+    droplet-rise 480ms 300ms cubic-bezier(0.55, 0, 0.75, 0) both;
+}
+
+.droplet-card {
+  top: var(--droplet-top);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5) 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--droplet-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.droplet:not([data-dragging]) .droplet-blob,
+.droplet:not([data-dragging]) .droplet-card {
+  transition: translate 240ms var(--ease-out);
+}
+
+/* a hairline that lifts the card off a dark page, shown with the text */
+.droplet-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--droplet-ring);
+  pointer-events: none;
+}
+
+.droplet-card::before,
+.droplet-card > * {
+  animation: droplet-reveal 260ms 560ms var(--ease-out) both;
+}
+
+.droplet[data-phase="out"] .droplet-card::before,
+.droplet[data-phase="out"] .droplet-card > * {
+  animation: droplet-hide 160ms var(--ease-out) both;
+}
+
+.droplet-card:focus-visible {
+  outline: var(--ring);
+  outline-offset: var(--ring-offset);
+}
+
+.droplet-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--droplet-mark-bg);
+}
+
+.droplet-mark-blank {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--droplet-text-dim);
+}
+
+.droplet-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.droplet-title {
+  overflow: hidden;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.droplet-detail {
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-tight);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--droplet-tone);
+}
+
+.droplet-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--droplet-tone);
+}
+
+.droplet[data-kind="blocked"] { --droplet-tone: var(--droplet-blocked); }
+.droplet[data-kind="done"] { --droplet-tone: var(--droplet-done); }
+.droplet[data-kind="ended"] { --droplet-tone: var(--droplet-text-dim); }
+
+@keyframes droplet-fall {
+  from { transform: translateY(var(--droplet-rise)); }
+  to { transform: translateY(0); }
+}
+
+@keyframes droplet-rise {
+  from { transform: translateY(0); }
+  to { transform: translateY(var(--droplet-rise)); }
+}
+
+@keyframes droplet-spread {
+  from { width: var(--droplet-drop); height: var(--droplet-drop); border-radius: calc(var(--droplet-drop) / 2); }
+  to { width: var(--droplet-w); height: var(--droplet-h); border-radius: var(--droplet-radius); }
+}
+
+@keyframes droplet-fold {
+  from { width: var(--droplet-w); height: var(--droplet-h); border-radius: var(--droplet-radius); }
+  to { width: var(--droplet-drop); height: var(--droplet-drop); border-radius: calc(var(--droplet-drop) / 2); }
+}
+
+@keyframes droplet-reveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes droplet-hide {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* no falling or spreading: the card fades in and out where it rests */
+@media (prefers-reduced-motion: reduce) {
+  .droplet-anchor { display: none; }
+  .droplet-goo { filter: drop-shadow(0 10px 14px var(--droplet-shadow)); }
+  .droplet-blob,
+  .droplet-card::before,
+  .droplet-card > * {
+    animation: droplet-reveal 160ms var(--ease-out) both;
+  }
+  .droplet[data-phase="out"] .droplet-blob,
+  .droplet[data-phase="out"] .droplet-card::before,
+  .droplet[data-phase="out"] .droplet-card > * {
+    animation: droplet-hide 160ms var(--ease-out) both;
+  }
+  .droplet:not([data-dragging]) .droplet-blob,
+  .droplet:not([data-dragging]) .droplet-card {
+    transition: none;
+  }
+}

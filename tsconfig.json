@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "types": [
+      "bun",
+      "react",
+      "react-dom"
+    ],
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@shared/*": [
+        "./shared/*"
+      ]
+    },
+    "baseUrl": "."
+  },
+  "include": [
+    "src",
+    "server",
+    "shared",
+    "vite.config.ts"
+  ]
+}

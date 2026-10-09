@@ -1,0 +1,37 @@
+name: Feature request
+description: Something herdr web ui should do, or do differently
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to do and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What the app should do instead. Screens, flows and edge cases help.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where
+      multiple: true
+      options:
+        - Chat and prompt cards
+        - Terminal
+        - Phone, installed app and alerts
+        - Sidebar and navigation
+        - Remote PCs
+        - Access, pairing and devices
+        - Install and updates
+        - Other
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds and alternatives
+      description: What you do now, and other ways this could work.

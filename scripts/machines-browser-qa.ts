@@ -1,0 +1,110 @@
+import { chromiumExecutable } from './browser.ts';
+/** Run against SSH_TEST_KEEP=1's fixture. Delays real requests, never mocks APIs. */
+import assert from "node:assert/strict";
+import { mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { chromium } from "playwright-core";
+import { herdrRpc } from "../server/herdr/client.ts";
+const fixture = JSON.parse(readFileSync(process.argv[2]!, "utf8")) as { root: string; remoteHome: string; port: number; machineId: string; secondMachineId: string; paneId: string };
+const { machineId: a, secondMachineId: b, paneId } = fixture;
+const origin = `http://127.0.0.1:${fixture.port}`;
+const evidence = join(process.cwd(), "evidence/machines"); mkdirSync(evidence, { recursive: true });
+const browser = await chromium.launch({ executablePath: chromiumExecutable(), headless: true, args: ["--no-sandbox"] });
+const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+const page = await context.newPage(); page.setDefaultTimeout(15_000);
+const errors: string[] = []; page.on("pageerror", (e) => errors.push(e.message));
+const inputs: { machine: string; pane: string }[] = [];
+page.on("websocket", (socket) => socket.on("framesent", ({ payload }) => { const message = JSON.parse(String(payload)); if (message.type === "input") inputs.push({ machine: new URL(socket.url()).searchParams.get("machine_id")!, pane: message.pane_id }); }));
+async function select(name: string) {
+  const group = page.getByRole("region", { name: `PC ${name}`, exact: true });
+  await group.locator(`.pane-select[title^="${paneId} —"]`).click();
+  await page.locator(".context .machine-context-name").filter({ hasText: name }).waitFor();
+  await page.getByRole("button", { name: "Chat", exact: true }).click();
+  await page.getByRole("textbox", { name: "Message", exact: true }).waitFor();
+}
+const composer = page.getByRole("textbox", { name: "Message", exact: true });
+let releaseUpload = () => {};
+try {
+  await page.goto(`${origin}/?machine=${a}&pane=${encodeURIComponent(paneId)}`);
+  await page.locator(".conn-live").waitFor();
+  await page.getByRole("button", { name: "Chat", exact: true }).click();
+  await composer.fill("PC A draft");
+  await select("QA second PC");
+  assert.equal(await composer.inputValue(), "");
+  await composer.fill("PC B draft");
+  await select("QA remote");
+  assert.equal(await composer.inputValue(), "PC A draft");
+  console.log("PASS same pane ID on two PCs retains separate drafts and header identity");
+
+  const gate = new Promise<void>((resolve) => { releaseUpload = resolve; });
+  const uploads: string[] = [];
+  await page.route(`**/api/machines/${a}/pane/image`, async (route) => { uploads.push(route.request().url()); await gate; await route.continue(); });
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aS1kAAAAASUVORK5CYII=", "base64");
+  await page.locator('input[type="file"]').setInputFiles([{ name: "first.png", mimeType: "image/png", buffer: png }, { name: "second.png", mimeType: "image/png", buffer: png }]);
+  for (let i = 0; i < 100 && !uploads.length; i++) await new Promise((r) => setTimeout(r, 20));
+  assert.equal(uploads.length, 1);
+  await select("QA second PC");
+  const uploaded = page.waitForResponse((r) => r.url().endsWith(`${a}/pane/image`));
+  releaseUpload(); assert.equal((await uploaded).status(), 200);
+  assert.equal(await composer.inputValue(), "PC B draft");
+  assert.equal(uploads.length, 1);
+  console.log("PASS late image response and upload batch stay on their original PC");
+
+  await composer.fill("printf 'browser_pc_b_ok\\n'");
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  assert.deepEqual(inputs.at(-1), { machine: b, pane: paneId });
+  await select("QA remote");
+  const socket = join(fixture.remoteHome, ".config/herdr/sessions/ssh-qa/herdr.sock");
+  await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "claude", state: "working" }, socket);
+  await page.locator('.composer-status[data-status="working"]').waitFor();
+  await composer.fill("HELD_A_MUST_NOT_SEND");
+  await page.getByRole("button", { name: "Queue message", exact: true }).click();
+  const count = inputs.length;
+  await page.reload();
+  await page.locator(".composer-queue-text").waitFor();
+  assert.equal(await page.locator(".composer-queue-text").inputValue(), "HELD_A_MUST_NOT_SEND");
+  await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "claude", state: "idle" }, socket);
+  await page.locator('.composer-status[data-status="idle"]').waitFor();
+  assert.equal(inputs.length, count, "reload and status changes never dispatch held input");
+  await select("QA second PC");
+  assert.equal(await page.locator(".composer-queue-text").count(), 0);
+  await select("QA remote");
+  assert.equal(await page.locator(".composer-queue-text").inputValue(), "HELD_A_MUST_NOT_SEND");
+  await page.getByRole("button", { name: "Discard", exact: true }).click();
+  console.log("PASS held input survives reload, never sends on reconnect, and stays with its PC");
+
+  await page.getByRole("button", { name: "New session on QA second PC", exact: true }).click();
+  const create = page.getByRole("dialog", { name: "New session · QA second PC", exact: true });
+  await create.waitFor(); await create.getByRole("button", { name: "Close new session dialog", exact: true }).click();
+  // Add PC lives in Settings → Remote PCs; opening it closes Settings
+  await page.locator(".sidebar-footer").getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("dialog", { name: "Settings", exact: true }).getByRole("button", { name: "Add PC", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add PC", exact: true }); await dialog.waitFor();
+  await page.screenshot({ path: join(evidence, "desktop-add-pc-dark.png") });
+  await dialog.getByRole("button", { name: "Close PC setup" }).click();
+  await page.screenshot({ path: join(evidence, "desktop-dark.png") });
+  await page.locator(".sidebar-footer").getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("dialog", { name: "Settings", exact: true }).getByRole("button", { name: "Light", exact: true }).click();
+  await page.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.screenshot({ path: join(evidence, "desktop-light.png") });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
+  await page.waitForFunction(() => Math.abs(document.querySelector(".sidebar.is-open")!.getBoundingClientRect().x) < 1);
+  await page.screenshot({ path: join(evidence, "mobile-light.png") });
+  await page.locator(".sidebar-footer").getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("dialog", { name: "Settings", exact: true }).getByRole("button", { name: "Add PC", exact: true }).click();
+  await page.screenshot({ path: join(evidence, "mobile-add-pc-light.png") });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth), false);
+  await page.getByRole("button", { name: "Close PC setup" }).click();
+  // Settings closed the drawer when it opened, and Add PC closed Settings: open the drawer again
+  await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
+  await page.locator(".sidebar-footer").getByRole("button", { name: "Settings", exact: true }).click();
+  const settings = page.getByRole("dialog", { name: "Settings", exact: true });
+  await settings.getByRole("button", { name: "Dark", exact: true }).click();
+  await settings.getByRole("button", { name: "Close settings", exact: true }).click();
+  await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
+  await page.waitForFunction(() => Math.abs(document.querySelector(".sidebar.is-open")!.getBoundingClientRect().x) < 1);
+  await page.screenshot({ path: join(evidence, "mobile-dark.png") });
+  assert.deepEqual(errors, []);
+  console.log("PASS desktop/mobile, light/dark, PC creation target and setup modal; no browser errors");
+} finally { releaseUpload(); await browser.close(); }

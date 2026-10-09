@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""TermWeave resurrect: remember which agent session runs in each herdr pane,
+and resume those sessions in the same panes after a reboot.
+
+herdr 0.9.x restores workspace/tab/pane layout and cwd, but a reboot kills every
+process, so agents come back as empty shells. This fills that gap.
+
+  termweave-resurrect snapshot   record current pane -> agent session map
+  termweave-resurrect restore    resume agents if the snapshot is from a previous boot
+  termweave-resurrect daemon     restore once, then snapshot every 60s (LaunchAgent)
+"""
+import json, os, re, subprocess, sys, time
+from pathlib import Path
+
+HOME = Path.home()
+STATE = Path(os.environ.get("TERMWEAVE_RESURRECT_STATE", HOME / ".local/state/termweave/resurrect.json"))
+LOG = HOME / ".local/state/termweave/resurrect.log"
+HERDR = "/opt/homebrew/bin/herdr"
+UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+
+def run(*cmd, timeout=15):
+    # bytes + replace: Korean output must not crash the daemon
+    r = subprocess.run(cmd, capture_output=True, timeout=timeout)
+    return r.returncode, r.stdout.decode("utf-8", "replace")
+
+
+def log(msg):
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    with LOG.open("a") as fh:
+        fh.write(f"{time.strftime('%F %T')} {msg}\n")
+
+
+def boot_id():
+    return run("sysctl", "-n", "kern.boottime")[1].split(",")[0].strip()
+
+
+def panes():
+    rc, out = run(HERDR, "pane", "list")
+    if rc != 0:
+        raise RuntimeError("herdr not ready")
+    return {p["pane_id"]: p for p in json.loads(out)["result"]["panes"]}
+
+
+def pane_of(pid):
+    _, out = run("ps", "eww", "-o", "command=", "-p", str(pid))
+    m = re.search(r"HERDR_PANE_ID=(\S+)", out)
+    return m.group(1) if m else None
+
+
+def claude_sessions():
+    found = {}
+    for f in (HOME / ".claude/sessions").glob("*.json"):
+        try:
+            d = json.loads(f.read_text())
+        except (OSError, ValueError):
+            continue
+        if d.get("kind") != "interactive" or not d.get("sessionId"):
+            continue
+        pane = pane_of(d["pid"])
+        if pane:
+            found[pane] = {"kind": "claude", "id": d["sessionId"], "cwd": d.get("cwd")}
+    return found
+
+
+def codex_sessions():
+    found = {}
+    _, out = run("pgrep", "-f", "codex-darwin-arm64/vendor/.*/codex")
+    for pid in out.split():
+        _, cmd = run("ps", "-o", "command=", "-p", pid)
+        if "app-server" in cmd or " exec" in cmd:
+            continue
+        pane = pane_of(pid)
+        if not pane:
+            continue
+        _, files = run("lsof", "-p", pid, "-Fn")
+        rollouts = [l for l in files.splitlines() if "/.codex/sessions/" in l and l.endswith(".jsonl")]
+        ids = UUID.findall(rollouts[-1]) if rollouts else []
+        _, cwd = run("lsof", "-a", "-p", pid, "-d", "cwd", "-Fn")
+        cwd = next((l[1:] for l in cwd.splitlines() if l.startswith("n")), None)
+        found[pane] = {"kind": "codex", "id": ids[-1] if ids else None, "cwd": cwd}
+    return found
+
+
+def snapshot():
+    live = panes()
+    agents = {**codex_sessions(), **claude_sessions()}
+    agents = {k: v for k, v in agents.items() if k in live}
+    data = {"boot": boot_id(), "saved": time.strftime("%F %T"), "panes": agents}
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    tmp = STATE.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1))
+    tmp.replace(STATE)  # atomic: a reboot mid-write must not wipe the map
+    return data
+
+
+def resume_cmd(a):
+    cd = f"cd {sh(a['cwd'])} && " if a.get("cwd") else ""
+    if a["kind"] == "claude":
+        return f"{cd}claude --resume {a['id']}"
+    # ponytail: codex without a readable rollout id falls back to --last in that cwd
+    return f"{cd}codex resume {a['id']}" if a.get("id") else f"{cd}codex resume --last"
+
+
+def sh(s):
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def restore():
+    if not STATE.exists():
+        return log("restore: no snapshot")
+    data = json.loads(STATE.read_text())
+    if data.get("boot") == boot_id():
+        return log("restore: snapshot is from this boot, skip")
+    for _ in range(60):  # herdr server may still be starting after login
+        try:
+            live = panes()
+            break
+        except Exception:
+            time.sleep(2)
+    else:
+        return log("restore: herdr not ready after 120s")
+    for pane, a in data["panes"].items():
+        p = live.get(pane)
+        if not p:
+            log(f"restore: {pane} gone, skip {a}")
+            continue
+        if p.get("agent"):
+            log(f"restore: {pane} already runs {p['agent']}, skip")
+            continue
+        rc, out = run(HERDR, "pane", "run", pane, resume_cmd(a))
+        log(f"restore: {pane} {a['kind']} {a.get('id')} rc={rc} {out.strip()[:200]}")
+    data["boot"] = boot_id()  # mark consumed so a daemon restart never replays it
+    STATE.write_text(json.dumps(data, ensure_ascii=False, indent=1))
+
+
+def daemon():
+    restore()
+    time.sleep(30)  # let resumed agents register before the first snapshot
+    while True:
+        try:
+            snapshot()
+        except Exception as e:
+            log(f"snapshot failed: {e}")
+        time.sleep(60)
+
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else "snapshot"
+    if mode == "snapshot":
+        print(json.dumps(snapshot(), ensure_ascii=False, indent=1))
+    elif mode == "restore":
+        restore()
+    elif mode == "daemon":
+        daemon()
+    elif mode == "cmd":  # print what restore would run, without running it
+        for pane, a in json.loads(STATE.read_text())["panes"].items():
+            print(pane, "->", resume_cmd(a))
+    else:
+        sys.exit(f"unknown mode: {mode}")

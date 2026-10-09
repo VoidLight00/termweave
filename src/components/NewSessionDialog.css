@@ -1,0 +1,120 @@
+.new-session-modal {
+  width: min(100%, calc(var(--sidebar-w) + var(--content-w) / 4));
+}
+
+.new-session-modal .modal-body {
+  padding-bottom: var(--space-2);
+}
+
+.new-session-note,
+.new-session-error {
+  margin: 0 0 var(--space-3);
+}
+
+.new-session-note {
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+}
+
+.new-session-error {
+  color: var(--status-blocked);
+  overflow-wrap: anywhere;
+}
+
+/* the directory field: the path, and a Browse button beside it */
+.new-session-cwd {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.new-session-cwd .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.new-session-cwd .btn {
+  flex: none;
+}
+
+@media (pointer: coarse) {
+  .new-session-modal .input,
+  .new-session-modal .select,
+  .new-session-modal .btn {
+    height: var(--touch-target);
+  }
+}
+
+/* the agent picker: a select whose rows show each agent's mark */
+.agent-picker {
+  position: relative;
+}
+
+.agent-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.agent-picker-trigger:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.agent-picker-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-picker-chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--text-dim);
+}
+
+.agent-picker .agent-mark,
+.agent-picker-shell {
+  display: inline-flex;
+  flex: none;
+}
+
+.agent-picker-shell svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-dim);
+}
+
+.agent-picker-menu {
+  position: fixed;
+  z-index: 10;
+  overflow-y: auto;
+}
+
+/* aria-selected is the chosen agent (bold); the keyboard/pointer row is data-active and carries
+   the highlight, which the shared menu gives aria-selected elsewhere */
+.agent-picker-menu .menu-item[aria-selected="true"] {
+  background: transparent;
+  color: var(--text);
+}
+
+.agent-picker-menu .menu-item[data-active] {
+  background: var(--bg-hover);
+  color: var(--text-strong);
+}
+
+.agent-picker-menu .menu-item[aria-selected="true"] .menu-item-main {
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .new-session-modal .agent-picker-trigger,
+  .agent-picker-menu .menu-item {
+    height: var(--touch-target);
+  }
+}
