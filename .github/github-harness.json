@@ -14,31 +14,27 @@
     "description": "cmux-style web and Mac client for herdr: split and dock terminals per workspace, numbered panes, agent icons, a Needs-you list and correct Korean input.",
     "homepage": "",
     "topics": [
-      "herdr",
-      "terminal",
-      "tmux",
-      "cmux",
-      "terminal-multiplexer",
       "ai-agents",
+      "bun",
       "claude-code",
+      "cmux",
       "codex",
-      "xterm",
-      "web-terminal",
-      "macos",
-      "korean",
-      "ime",
       "developer-tools",
-      "typescript",
-      "bun"
+      "herdr",
+      "ime",
+      "korean",
+      "macos",
+      "terminal",
+      "terminal-multiplexer"
     ]
   },
   "approvals": {
-    "images": false,
+    "images": true,
     "publish": false,
     "release": false
   },
   "local": {
-    "artifacts": "pending",
+    "artifacts": "complete",
     "version": "pending"
   },
   "remote": {
