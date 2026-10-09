@@ -19,7 +19,7 @@ jobs:
         # 프로젝트 언어에 맞게 조정: javascript-typescript / python / go / ruby / java-kotlin / c-cpp
         language: ["javascript-typescript"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
