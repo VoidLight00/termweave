@@ -10,7 +10,7 @@
       "ja",
       "zh"
     ],
-    "release": "not_requested",
+    "release": "requested",
     "description": "cmux-style web and Mac client for herdr: split and dock terminals per workspace, numbered panes, agent icons, a Needs-you list and correct Korean input.",
     "homepage": "",
     "topics": [
