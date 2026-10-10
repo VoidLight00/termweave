@@ -18,6 +18,8 @@ print "== $(date '+%F %T') commit $(git -C "$repo" rev-parse --short HEAD)"
 
 [[ -e $HOME/.config/termweave/auto-release.off ]] && { print "skip: kill switch is on"; exit 0; }
 [[ $(git -C "$repo" branch --show-current) == main ]] || { print "skip: not on main"; exit 0; }
+# a SIGKILL or reboot skips the EXIT trap: a lock older than an hour is left over, not a live run
+[[ -d $lock && -n $(find "$lock" -maxdepth 0 -mmin +60 2>/dev/null) ]] && { print "removing stale lock"; rmdir "$lock"; }
 mkdir "$lock" 2>/dev/null || { print "skip: another release is running"; exit 0; }
 trap 'rmdir "$lock" 2>/dev/null' EXIT
 
@@ -31,6 +33,11 @@ case $subject in
 esac
 [[ $body == *"BREAKING CHANGE"* && -n $bump ]] && bump=minor
 
+vfiles=(package.json shared/product.ts herdr-plugin.toml CITATION.cff CHANGELOG.termweave.md)
+# the bump rewrites and restores these files: never touch them while they hold the user's own edits
+if [[ -n $bump ]] && ! git -C "$repo" diff --quiet HEAD -- $vfiles; then
+  print "skip bump: version files have uncommitted edits"; bump=""
+fi
 if [[ -n $bump ]]; then
   current=$(python3 -c "import json;print(json.load(open('$repo/package.json'))['version'])")
   next=$(python3 - "$current" "$bump" <<'EOF'
@@ -61,10 +68,11 @@ entry = f"## [{nxt}] - {today}\n\n" + "".join(f"- {line}\n" for line in notes.sp
 i = s.index("## [")
 open(p, "w").write(s[:i] + entry + s[i:])
 EOF
-  [[ $? -eq 0 ]] || { print "FAIL: version files (restored)"; git -C "$repo" checkout -q -- package.json shared/product.ts herdr-plugin.toml CITATION.cff CHANGELOG.termweave.md; exit 1; }
-  git -C "$repo" add package.json shared/product.ts herdr-plugin.toml CITATION.cff CHANGELOG.termweave.md
+  [[ $? -eq 0 ]] || { print "FAIL: version files (restored)"; git -C "$repo" checkout -q -- $vfiles; exit 1; }
   # hooks off: this version commit must not start a second release run
-  git -C "$repo" -c core.hooksPath=/dev/null commit -q -m "chore(release): v$next" -m "Automatic $bump release for: $subject"
+  # pathspec: only the version files go in, never something else the user has staged
+  git -C "$repo" -c core.hooksPath=/dev/null commit -q -m "chore(release): v$next" -m "Automatic $bump release for: $subject" -- $vfiles \
+    || { print "FAIL: version commit (restored)"; git -C "$repo" checkout -q -- $vfiles; exit 1; }
   version=v$next
 else
   version=v$(python3 -c "import json;print(json.load(open('$repo/package.json'))['version'])")

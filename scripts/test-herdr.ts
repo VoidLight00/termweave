@@ -8,6 +8,11 @@
  * so CI runs as before.
  */
 import { assertIsolatedSocket, isolateTestEnvironment } from './test-isolation.ts';
+import { realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+// macOS hands out /var/folders/... which is a symlink to /private/var/...; code under test resolves
+// real paths, so temp roots must already be real or path comparisons fail on a Mac only
+process.env.TMPDIR = realpathSync(tmpdir());
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { afterAll } from "bun:test";
 import { spawnSync } from "node:child_process";

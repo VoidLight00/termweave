@@ -3,6 +3,10 @@
 TermWeave(herdr web ui 포크)의 변경 기록입니다. 원본 프로젝트의 기록은 `CHANGELOG.md`에 있습니다.
 이 파일에는 실제 동작이나 게이트로 확인된 완료 항목만 적습니다. 일부만 끝난 항목은 "남은 일"에 따로 적습니다.
 
+## [0.3.9] - 2026-10-10
+
+- fix(android): installer status could be forged by another app; harden auto release
+
 ## [0.3.8] - 2026-10-09
 
 - fix(android): companion app crashed on launch when scheduling the update check

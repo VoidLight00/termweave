@@ -70,7 +70,6 @@ public class MainActivity extends Activity {
         stop.setText("공유 종료 · 연결 해제");
         layout.addView(stop);
         Updater.schedule(this);
-        if (getIntent() != null) onNewIntent(getIntent());
         stop.setOnClickListener(v -> {
             if (pairing != null) pairing.cancel();
             stopService(new Intent(this, ProjectionService.class));
@@ -140,16 +139,17 @@ public class MainActivity extends Activity {
         }
         pendingToken = null; start.setEnabled(true);
     }
+    /** Read by Updater.onStatus: start the install confirmation directly only while the app is on screen. */
+    static volatile boolean visible;
+
+    @Override protected void onPause() { visible = false; super.onPause(); }
+
     @Override protected void onResume() {
         super.onResume();
+        visible = true;
         new Thread(() -> {
             try { Updater.Latest latest = Updater.newer(this); if (latest != null) runOnUiThread(() -> Updater.offer(this, latest)); } catch (Exception ignored) { /* offline: the background job retries */ }
         }).start();
-    }
-    @Override protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        if (Updater.ACTION_STATUS.equals(intent.getAction())) Updater.onStatus(this, intent);
-        // ACTION_INSTALL (notification tap) needs nothing extra: onResume re-checks and offers the update
     }
     @Override protected void onDestroy() {
         if (pairing != null) pairing.cancel();

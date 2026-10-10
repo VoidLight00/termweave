@@ -32,6 +32,9 @@ final class Updater {
     private static final long MAX_BYTES = 32L * 1024 * 1024;
     private static final OkHttpClient client = new OkHttpClient.Builder().callTimeout(120, TimeUnit.SECONDS).build();
 
+    /** One download and install session at a time; cleared when the installer reports back or staging fails. */
+    static volatile boolean installing;
+
     static final class Latest { long versionCode; String versionName, sha256; long bytes; }
 
     static String origin(Context context) { return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(ORIGIN, null); }
@@ -54,7 +57,8 @@ final class Updater {
         if (base == null) return null;
         try (Response response = client.newCall(new Request.Builder().url(base + "/download/termweave-companion.json").build()).execute()) {
             if (!response.isSuccessful() || response.body() == null) return null;
-            String text = response.body().string();
+            // peekBody stops reading at the limit: a huge body never fills memory in the background job
+            String text = response.peekBody(2049).string();
             if (text.length() > 2048) return null;
             JSONObject json = new JSONObject(text);
             Latest latest = new Latest();
@@ -76,7 +80,7 @@ final class Updater {
     }
 
     static void offer(Activity activity, Latest latest) {
-        if (activity.isFinishing() || activity.isDestroyed()) return;
+        if (installing || activity.isFinishing() || activity.isDestroyed()) return;
         new AlertDialog.Builder(activity).setTitle("새 버전 " + latest.versionName)
             .setMessage("TermWeave Companion 새 버전을 내려받아 설치합니다. 파일은 서명과 SHA-256을 확인한 뒤에 설치됩니다.")
             .setPositiveButton("설치", (d, w) -> install(activity, latest)).setNegativeButton("나중에", null).show();
@@ -88,10 +92,12 @@ final class Updater {
             activity.startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + activity.getPackageName())));
             return;
         }
+        if (installing) return;
+        installing = true;
         Toast.makeText(activity, "업데이트를 내려받고 있습니다.", Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             String error = null;
-            try { stage(activity, latest); } catch (Exception failure) { error = failure.getMessage(); }
+            try { stage(activity, latest); } catch (Exception failure) { installing = false; error = String.valueOf(failure.getMessage() != null ? failure.getMessage() : failure); }
             String message = error;
             if (message != null) activity.runOnUiThread(() -> Toast.makeText(activity, "업데이트를 설치하지 못했습니다: " + message, Toast.LENGTH_LONG).show());
         }).start();
@@ -123,7 +129,8 @@ final class Updater {
             for (byte b : digest.digest()) hex.append(String.format("%02x", b));
             if (total != latest.bytes || !hex.toString().equals(latest.sha256)) throw new IOException("SHA-256 불일치");
             // FLAG_MUTABLE: the installer fills in the status extras, including the confirmation intent
-            PendingIntent status = PendingIntent.getActivity(context, 4, new Intent(context, MainActivity.class).setAction(ACTION_STATUS), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+            // a non-exported receiver: only the installer, through this PendingIntent, can deliver a status
+            PendingIntent status = PendingIntent.getBroadcast(context, 4, new Intent(context, InstallStatusReceiver.class).setAction(ACTION_STATUS), PendingIntent.FLAG_MUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
             session.commit(status.getIntentSender());
             committed = true;
         } finally {
@@ -131,14 +138,20 @@ final class Updater {
         }
     }
 
-    /** Called from MainActivity.onNewIntent with the installer's status. */
-    static void onStatus(Activity activity, Intent intent) {
+    /** Installer status from InstallStatusReceiver. In the background a direct launch can be blocked, so the confirmation goes into a notification. */
+    static void onStatus(Context context, Intent intent) {
         int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             @SuppressWarnings("deprecation") Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT); // typed overload needs API 33
-            if (confirm != null) activity.startActivity(confirm);
-        } else if (status != PackageInstaller.STATUS_SUCCESS) {
-            Toast.makeText(activity, "설치가 취소되었거나 실패했습니다.", Toast.LENGTH_LONG).show();
+            if (confirm == null) { installing = false; return; }
+            confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            if (MainActivity.visible) context.startActivity(confirm);
+            else context.getSystemService(NotificationManager.class).notify(7, new Notification.Builder(context, CHANNEL).setSmallIcon(R.drawable.launcher)
+                .setContentTitle("TermWeave Companion 업데이트 준비 완료").setContentText("눌러서 설치를 확인하십시오.").setAutoCancel(true)
+                .setContentIntent(PendingIntent.getActivity(context, 5, confirm, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT)).build());
+            return;
         }
+        installing = false;
+        if (status != PackageInstaller.STATUS_SUCCESS) Toast.makeText(context, "설치가 취소되었거나 실패했습니다.", Toast.LENGTH_LONG).show();
     }
 }

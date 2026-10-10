@@ -1,7 +1,7 @@
 {
   "name": "termweave",
   "private": true,
-  "version": "0.3.8",
+  "version": "0.3.9",
   "type": "module",
   "description": "Browser version of the herdr terminal - live herdr workspaces, panes and agents in a web UI",
   "license": "MIT",

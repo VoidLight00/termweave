@@ -9,9 +9,9 @@ it('login/main/notification/PWA references use existing independent icon',()=>{
   for(const match of source.matchAll(/(?:"|')((?:\/)?icons\/[^"'?]+)(?:"|')/g))expect(existsSync(join(root,'public',match[1]!.replace(/^\//,'')))).toBe(true);
  }
 });
-it('notification payload names the independent SVG, not omitted artwork',async()=>{
+it('notification payload names the TermWeave PNG icon (SVG notification icons do not render on every platform)',async()=>{
  const oldNotification=Object.getOwnPropertyDescriptor(globalThis,'Notification');const oldNavigator=Object.getOwnPropertyDescriptor(globalThis,'navigator');const payloads:NotificationOptions[]=[];
  class SyntheticNotification{static permission='granted';constructor(_title:string,options:NotificationOptions){payloads.push(options);}addEventListener(){}}
- try{Object.defineProperty(globalThis,'Notification',{configurable:true,value:SyntheticNotification});Object.defineProperty(globalThis,'navigator',{configurable:true,value:{}});showPaneStatusNotification('synthetic-pane','Synthetic title','blocked');await Promise.resolve();expect(payloads).toHaveLength(1);expect(payloads[0]?.icon).toBe('/icons/termweave.svg');}
+ try{Object.defineProperty(globalThis,'Notification',{configurable:true,value:SyntheticNotification});Object.defineProperty(globalThis,'navigator',{configurable:true,value:{}});showPaneStatusNotification('synthetic-pane','Synthetic title','blocked');await Promise.resolve();expect(payloads).toHaveLength(1);expect(payloads[0]?.icon).toBe('/icons/termweave-v2-192.png');}
  finally{if(oldNotification)Object.defineProperty(globalThis,'Notification',oldNotification);else Reflect.deleteProperty(globalThis,'Notification');if(oldNavigator)Object.defineProperty(globalThis,'navigator',oldNavigator);else Reflect.deleteProperty(globalThis,'navigator');}
 });

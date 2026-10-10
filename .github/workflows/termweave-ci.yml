@@ -30,6 +30,7 @@ jobs:
       - name: Install pinned Chromium
         run: bun node_modules/playwright-core/cli.js install chromium
       - name: Verify source and synthetic browser lanes
-        run: bun scripts/verify-isolated.ts ledger type build unit render source-style
+        # no ledger lane: tracking/ is internal and left out of the public export (public-exclude.txt)
+        run: bun scripts/verify-isolated.ts type build unit render source-style
       # Native API/integration lanes need a separately reviewed runtime binary lock.
       # No upstream installer, deployment action, credentials, or release workflow runs here.
