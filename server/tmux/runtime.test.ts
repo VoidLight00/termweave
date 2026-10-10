@@ -11,7 +11,8 @@ test("action arguments reject injection, invalid directions and ambiguous target
     expect(() => actionCommand("%0", action as never)).toThrow("invalid_action");
 });
 
-test("private real tmux runtime: split, indexes, layouts, resize, zoom, move, swap, persistence and stale rejection", async () => {
+// needs a real tmux binary; CI runners without one skip only this case
+test.skipIf(!Bun.which("tmux"))("private real tmux runtime: split, indexes, layouts, resize, zoom, move, swap, persistence and stale rejection", async () => {
   const root = await realpath(await mkdtemp("/tmp/twp-"));
   const runtime = new TmuxRuntime(root + "/runtime");
   let socket = "";

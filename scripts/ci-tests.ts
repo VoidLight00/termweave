@@ -3,7 +3,8 @@ const suite = process.argv[2];
 if (suite !== "unit" && suite !== "integration") throw new Error("Usage: bun scripts/ci-tests.ts unit|integration");
 const files = [...new Bun.Glob("{src,shared,server,scripts}/**/*.test.ts").scanSync({ cwd: process.cwd() })].sort();
 // The legacy updater suite mixes Git-only cases with real bridge restart/rollback cases.
-const needsHerdr = (file: string) => file.endsWith(".contract.test.ts") || file === "server/updater.test.ts" || file.startsWith("server/herdr/") || file.startsWith("server/pty/");
+// *.native.test.ts drive a real herdr and tmux and refuse to skip, so they never belong in the unit lane
+const needsHerdr = (file: string) => file.endsWith(".contract.test.ts") || file.endsWith(".native.test.ts") || file === "server/updater.test.ts" || file.startsWith("server/herdr/") || file.startsWith("server/pty/");
 const selected = files.filter((file) => needsHerdr(file) === (suite === "integration"));
 if (!selected.length) throw new Error(`No ${suite} tests found`);
 if (suite === "integration" && !Bun.which(process.env["HERDR_WEB_HERDR_BIN"] || "herdr")) {
