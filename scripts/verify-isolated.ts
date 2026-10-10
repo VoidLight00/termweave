@@ -73,6 +73,12 @@ try {
       code = await child.exited;
     } finally { closeSync(fd); }
     results.push({ name, command, exit_code: code, log, counts: countsFor(log) }); console.log(`${code === 0 ? 'PASS' : 'FAIL'}[${name}] exit=${code}`);
+    // CI keeps no evidence folder: print the failing lines so a red run can be diagnosed from its log
+    if (code !== 0) {
+      const lines = readFileSync(log, 'utf8').split('\n');
+      const hits = lines.flatMap((line, i) => /^\(fail\)|^error|Error:/.test(line) ? lines.slice(Math.max(0, i - 6), i + 3) : []);
+      console.log((hits.length ? hits : lines).slice(-60).join('\n'));
+    }
   }
 } finally {
   const socket = join(env.XDG_CONFIG_HOME!, 'herdr/sessions/qa/herdr.sock');
