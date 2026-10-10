@@ -27,6 +27,9 @@ jobs:
           bun-version: 1.4.2
       - name: Install locked dependencies without lifecycle scripts
         run: bun install --frozen-lockfile --ignore-scripts
+      - name: Install tmux (Ubuntu images ship it, macOS images do not)
+        if: runner.os == 'macOS'
+        run: brew install tmux
       - name: Install pinned Chromium
         run: bun node_modules/playwright-core/cli.js install chromium
       - name: Verify source and synthetic browser lanes
