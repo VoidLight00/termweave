@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { closeSync, existsSync, lstatSync, mkdirSync, openSync, realpathSync, statSync, writeFileSync, readFileSync, readSync } from "node:fs";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, realpathSync, statSync, writeFileSync, readFileSync, readSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -190,14 +190,26 @@ export class PaneMeshOwnership {
     try { const fd = openSync(path, "wx", 0o600); closeSync(fd); } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
     }
-    try { writeFileSync(sentinel, "pane-mesh-ownership-v1\n", { flag: "wx", mode: 0o600 }); } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    // Publish the sentinel whole: created with "wx" and written after, a second process starting at
+    // the same moment read it empty and failed with malformed_state. rename() is atomic and keeps
+    // nlink at 1 (a hard link did not: assertPrivateFile refused the brief second link).
+    // Two first starts may both rename: the content is the same either way.
+    if (!existsSync(sentinel)) {
+      const draft = `${sentinel}.${process.pid}.${randomBytes(4).toString("hex")}`;
+      writeFileSync(draft, "pane-mesh-ownership-v1\n", { flag: "wx", mode: 0o600 });
+      renameSync(draft, sentinel);
     }
     assertPrivateFile(sentinel);
     this.statePath = path;
     const stateInfo = lstatSync(path);
     this.stateIdentity = JSON.stringify([stateInfo.dev, stateInfo.ino, stateInfo.birthtimeMs]);
-    for (const suffix of ["", "-journal", "-wal", "-shm"]) if (existsSync(path + suffix)) assertPrivateFile(path + suffix);
+    for (const suffix of ["", "-journal", "-wal", "-shm"]) {
+      // another process's rollback journal can vanish between the check and the lstat
+      try { if (existsSync(path + suffix)) assertPrivateFile(path + suffix); } catch (error) {
+        if (suffix && (error as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw error;
+      }
+    }
     const initialized = existsSync(marker) && statSync(path).size > 0;
     if (existsSync(sentinel) && statSync(path).size === 0 && existsSync(marker)) {
       // A zero-byte file is only valid in the first initialization race. The marker is

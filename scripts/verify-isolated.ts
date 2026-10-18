@@ -14,7 +14,10 @@ env.TMPDIR = root; env.TMP = root; env.TEMP = root;
 for (const [name, directory] of [['HOME', 'h'], ['XDG_CONFIG_HOME', 'c'], ['XDG_STATE_HOME', 's'], ['XDG_DATA_HOME', 'd'], ['XDG_CACHE_HOME', 'k']]) {
   const path = join(root, directory!); mkdirSync(path); env[name!] = path;
 }
-env.HERDR_STAGING_DIST = join(root, 'dist'); env.DOCK_EVIDENCE = evidence; env.CHROME_PATH = chromiumExecutable();
+env.HERDR_STAGING_DIST = join(root, 'dist'); env.DOCK_EVIDENCE = evidence;
+// only browser lanes need Chromium: type, build and unit run on a machine without it, and a browser
+// lane without it fails with the same install hint from chromiumExecutable()
+try { env.CHROME_PATH = chromiumExecutable(); } catch { delete env.CHROME_PATH; }
 const lanes: [string, string[], Record<string, string>?][] = [
   ['test-cleanup', ['bun', 'scripts/test-herdr-cleanup-regression.ts']],
   ['ledger', ['node', 'scripts/validate-ledgers.mjs']],

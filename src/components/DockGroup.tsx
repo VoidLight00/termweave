@@ -47,7 +47,7 @@ export function DockGroup({ node, panes, busy, zoomed, groupIds, activate, drop,
         draggable onDragStart={event => { beginDrag(id); event.dataTransfer.setData(PANE_DRAG_TYPE, id); event.dataTransfer.effectAllowed = "move"; }}
         onDragOver={event => over(event, "center", boundary(event, index))}
         onDrop={event => dragDrop(event, node.id, "center", boundary(event, index))}
-        data-tab-id={id} title={id} onClick={() => activate(id)}><span className="pane-number" data-pane-number={paneNumber(panes.find(p => p.pane_id === id))}>{paneNumber(panes.find(p => p.pane_id === id))}</span> <AgentMark agent={panes.find(p => p.pane_id === id)?.agent || "shell"} size={14} /> {displayPaneTitle(panes.find(pane => pane.pane_id === id) ?? { pane_id: id } as HerdrPane)}</button>)}
+        data-tab-id={id} title={displayPaneTitle(panes.find(pane => pane.pane_id === id) ?? { pane_id: id } as HerdrPane)} onClick={() => activate(id)}><span className="pane-number" data-pane-number={paneNumber(panes.find(p => p.pane_id === id))}>{paneNumber(panes.find(p => p.pane_id === id))}</span> <AgentMark agent={panes.find(p => p.pane_id === id)?.agent || "shell"} size={14} /> {displayPaneTitle(panes.find(pane => pane.pane_id === id) ?? { pane_id: id } as HerdrPane)}</button>)}
       <span className={`dock-strip-end${preview?.index === node.tabs.length ? " dock-insert-end" : ""}`} aria-hidden="true" />
       </div>
       <div className="dock-tab-actions">

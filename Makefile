@@ -11,7 +11,7 @@ install: ## build reviewed local source into ~/.local/share/termweave-owned
 start: ## start the installed server on loopback
 	bun "$$HOME/.local/share/termweave-owned/scripts/owned-server.ts" start
 test: ## unit tests
-	bun test src/lib shared
+	bun scripts/ci-tests.ts unit
 typecheck: ## TypeScript check
 	bunx tsc --noEmit -p .
 build: ## build the browser client

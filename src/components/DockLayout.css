@@ -44,6 +44,8 @@
 .dock-search button { background: var(--bg-hover); color: var(--text); border: 1px solid var(--border); padding: 5px; }
 .dock-search pre { max-height: 120px; overflow: auto; white-space: pre-wrap; margin: 4px 0; }
 @media (max-width: 760px) { .dock-tabs button { min-height: 32px; } }
+/* a finger, not a width, needs the larger target: touch tablets wider than 760px got none */
+@media (pointer: coarse) { .dock-tabs button { min-height: 44px; } }
 
 .dock-address { padding: 3px 8px; font-size: 11px; color: var(--text-dim); }
 .dock-address summary { cursor: pointer; }

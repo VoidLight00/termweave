@@ -335,7 +335,8 @@ function DockWorkspace({ machineId, panes, primaryId, ownerId, terminal, onSelec
       nativeMove={<NativePaneMove source={terminal.role === "observe" ? undefined : pane} panes={panes} busy={busy || !!selectCreated || mutationBusy} move={(source, target) => void nativeMove(source, target)} />}
       search={<TerminalSearch key={node.active} paneId={node.active} machineId={machineId} />}>
       <OpenFileContext.Provider value={node.active ? path => onOpenFile(path, node.active!) : null}>
-        <PaneTerminal {...terminal} paneId={pane?.restore_error ? null : node.active} restoreError={pane?.restore_error ?? null}
+        <PaneTerminal {...terminal} paneId={pane?.restore_error ? null : node.active}
+          endedAction={pane && terminal.role !== "observe" && <TerminatePaneButton pane={pane} machineId={machineId} onTerminated={onRefresh} />} restoreError={pane?.restore_error ?? null}
           agent={pane?.agent ?? null} agentStatus={pane?.agent_status} backgroundTasks={pane?.background_tasks ?? 0}
           view={paneView} autoSelected={true}
           onConnectionChange={node.id === groups(visible)[0]?.id ? terminal.onConnectionChange : undefined}

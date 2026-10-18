@@ -218,7 +218,8 @@ test("separate processes race for overlapping directory scopes", async () => {
 });
 test("separate processes claim disjoint scopes", async () => {
   const outcomes = await results([child("a", file("src/a.ts")), child("b", file("src/b.ts"))]);
-  expect(outcomes.map((r) => r.code)).toEqual([0, 0]);
+  // the child's error code, not just its exit status, names a failure
+  expect(outcomes.map((r) => `${r.code}:${r.out}`)).toEqual(["0:claimed", "0:claimed"]);
 });
 test("database contention fails closed then recovers without partial writes", async () => {
   store(); const lock = new Database(join(stateDir, "ownership.sqlite"));

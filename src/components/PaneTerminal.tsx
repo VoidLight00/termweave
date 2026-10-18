@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Terminal } from "@xterm/xterm";
 
 /** a Hangul jamo or syllable run, as the macOS Korean IME inserts it */
@@ -43,6 +43,8 @@ import { adjustTerminalGlyphs } from "../lib/terminalGlyphs.ts";
 const RESIZE_SETTLE_MS = 120;
 
 export interface PaneTerminalProps {
+  /** what the "Terminal ended" banner offers next (the dock passes its terminate button) */
+  endedAction?: ReactNode;
   /** The pane this terminal attaches to; null renders the placeholder. */
   paneId: string | null;
   /**
@@ -103,6 +105,7 @@ function useCoarsePointer(): boolean {
 }
 export function PaneTerminal({
   paneId,
+  endedAction,
   restoreError = null,
   agent = null,
   agentStatus,
@@ -159,6 +162,9 @@ export function PaneTerminal({
   const [composing, setComposingState] = useState(false);
   const setComposing = useCallback((active: boolean) => { composingRef.current = active; setComposingState(active); }, []);
   const ctrlRef = useRef(false);
+  // "Reconnecting" only after a connection existed: a fresh mount is connecting for the first time
+  const everConnected = useRef(false);
+  if (connected) everConnected.current = true;
   const [ctrlArmed, setCtrlArmed] = useState(false);
   // observe mode: the ref is what onData and the resize listeners read mid-stream
   const observeRef = useRef(role === "observe");
@@ -1370,11 +1376,12 @@ export function PaneTerminal({
         {paneId !== null && !chatView && ended && !outputError && (
           <div className="terminal-banner" role="status">
             {t("Terminal ended")}{!draftIsEmpty(draft) ? t(" — held input discarded") : ""}
+            {endedAction}
           </div>
         )}
         {paneId !== null && !chatView && !ended && !connected && (
           <div className="terminal-banner terminal-banner-warning" role="status">
-            {t("Reconnecting to TermWeave…")}
+            {everConnected.current ? t("Reconnecting to TermWeave…") : t("Connecting to TermWeave…")}
             {!draftIsEmpty(draft) && <span className="draft-held">{t("Input held:")} “{draft.text}”</span>}
           </div>
         )}

@@ -184,12 +184,17 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
 
   // By folder, one workspace can show under several folders: only the copy that was clicked edits.
   // Two mounted inputs would take the focus from each other, and the blur closes both.
+  // Enter and Escape settle the edit before the input's blur: the blur saves only an unsettled one
+  const renameSettled = useRef(false);
   const beginWorkspaceRename = (workspace: WorkspaceInfo, scope: string): void => {
+    renameSettled.current = false;
     setEditingWorkspaceId(`${scope}\u0000${workspace.workspace_id}`);
     setWorkspaceLabel(workspace.label);
   };
 
   const saveWorkspaceRename = (workspaceId: string): void => {
+    if (renameSettled.current) return;
+    renameSettled.current = true;
     const label = workspaceLabel.trim();
     setEditingWorkspaceId(null);
     void renameWorkspace(workspaceId, label).catch((reason: unknown) => {
@@ -276,8 +281,8 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
           <span className="agent-mark-holder is-shell" style={{ color: SESSION_COLORS.find(c => c.id === colorOf(workspace.workspace_id))?.value }}><Folder aria-hidden="true" /></span>
           <span className="pane-copy"><span className="pane-primary">
             {editing ? <input className="input workspace-rename-input" aria-label={t("Workspace name")} autoFocus value={workspaceLabel}
-              onClick={event => event.stopPropagation()} onChange={event => setWorkspaceLabel(event.target.value)} onBlur={() => setEditingWorkspaceId(null)}
-              onKeyDown={event => { event.stopPropagation(); if (event.key === "Enter") saveWorkspaceRename(workspace.workspace_id); if (event.key === "Escape") setEditingWorkspaceId(null); }} />
+              onClick={event => event.stopPropagation()} onChange={event => setWorkspaceLabel(event.target.value)} onBlur={() => saveWorkspaceRename(workspace.workspace_id)}
+              onKeyDown={event => { event.stopPropagation(); if (event.key === "Enter") saveWorkspaceRename(workspace.workspace_id); if (event.key === "Escape") { event.preventDefault(); renameSettled.current = true; setEditingWorkspaceId(null); } }} />
               : <span className="pane-title" onDoubleClick={() => beginWorkspaceRename(workspace, scope)}>{workspace.label}</span>}
           </span><span className="pane-meta">
             <BackgroundBadge count={summary.backgroundTasks} />
@@ -300,7 +305,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
         </div>
         <div className="workspace-terminals" id={terminalsId} hidden={!expanded}>
           {visiblePanes.map(pane => <div className="workspace-terminal-row" key={pane.terminal_id || pane.pane_id}><button type="button"
-            className="workspace-terminal" data-terminal-pane={pane.pane_id} title={pane.pane_id}
+            className="workspace-terminal" data-terminal-pane={pane.pane_id} title={displayPaneTitle(pane)}
             aria-current={pane.pane_id === selectedPaneId ? "true" : undefined}
             onClick={() => actions.selectPane(pane.pane_id)}>
             <span className="pane-number" data-pane-number={paneNumber(pane)}>{paneNumber(pane)}</span>
