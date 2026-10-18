@@ -1,0 +1,33 @@
+.color-picker { display: grid; gap: 10px; min-width: 0; }
+/* white to the right is saturation, black downward is brightness: the Photoshop square */
+.color-picker-square {
+  position: relative; height: 180px; border-radius: 8px; cursor: crosshair; touch-action: none;
+  background-image: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent);
+  border: 1px solid var(--border);
+}
+.color-picker-square:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.color-picker-thumb {
+  position: absolute; width: 18px; height: 18px; border-radius: 50%; transform: translate(-50%, -50%);
+  border: 2px solid #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6); pointer-events: none;
+}
+.color-picker-hue {
+  appearance: none; -webkit-appearance: none; width: 100%; height: 16px; border-radius: 8px; margin: 0;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+}
+.color-picker-hue::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: transparent;
+  border: 3px solid #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6); cursor: pointer;
+}
+.color-picker-hue::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%; background: transparent;
+  border: 3px solid #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.6); cursor: pointer;
+}
+.color-picker-hue:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.color-picker-hexrow { display: flex; gap: 8px; align-items: end; min-width: 0; }
+.color-picker-hexrow label { flex: 1; }
+.color-picker-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 640px) { .color-picker-fields { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.color-picker .color-picker-hexrow label, .color-picker .color-picker-fields label { display: grid; gap: 4px; margin: 0; font-size: 12px; color: var(--text-dim); min-width: 0; }
+.color-picker-hexrow input, .color-picker-fields input { width: 100%; min-width: 0; font-size: 16px; font-variant-numeric: tabular-nums; }
+.color-picker-preview { flex: 0 0 44px; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--border); }
+@media (pointer: coarse) { .color-picker-square { height: 220px; } }

@@ -38,6 +38,7 @@ const lanes: [string, string[], Record<string, string>?][] = [
   ['product-start', ['bun', 'scripts/product-start-regression.ts']],
   ['product-browser', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/product-browser-regression.ts']],
   ['render', ['bun', 'scripts/terminal-render-regression.ts'], { RENDER_LABEL: 'p3' }],
+  ['color-picker', ['bun', 'scripts/color-picker-regression.ts']],
   ['dock', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/dock-regression.ts']],
   ['title-drag', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/dock-title-drag-regression.ts']],
   ['workspace', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/session-isolation-regression.ts']],

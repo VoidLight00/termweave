@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useSettings } from "../lib/settings.ts";
 import { COLOR_KEYS, CUSTOM_DEFAULT, FONT_CATALOG, appearanceColors, contrast, parseAppearance, preset } from "../lib/appearance.ts";
 import { sanitizeFontFamily } from "../lib/fontFamily.ts";
+import { ColorPicker } from "./ColorPicker.tsx";
 import { useT } from "../lib/i18n.ts";
 import "./AppearancePanel.css";
 export function AppearancePanel(){
- const {settings,update,resolvedTheme}=useSettings();const t=useT();const [error,setError]=useState("");
+ const {settings,update,resolvedTheme}=useSettings();const t=useT();const [error,setError]=useState("");const [editing,setEditing]=useState<typeof COLOR_KEYS[number]>("accent");
  const active=appearanceColors(settings.appearancePreset,resolvedTheme,settings.customColors);
  const labels={background:t("Background"),surface:t("Panel background"),text:t("Text color"),accent:t("Accent color"),border:t("Border color")};
  const exportTheme=()=>{const data={version:1,appearancePreset:settings.appearancePreset,customColors:settings.customColors,uiFontFamily:settings.uiFontFamily,terminalFontFamily:settings.terminalFontFamily,chatFontFamily:settings.chatFontFamily,theme:settings.theme};const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='termweave-appearance.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);};
@@ -14,7 +15,12 @@ export function AppearancePanel(){
    <option value="default">TermWeave</option><option value="catppuccin">{t("Catppuccin themes: Mocha / Latte")}</option><option value="rose-pine">{t("Rosé Pine themes: Main / Dawn")}</option><option value="custom">{t("Custom colors")}</option>
   </select></label>
   <p className="settings-description">{t("Theme colors follow dark or light mode. Fonts are served locally; no external font service is contacted.")}</p>
-  {settings.appearancePreset==='custom'&&<div className="appearance-colors">{COLOR_KEYS.map(key=><label key={key}>{labels[key]}<input type="color" value={settings.customColors[key]} onChange={e=>update({customColors:{...settings.customColors,[key]:e.target.value}})}/></label>)}</div>}
+  {settings.appearancePreset!=='custom'&&<button className="btn" onClick={()=>update({appearancePreset:'custom',customColors:{...(active??CUSTOM_DEFAULT)}})}>{t("Customize these colors")}</button>}
+  {settings.appearancePreset==='custom'&&<>
+   <div className="appearance-colors" role="radiogroup" aria-label={t("Color to edit")}>{COLOR_KEYS.map(key=><button key={key} type="button" role="radio" aria-checked={editing===key} className="appearance-swatch" onClick={()=>setEditing(key)}>
+    <span className="appearance-swatch-chip" style={{backgroundColor:settings.customColors[key]}} aria-hidden="true"/><span>{labels[key]}</span><code>{settings.customColors[key]}</code></button>)}</div>
+   <ColorPicker label={labels[editing]} value={settings.customColors[editing]} onChange={hex=>update({customColors:{...settings.customColors,[editing]:hex}})}/>
+  </>}
   {active&&contrast(active)<4.5&&<p role="status">{t("Text contrast is low. Choose more distinct text and panel colors.")}</p>}
   {([['uiFontFamily',t("Interface font")],['terminalFontFamily',t("Terminal font")],['chatFontFamily',t("Chat font")]] as const).map(([key,label])=><label key={key}>{label}<select aria-label={label} className="input" value={FONT_CATALOG.some(f=>f.family===settings[key])?settings[key]:settings[key]?'custom':''} onChange={e=>{if(e.target.value!=='custom')update({[key]:e.target.value});}}>
    <option value="">{t("Default")}</option>{FONT_CATALOG.filter(f=>key!=='terminalFontFamily'||f.kind==='mono').map(f=><option key={f.name} value={f.family}>{f.name}</option>)}<option value="custom">{t("Custom font family")}</option>
