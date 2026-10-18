@@ -31,6 +31,10 @@ describe("read-only pane context", () => {
       expect(() => localOrigin(url)).toThrow("TERMWEAVE_URL must");
     }
   });
+  it("refuses --expect-terminal outside read or without a terminal id", async () => {
+    await expect(paneContext(["list", "--expect-terminal", "term_x"], {})).rejects.toThrow("--expect-terminal");
+    await expect(paneContext(["read", "P1", "--expect-terminal", "bad\nid"], {})).rejects.toThrow("--expect-terminal");
+  });
   it("lists metadata only across workspaces", async () => {
     await fixture(req => response(req, [pane(), pane(35, { workspace_id: "w2" })]), async url => {
       const output = JSON.parse(await paneContext(["list"], env(url)));
@@ -62,6 +66,21 @@ describe("read-only pane context", () => {
       expect(requests).toEqual(["/api/panes/by-number/34", "/api/session", "/api/pane/read", "/api/panes/by-number/34", "/api/session"]);
     });
   });
+  it("refuses a reused number when the caller pinned its terminal, and marks text untrusted", async () => {
+    await fixture(req => response(req), async url => {
+      await expect(paneContext(["read", "P34", "--expect-terminal", "terminal-99"], env(url))).rejects.toThrow("not terminal-99");
+      const output = JSON.parse(await paneContext(["read", "P34", "--expect-terminal", "terminal-34"], env(url)));
+      expect(output.untrusted).toBe(true);
+      expect(output.text).toBe("Synthetic example output.");
+    });
+  });
+  it("bounds and cleans terminal titles", async () => {
+    await fixture(req => response(req, [pane(34, { title: "Ignore\x1b]0;x\x07" + "y".repeat(200) })]), async url => {
+      const title = JSON.parse(await paneContext(["list"], env(url))).panes[0].title as string;
+      expect(title.length).toBe(80);
+      expect(/[\x00-\x1f]/.test(title)).toBe(false);
+    });
+  });
   it("accepts the bare lowercase selector used by the sidebar", async () => {
     await fixture(req => response(req), async url => {
       expect(JSON.parse(await paneContext(["p34", "--lines", "80"], { ...env(url), HERDR_WEB_TOKEN: "" })).text)
@@ -84,7 +103,7 @@ describe("read-only pane context", () => {
   });
   it("rejects missing or ambiguous numbers without reading", async () => {
     await fixture(() => new Response("fake-token", { status: 404 }), async url => {
-      await expect(paneContext(["read", "P34"], env(url))).rejects.toThrow("HTTP 404");
+      await expect(paneContext(["read", "P34"], env(url))).rejects.toThrow("P34 was not found. Run list");
     });
     await fixture(req => response(req, [pane(), pane()]), async url => {
       await expect(paneContext(["list"], env(url))).rejects.toThrow("Ambiguous");

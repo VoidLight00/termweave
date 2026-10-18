@@ -477,6 +477,17 @@ describe("GET /api/pane/read", () => {
     expect(typeof body.read.text).toBe("string");
   });
 
+  it("serves the session without P-numbers when another server holds the number store", async () => {
+    await fetch(`${base()}/api/session`);
+    const second = createServer({ port: 0, stateDir });
+    try {
+      const response = await fetch(`http://127.0.0.1:${second.port}/api/session`);
+      expect(response.status).toBe(200);
+      const { snapshot } = await response.json() as { snapshot: SessionSnapshot };
+      expect(snapshot.panes.length).toBeGreaterThan(0);
+      expect(snapshot.panes.every(pane => !("global_pane_number" in pane))).toBe(true);
+    } finally { await second.stop(); }
+  });
   it("accepts only an integer line count from 1 to 2000", async () => {
     const { snapshot } = await (await fetch(`${base()}/api/session`)).json() as { snapshot: SessionSnapshot };
     const endpoint = `${base()}/api/pane/read?pane_id=${encodeURIComponent(snapshot.panes[0]!.pane_id)}&lines=`;

@@ -495,8 +495,16 @@ export function createServer(
     onFound: (paneId) => completions.adopt(paneId, "omo", OMO_ALIASES),
   });
   /** herdr's snapshot with OmO's own status in it: what the completion tracker and web push are given */
+  let numbersWarned = false;
   const rawSnapshot = async (): Promise<SessionSnapshot> => {
-    const snapshot = await paneNumbers.read(sessionSnapshot);
+    // a broken number store (another writer, a reused pid, a bad row) costs the P-numbers, not
+    // the whole session: without this /api/session failed and every client showed an empty app
+    const snapshot = await paneNumbers.read(sessionSnapshot).catch((error: unknown) => {
+      if (error instanceof HerdrError) throw error;
+      if (!numbersWarned) console.error(`pane numbers unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      numbersWarned = true;
+      return sessionSnapshot();
+    });
     await omo.refresh(snapshot.panes);
     return omo.apply(snapshot);
   };
