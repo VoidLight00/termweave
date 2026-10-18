@@ -14,7 +14,7 @@
  * hidden), output between two reads is not seen, and the grid is the pane's own, never
  * the browser's. It is a stopgap that ends when herdr reports attach.
  */
-import { HerdrError } from "./herdr/client.ts";
+import { HerdrError, PANE_GONE_CODES } from "./herdr/client.ts";
 
 /** between reads while the screen is changing, and the ceiling it relaxes to while it is not */
 export const MIRROR_ACTIVE_MS = 80;
@@ -146,9 +146,9 @@ export class MirrorSession {
     } catch (error) {
       this.reading = false;
       if (this.closed) return;
-      // herdr answered that the pane is not there: the terminal ended. A herdr that does
-      // not answer at all gets a few more tries first.
-      const gone = error instanceof HerdrError && error.code !== "connect_failed" && error.code !== "timeout";
+      // herdr answered that the pane is not there: the terminal ended. Any other failure
+      // (no answer, or server_unavailable for ~200 ms during a live handoff) gets a few more tries.
+      const gone = error instanceof HerdrError && PANE_GONE_CODES.has(error.code);
       if (gone || ++this.failures >= MIRROR_FAILURES) {
         this.closed = true;
         this.finish();

@@ -53,8 +53,7 @@ import {
   workspaceClose,
   workspaceCreate,
   workspaceMove,
-  workspaceRename,
-} from "./herdr/client.ts";
+  workspaceRename, PANE_GONE_CODES } from "./herdr/client.ts";
 import { type AlertTiming, createPushService, defaultStateDir, handlePushRequest } from "./push.ts";
 import { codexQuestionsCollapsed, handlePromptRequest } from "./prompt.ts";
 import { secretPrompt, validSecret } from "../shared/secret-prompt.ts";
@@ -131,8 +130,6 @@ const ATTACH_HELD_MESSAGE = "Another web bridge has this pane open. It connects 
  */
 const ATTACH_RELOOKUP_FOR_MS = 5_000;
 const ATTACH_RELOOKUP_MS = 100;
-/** what a pane lookup answers for a pane that has no terminal to attach any more */
-const PANE_GONE_CODES = new Set(["pane_not_found", "pane_not_restored", "no_terminal"]);
 /** The gap between a composer message's text and its Enter (see submitText). */
 export const SUBMIT_DELAY_MS = 120;
 /**
@@ -141,6 +138,9 @@ export const SUBMIT_DELAY_MS = 120;
  * Stop tapped just before Send still reaches the pane first.
  */
 const TYPED_SETTLE_MS = 300;
+const RETIRE_WAIT_MS = 5000;
+const INPUT_QUEUE_MS = 3000;
+const INPUT_QUEUE_DEPTH = 64;
 /**
  * Nothing of a composer message is typed once this long has passed since it reached the
  * server (it can wait behind a stalled one in the pane's queue): it answers submit_timeout
@@ -324,11 +324,13 @@ export function createServer(
   const pendingAttachments = new Map<string, Promise<PaneAttachment>>();
   // herdr releases its exclusive attach slot only after the old process exits.
   const retiringAttachments = new Map<string, Promise<void>>();
+  const retiringPtys = new Map<string, PtySession | MirrorSession>();
   const clients = new Set<Client>();
   /** each pane's input while a composer message is in flight, one step after another */
   const paneQueues = new Map<string, Promise<unknown>>();
   /** when each pane last got keystrokes through its attach pty */
   const lastTyped = new Map<string, number>();
+  const queuedInput = new Map<string, number>();
   const hostname = options.hostname ?? process.env["HOST"] ?? "127.0.0.1";
   /** Empty token = gate disabled; every route then behaves exactly as it did before auth existed. */
   const token = options.token ?? process.env["HERDR_WEB_TOKEN"] ?? "";
@@ -346,8 +348,21 @@ export function createServer(
    * flight, the pane's other input (keystrokes, keys, prompt answers) waits behind it:
    * a Stop tapped right after Send must not land between the text and its Enter.
    */
-  function serialize<T>(paneId: string, task: () => T | Promise<T>): Promise<T> {
-    const run = (paneQueues.get(paneId) ?? Promise.resolve()).catch(() => {}).then(task);
+  function serialize<T>(paneId: string, task: () => T | Promise<T>, input = false): Promise<T> {
+    // Typing and keys behind a stalled herdr must not arrive minutes later, Enter included:
+    // they expire after INPUT_QUEUE_MS, and a pane holds at most INPUT_QUEUE_DEPTH of them.
+    const depth = queuedInput.get(paneId) ?? 0;
+    if (input && depth >= INPUT_QUEUE_DEPTH) return Promise.reject(new Error("input_queue_full"));
+    const queuedAt = Date.now();
+    if (input) queuedInput.set(paneId, depth + 1);
+    const run = (paneQueues.get(paneId) ?? Promise.resolve()).catch(() => {}).then(() => {
+      if (input) {
+        const left = (queuedInput.get(paneId) ?? 1) - 1;
+        if (left > 0) queuedInput.set(paneId, left); else queuedInput.delete(paneId);
+        if (Date.now() - queuedAt > INPUT_QUEUE_MS) throw new Error("input_expired");
+      }
+      return task();
+    });
     paneQueues.set(paneId, run);
     run.catch(() => {}).finally(() => { if (paneQueues.get(paneId) === run) paneQueues.delete(paneId); });
     return run;
@@ -532,11 +547,14 @@ export function createServer(
     // releaseUnclaimed and keep a later, empty pty on this pane running
     for (const member of attachment.clients) member.data.attached.delete(paneId);
     for (const member of attachment.clients) member.data.output.delete(paneId);
-    const retired = attachment.pty.exited.finally(() => {
+    const pty = attachment.pty;
+    const retired = pty.exited.finally(() => {
       if (retiringAttachments.get(paneId) === retired) retiringAttachments.delete(paneId);
+      if (retiringPtys.get(paneId) === pty) retiringPtys.delete(paneId);
     });
     retiringAttachments.set(paneId, retired);
-    attachment.pty.kill();
+    retiringPtys.set(paneId, pty);
+    pty.kill();
   }
 
   /** Clamp surface for the shared pty, mirroring the sidecar's own limits. */
@@ -573,7 +591,14 @@ export function createServer(
   }
 
   async function spawnAttachment(paneId: string, cols: number, rows: number, forObserver: boolean): Promise<PaneAttachment> {
-    await retiringAttachments.get(paneId);
+    const retiring = retiringAttachments.get(paneId);
+    if (retiring) {
+      // a teardown that hangs (sidecar or herdr attach stuck) is killed, not waited on forever
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const late = await Promise.race([retiring.then(() => false), new Promise<boolean>(resolve => { timer = setTimeout(() => resolve(true), RETIRE_WAIT_MS); })]);
+      clearTimeout(timer);
+      if (late) { const stuck = retiringPtys.get(paneId); if (stuck && "forceKill" in stuck) stuck.forceKill(); retiringPtys.delete(paneId); retiringAttachments.delete(paneId); }
+    }
     const mirrored = !(await terminalAttach());
     const { terminalId, rect } = await terminalInfoFor(paneId);
     // an observer-first attachment spawns at the pane's own grid (fallback 80x24 when
@@ -1348,8 +1373,9 @@ export function createServer(
         if (!paneId) return badRequest("missing_pane_id", "pane_id query parameter is required");
         const linesRaw = url.searchParams.get("lines");
         const lines = linesRaw === null ? undefined : Number(linesRaw);
-        if (lines !== undefined && !Number.isFinite(lines)) {
-          return badRequest("invalid_lines", "lines must be a number");
+        // a huge history read holds herdr up to 20 s and turns away attaches meanwhile
+        if (lines !== undefined && (!Number.isInteger(lines) || lines < 1 || lines > 2000)) {
+          return badRequest("invalid_lines", "lines must be an integer from 1 to 2000");
         }
         try {
           const terminalId = url.searchParams.get("terminal_id");
@@ -1723,7 +1749,7 @@ export function createServer(
                   await paneSendText(message.pane_id, shaped);
                   // the echo is read at once, not at the mirror's next idle read
                   attachments.get(message.pane_id)?.mirror?.poke();
-                }).catch(inputFailed);
+                }, true).catch(inputFailed);
                 break;
               }
               // another web bridge has this pane's terminal: nothing typed here reaches it
@@ -1742,7 +1768,7 @@ export function createServer(
                   if (!clients.has(client)) return;
                   authorizeSocket(client);
                   return paneSendText(message.pane_id, text);
-                }).catch(inputFailed);
+                }, true).catch(inputFailed);
               } else {
                 if (!attachment.pty.write(message.text)) { inputFailed(); break; }
                 lastTyped.set(message.pane_id, Date.now());
@@ -1798,8 +1824,14 @@ export function createServer(
                 // a key pressed by a connection that has gone since is not pressed
                 if (!clients.has(client)) return;
                 authorizeSocket(client);
+                // typed bytes go through the attach pty, which herdr holds ~150 ms (Esc, Alt):
+                // a key-bar key sent by RPC right after them must not overtake them
+                const typed = Date.now() - (lastTyped.get(message.pane_id) ?? 0);
+                if (typed < TYPED_SETTLE_MS) await Bun.sleep(TYPED_SETTLE_MS - typed);
                 await paneSendKeys(message.pane_id, message.keys);
                 attachments.get(message.pane_id)?.mirror?.poke();
+              }, true).catch(() => {
+                if (clients.has(client)) send(client, { type: "error", code: "input_failed", message: "Terminal input could not be confirmed. Check the terminal before typing again.", pane_id: message.pane_id });
               });
               break;
             }

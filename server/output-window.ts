@@ -5,6 +5,8 @@ export const OUTPUT_LOW_BYTES = 64 * 1024;
 export const OUTPUT_HARD_BYTES = 1024 * 1024;
 export const OUTPUT_STALL_MS = 2000;
 
+const MAX_MODES = 64;
+
 export class OutputWindow {
   readonly id = crypto.randomUUID();
   sent = 0;
@@ -69,6 +71,9 @@ export class ReplayBuffer {
       for (const mode of params!.split(";").filter(Boolean)) {
         this.modes.delete(mode);
         this.modes.set(mode, state as "h" | "l");
+        // ponytail: oldest-first cap; output full of distinct modes (cat of a binary) would grow the
+        // prefix every late joiner gets past the send limit. Whitelist known modes if 64 is too few.
+        if (this.modes.size > MAX_MODES) this.modes.delete(this.modes.keys().next().value!);
       }
     }
     this.tail = bytes.subarray(start).toString("utf8");

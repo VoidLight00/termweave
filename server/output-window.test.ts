@@ -59,3 +59,14 @@ describe("terminal output credit", () => {
     expect(replay.text()).toBe("\x1b[?1049h\x1b[?1000hhello");
   });
 });
+
+describe("replay mode prefix", () => {
+  it("keeps at most 64 modes, newest switches first to survive", () => {
+    const buffer = new ReplayBuffer(16);
+    const flood = Array.from({ length: 1000 }, (_, i) => `\x1b[?${5000 + i}h`).join("");
+    buffer.append(flood + "x".repeat(32));
+    const prefix = buffer.text().replace(/x+$/, "");
+    expect(prefix.match(/\x1b\[\?\d+[hl]/g)?.length).toBe(64);
+    expect(prefix.endsWith("\x1b[?5999h")).toBe(true);
+  });
+});

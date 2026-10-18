@@ -477,6 +477,12 @@ describe("GET /api/pane/read", () => {
     expect(typeof body.read.text).toBe("string");
   });
 
+  it("accepts only an integer line count from 1 to 2000", async () => {
+    const { snapshot } = await (await fetch(`${base()}/api/session`)).json() as { snapshot: SessionSnapshot };
+    const endpoint = `${base()}/api/pane/read?pane_id=${encodeURIComponent(snapshot.panes[0]!.pane_id)}&lines=`;
+    for (const lines of ["0", "-5", "2.5", "2001", "100000"]) expect((await fetch(endpoint + lines)).status).toBe(400);
+    expect((await fetch(endpoint + "2000")).status).toBe(200);
+  });
   it("pins a read to its terminal identity and rejects a changed identity", async () => {
     const { snapshot } = await (await fetch(`${base()}/api/session`)).json() as { snapshot: SessionSnapshot };
     const pane = snapshot.panes[0]!;

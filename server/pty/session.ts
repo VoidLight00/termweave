@@ -95,6 +95,11 @@ export class PtySession {
     this.send({ t: "p", paused: false });
   }
 
+  /** SIGKILL for a teardown that SIGTERM did not end: a stuck attach must not hold the pane. */
+  forceKill(): void {
+    try { this.proc.kill("SIGKILL"); } catch { /* already gone */ }
+  }
+
   kill(): void {
     if (this.closed) return;
     this.closed = true;

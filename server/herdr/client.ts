@@ -30,6 +30,9 @@ export function terminalAttachSupported(capabilities?: Record<string, unknown>):
   return typeof declared === "boolean" ? declared : process.platform !== "win32";
 }
 
+/** what a pane lookup answers for a pane that has no terminal to attach any more */
+export const PANE_GONE_CODES: ReadonlySet<string> = new Set(["pane_not_found", "pane_not_restored", "no_terminal"]);
+
 export class HerdrError extends Error {
   readonly code: string;
 
