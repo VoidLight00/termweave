@@ -484,6 +484,7 @@ export const ZH: Record<string, string> = {
   "NOT RESTORED": "恢复失败",
   "herdr could not restore this pane": "herdr 无法恢复此窗格",
   "Select a pane to open its terminal": "选择一个窗格以打开其终端",
+  "Stop was not sent: the terminal is not connected.": "未能发送停止：终端未连接。",
   "Reconnect": "重新连接",
   "Another app has this pane open. It connects here as soon as that app lets go.": "另一个应用正打开此窗格。它一松开，这里就会立即连接。",
   "Input held until the terminal is ready:": "终端就绪前保留的输入：",

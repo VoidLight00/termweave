@@ -55,7 +55,11 @@ export function matchShortcut(event: ShortcutEventLike, platformIsMac: boolean, 
   const hasMod = platformIsMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
   if (!hasMod || !event.shiftKey || event.altKey) return null;
   // Shift+Comma produces "<" on common keyboard layouts.
-  const key = event.code === "Comma" ? "," : /^Digit[0-9]$/.test(event.code ?? "") ? event.code!.slice(-1) : event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  // A non-Latin layout (Korean, Russian...) reports its own character as the key: the physical
+  // key names the letter then, as in PaneTerminal's key handler.
+  const letter = /^Key([A-Z])$/.exec(event.code ?? "")?.[1]?.toLowerCase();
+  const typed = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  const key = event.code === "Comma" ? "," : /^Digit[0-9]$/.test(event.code ?? "") ? event.code!.slice(-1) : letter && typed.length === 1 && !/^[ -~]$/.test(typed) ? letter : typed;
   for (const shortcut of SHORTCUTS) {
     if (shortcut.id === "voice") continue;
     if (Object.hasOwn(overrides, shortcut.id) && overrides[shortcut.id] === key) return shortcut.id;

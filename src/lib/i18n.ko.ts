@@ -485,6 +485,7 @@ export const KO: Record<string, string> = {
   "NOT RESTORED": "복원 실패",
   "herdr could not restore this pane": "herdr가 이 패널을 복원하지 못했습니다",
   "Select a pane to open its terminal": "터미널을 열 패널을 선택하세요",
+  "Stop was not sent: the terminal is not connected.": "중지를 보내지 못했습니다. 터미널이 연결되어 있지 않습니다.",
   "Reconnect": "다시 연결",
   "Another app has this pane open. It connects here as soon as that app lets go.": "다른 앱이 이 창을 열고 있습니다. 그 앱이 놓으면 바로 여기에 연결됩니다.",
   "Input held until the terminal is ready:": "터미널 입력 준비까지 보관한 내용:",

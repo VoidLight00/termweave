@@ -108,23 +108,32 @@ function DockWorkspace({ machineId, panes, primaryId, ownerId, terminal, onSelec
       // xterm deliberately gives unfocused input a zero-sized rectangle.
       // The visible terminal group, not its hidden textarea, determines readiness.
       const bounds = node?.getBoundingClientRect();
-      const ready = input && bounds && bounds.width > 0 && bounds.height > 0 && !node?.querySelector(".terminal-banner");
+      // A banner (held input, view only, waiting for input) never blocks typing: waiting on it
+      // left the keyboard in the previous pane while the sidebar showed this one selected.
+      const ready = input && bounds && bounds.width > 0 && bounds.height > 0;
       if (ready) { input.focus({ preventScroll: true }); setFocusDropped(null); }
       else if (performance.now() < deadline) frame = requestAnimationFrame(focus);
       else setFocusDropped(null);
     };
     // A delayed mount/drop focus must yield when the user starts using the sidebar or a
     // portal menu. Otherwise terminal readiness can steal focus and dismiss that menu.
-    const onOutsidePointer = (event: PointerEvent): void => {
+    const onOutsidePointer = (event: Event): void => {
       if (event.target instanceof Node && rootRef.current?.contains(event.target)) return;
       cancelAnimationFrame(frame);
       setFocusDropped(null);
     };
     window.addEventListener("pointerdown", onOutsidePointer, true);
+    // the keyboard moving outside (Tab to a sidebar button) yields the same way as a pointer
+    window.addEventListener("focusin", onOutsidePointer, true);
+    // until the new pane can take it, no other pane keeps the keyboard
+    const held = document.activeElement;
+    if (held instanceof HTMLElement && held.matches(".xterm-helper-textarea") && rootRef.current?.contains(held)
+      && held.closest<HTMLElement>(".dock-group")?.dataset.paneId !== focusDropped) held.blur();
     frame = requestAnimationFrame(focus);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("pointerdown", onOutsidePointer, true);
+      window.removeEventListener("focusin", onOutsidePointer, true);
     };
   }, [focusDropped, tree]);
   useEffect(() => {
@@ -329,8 +338,8 @@ function DockWorkspace({ machineId, panes, primaryId, ownerId, terminal, onSelec
         <PaneTerminal {...terminal} paneId={pane?.restore_error ? null : node.active} restoreError={pane?.restore_error ?? null}
           agent={pane?.agent ?? null} agentStatus={pane?.agent_status} backgroundTasks={pane?.background_tasks ?? 0}
           view={paneView} autoSelected={true}
-          onConnectionChange={node.id === groups(tree)[0]?.id ? terminal.onConnectionChange : undefined}
-          onRoleAck={node.id === groups(tree)[0]?.id ? terminal.onRoleAck : undefined} />
+          onConnectionChange={node.id === groups(visible)[0]?.id ? terminal.onConnectionChange : undefined}
+          onRoleAck={node.id === groups(visible)[0]?.id ? terminal.onRoleAck : undefined} />
       </OpenFileContext.Provider>
     </DockGroup>;
   };

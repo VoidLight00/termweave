@@ -3,6 +3,12 @@
 TermWeave(herdr web ui 포크)의 변경 기록입니다. 원본 프로젝트의 기록은 `CHANGELOG.md`에 있습니다.
 이 파일에는 실제 동작이나 게이트로 확인된 완료 항목만 적습니다. 일부만 끝난 항목은 "남은 일"에 따로 적습니다.
 
+## [0.3.11] - 2026-10-19
+
+- fix(terminal): keystrokes could reach a pane other than the selected one
+- fix(test): assemble the credential URL fixture at run time
+- fix(release): take the unfinished privacy scan out of the export
+
 ## [0.3.10] - 2026-10-19
 
 - fix(release): scan the public export for private data before history is written

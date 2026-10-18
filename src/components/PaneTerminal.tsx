@@ -1106,6 +1106,9 @@ export function PaneTerminal({
     hostRef.current?.toggleAttribute("data-adopted-grid", observeRef.current);
     secretRef.current = null;
     setSecret(null);
+    // a key-bar Ctrl armed on the previous pane must not turn the next pane's first key into ^C
+    ctrlRef.current = false;
+    setCtrlArmed(false);
     term.options.disableStdin = observeRef.current;
     let saved = EMPTY_DRAFT;
     try {
@@ -1248,14 +1251,30 @@ export function PaneTerminal({
     }
   }, [inputLine, coarse, chatView, directTyping, paneId]);
 
+  // A stalled or conflicting attach recovers in place: a link reloaded the whole page and lost
+  // the composer's unsent attachments. attach() also reopens a socket the stall closed.
+  const reattach = useCallback(() => {
+    const term = termRef.current;
+    const socket = socketRef.current;
+    const pane = paneRef.current;
+    if (!term || !socket || !pane) return;
+    setOutputError(null);
+    setEnded(false);
+    term.reset();
+    term.options.disableStdin = observeRef.current;
+    socket.attach(pane, term.cols, term.rows, chatViewRef.current);
+  }, []);
+
   // the composer's stop button: Escape interrupts the agent's current turn in every
   // supported TUI (Claude Code, omp, codex) without killing the process the way ^C would
   const abortTurn = useCallback(() => {
     const term = termRef.current;
     const socket = socketRef.current;
-    if (!term || !socket || !socket.connected) return;
-    term.input("\u001b");
-  }, []);
+    if (!term || !socket || !paneRef.current) return;
+    // straight to the pane, not through term.input: with stdin disabled or input not ready that
+    // Escape went into the held draft or nowhere, and the agent kept running without a word
+    if (!socket.sendInput(paneRef.current, "\u001b")) setInputError(t("Stop was not sent: the terminal is not connected."));
+  }, [t]);
 
   // While the agent runs, append to its held messages. Each requires an explicit send.
   // a question in Codex's queue leaves the composer alone: Codex keeps working, and a
@@ -1342,7 +1361,7 @@ export function PaneTerminal({
         {paneId !== null && outputError && (
           <div className="terminal-banner terminal-banner-warning terminal-banner-output-error" role="status">
             <span>{outputError}</span>
-            <a className="btn" href={`?machine=${encodeURIComponent(machineId)}&pane=${encodeURIComponent(paneId)}`}>{t("Reconnect")}</a>
+            <button className="btn" onClick={reattach}>{t("Reconnect")}</button>
           </div>
         )}
         {!chatView && inputError && <div className="terminal-banner" role="status">{inputError}<button className="btn" onClick={() => setInputError(null)}>{t("Dismiss")}</button></div>}

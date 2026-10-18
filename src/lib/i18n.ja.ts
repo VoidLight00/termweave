@@ -482,6 +482,7 @@ export const JA: Record<string, string> = {
   "NOT RESTORED": "復元失敗",
   "herdr could not restore this pane": "herdr はこのペインを復元できませんでした",
   "Select a pane to open its terminal": "ターミナルを開くペインを選択してください",
+  "Stop was not sent: the terminal is not connected.": "停止を送信できませんでした。ターミナルが接続されていません。",
   "Reconnect": "再接続",
   "Another app has this pane open. It connects here as soon as that app lets go.": "別のアプリがこのペインを開いています。そのアプリが離すとすぐにここへ接続します。",
   "Input held until the terminal is ready:": "端末の準備ができるまで保持した入力:",

@@ -71,3 +71,11 @@ it("matches shifted digits and detects alias and default-restoration conflicts",
   expect(shortcutConflict("palette", ["n"], {})).toBe(true);
   expect(shortcutConflict("palette", shortcutKeys("palette", {}), { palette: "p", settings: "k" })).toBe(true);
 });
+
+describe("matchShortcut on a non-Latin layout", () => {
+  it("falls back to the physical key when the layout types its own character", () => {
+    expect(matchShortcut(keyEvent("ㅏ", { code: "KeyK", metaKey: true }), true)).toBe("palette");
+    // a Latin layout keeps its own letter (Dvorak's K is not on KeyK)
+    expect(matchShortcut(keyEvent("k", { code: "KeyV", metaKey: true }), true)).toBe("palette");
+  });
+});

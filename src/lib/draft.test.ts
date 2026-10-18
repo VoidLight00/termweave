@@ -47,3 +47,13 @@ it("holds multi-codepoint IME commits without splitting a surrogate at the limit
   expect(applyToDraft({ text: "a".repeat(1023), droppedSpecial: 0 }, "😀").text).toHaveLength(1023);
   expect(applyToDraft(EMPTY_DRAFT, "\x1b[200~text\x1b[201~").text).toBe("");
 });
+
+it("applies WebKit's in-place syllable rewrite instead of dropping it", () => {
+  let draft = EMPTY_DRAFT;
+  for (const chunk of ["ㅎ", "\x7f하", "\x7f한", "ㄱ", "\x7f그", "\x7f글"]) draft = applyToDraft(draft, chunk);
+  expect(draft).toEqual({ text: "한글", droppedSpecial: 0 });
+  expect(applyToDraft({ text: "ab", droppedSpecial: 0 }, "\x7f")).toEqual({ text: "a", droppedSpecial: 0 });
+  // nothing held to erase, or a control after the DEL: still a special key
+  expect(applyToDraft(EMPTY_DRAFT, "\x7f").droppedSpecial).toBe(1);
+  expect(applyToDraft({ text: "a", droppedSpecial: 0 }, "\x7f\r").droppedSpecial).toBe(1);
+});

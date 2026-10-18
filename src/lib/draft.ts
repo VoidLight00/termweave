@@ -21,6 +21,13 @@ function isPrintableChar(data: string): boolean {
 
 /** Folds one onData chunk into the draft: printable text accumulates, special keys count. */
 export function applyToDraft(draft: InputDraft, data: string): InputDraft {
+  // WebKit's Korean IME rewrites the syllable in place: DEL, then the new syllable ("\x7f한").
+  // Applied as an edit, held Korean stays "한글" instead of the first jamo of each syllable.
+  const erase = /^\x7f+/.exec(data)?.[0].length ?? 0;
+  if (erase > 0 && erase <= draft.text.length && (erase === data.length || isPrintableChar(data.slice(erase)))) {
+    return applyToDraft({ ...draft, text: Array.from(draft.text).slice(0, -erase).join("") }, data.slice(erase));
+  }
+  if (data === "") return draft;
   if (!isPrintableChar(data)) {
     // Enter, arrows and bracketed paste frames contain controls; keep only plain text.
     return { ...draft, droppedSpecial: draft.droppedSpecial + 1 };
