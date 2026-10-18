@@ -101,8 +101,8 @@ beforeAll(() => {
   // the attach, the RPCs and the status collector all read HERDR_SOCKET when they start
   previousSocket = process.env["HERDR_SOCKET"];
   process.env["HERDR_SOCKET"] = socket;
-  server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: root });
-  quick = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: root, attachRelookupForMs: 1_000 });
+  server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(root, "server-state") });
+  quick = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(root, "quick-state"), attachRelookupForMs: 1_000 });
 });
 
 function connect(port: number, paneId: string) {

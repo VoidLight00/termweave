@@ -40,6 +40,8 @@ async function connect(paneId: string, ack = true, observer = false, port = serv
   sockets.push(ws);
   const state = {
     bytes: 0, frames: 0, ack, code: 0, exits: 0,
+    highWatermarkAt: undefined as number | undefined,
+    closedAt: undefined as number | undefined,
     latest: undefined as Extract<ServerMessage, { type: "pty-data" }> | undefined,
     errors: [] as string[], tail: "",
   };
@@ -53,12 +55,18 @@ async function connect(paneId: string, ack = true, observer = false, port = serv
     if (frame.type === "pty-exit" && frame.pane_id === paneId) state.exits++;
     if (frame.type !== "pty-data" || frame.pane_id !== paneId) return;
     state.bytes += Buffer.byteLength(frame.data);
+    if (state.bytes >= OUTPUT_HIGH_BYTES && state.highWatermarkAt === undefined) {
+      state.highWatermarkAt = performance.now();
+    }
     state.frames++;
     state.latest = frame;
     state.tail = (state.tail + frame.data).slice(-8192);
     if (state.ack) acknowledge(frame);
   });
-  ws.addEventListener("close", (event) => { state.code = event.code; });
+  ws.addEventListener("close", (event) => {
+    state.closedAt = performance.now();
+    state.code = event.code;
+  });
   await until(() => ws.readyState === WebSocket.OPEN, "socket open");
   if (observer) send({ type: "role", mode: "observe" });
   send({ type: "attach", pane_id: paneId, cols: 100, rows: 30, flow_control: "ack" });
@@ -104,11 +112,15 @@ describe("real terminal output flow control", () => {
     try {
       await flood(paneId);
       await until(() => observer.state.bytes >= OUTPUT_HIGH_BYTES, "observer high watermark", 15_000);
-      const started = Date.now();
       await until(() => observer.state.code !== 0, "stalled observer closed", OUTPUT_STALL_MS + 3000);
       expect(observer.state.code).toBe(OUTPUT_STALLED_CLOSE_CODE);
       expect(observer.state.bytes).toBeLessThanOrEqual(OUTPUT_HARD_BYTES);
-      expect(Date.now() - started).toBeLessThan(OUTPUT_STALL_MS + 2000);
+      // Measure event delivery, not when the polling continuation happens to run.
+      // Both boundaries use a monotonic clock; starting at the message also includes
+      // the delay before the high-watermark poll observes it.
+      expect(observer.state.highWatermarkAt).toBeDefined();
+      expect(observer.state.closedAt).toBeDefined();
+      expect(observer.state.closedAt! - observer.state.highWatermarkAt!).toBeLessThan(OUTPUT_STALL_MS + 2000);
       const received = operator.state.bytes;
       await until(() => operator.state.bytes > received + 4096, "operator output resumes");
       // Ctrl+C takes the actual WS input path while output is running.

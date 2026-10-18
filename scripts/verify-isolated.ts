@@ -27,6 +27,7 @@ const lanes: [string, string[], Record<string, string>?][] = [
   ['sidebar-lifecycle', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/sidebar-lifecycle-regression.ts']],
   ['tmux', ['bash', 'gates/tmux_runtime_gate.sh']],
   ['workspace-status', ['bun', 'scripts/workspace-status-regression.ts']],
+  ['workspace-reorder', ['bun', 'scripts/workspace-reorder-regression.ts']],
   ['release-native', ['bun', 'scripts/release/native-regression.ts']],
   ['release-browser', ['bun', 'scripts/release/browser-regression.ts']],
   ['install-cleanup', ['bun', 'scripts/install-cleanup-regression.ts']],
@@ -47,6 +48,8 @@ const lanes: [string, string[], Record<string, string>?][] = [
 ];
 const selected = process.argv.slice(2);
 for (const name of selected) if (!lanes.some(lane => lane[0] === name)) throw new Error(`Unknown required lane: ${name}`);
+const { trackedHashes } = await import('./tracked-source-hashes.ts');
+const trackedSourceHashes = trackedHashes(repo);
 const sourceHashes = Object.fromEntries([...new Bun.Glob('{src,shared,server,scripts,gates}/**/*.{ts,tsx,css,sh,mjs,py}').scanSync({ cwd: repo }),
   'package.json', 'bun.lock', 'bunfig.toml', 'tsconfig.json', 'vite.config.ts', 'install.sh']
   .sort().map(path => [path, createHash('sha256').update(readFileSync(join(repo, path))).digest('hex')]));
@@ -93,8 +96,9 @@ try {
   const socketRemoved = !existsSync(socket);
   let ownedPidGone = true;
   if (ownedPid && Number.isSafeInteger(ownedPid)) { try { process.kill(ownedPid, 0); ownedPidGone = false; } catch {} }
-  cleanupFailed = cleanup !== 0 || !socketRemoved || !ownedPidGone;
-  writeFileSync(join(evidence, 'result.json'), JSON.stringify({ root, evidence, source_hashes: sourceHashes, results, failures: results.filter(result => result.exit_code !== 0), cleanup_exit: cleanup, socket_removed: socketRemoved, owned_pid: ownedPid, owned_pid_gone: ownedPidGone, production_access: false,
+  const trackedSourcesUnchanged = JSON.stringify(trackedSourceHashes) === JSON.stringify(trackedHashes(repo));
+  cleanupFailed = cleanup !== 0 || !socketRemoved || !ownedPidGone || !trackedSourcesUnchanged;
+  writeFileSync(join(evidence, 'result.json'), JSON.stringify({ root, evidence, tracked_hashes: trackedSourceHashes, tracked_sources_unchanged: trackedSourcesUnchanged, source_hashes: sourceHashes, results, failures: results.filter(result => result.exit_code !== 0), cleanup_exit: cleanup, socket_removed: socketRemoved, owned_pid: ownedPid, owned_pid_gone: ownedPidGone, production_access: false,
       limits: ['Native agent receiver tests prove transport ACK only, not real Claude/Codex semantic processing.', 'Workflow status frames use the production reducer but synthetic events.', 'Task ownership is advisory, not enforcement of arbitrary shell writes.', 'Native metadata check-to-send is not atomic; uncertain sends must not be retried.', 'Production deployment readiness is a separate blocked gate; no deployment was attempted.'] }, null, 2));
   console.log(`EVIDENCE ${evidence}`);
 }

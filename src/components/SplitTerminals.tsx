@@ -113,8 +113,19 @@ function DockWorkspace({ machineId, panes, primaryId, ownerId, terminal, onSelec
       else if (performance.now() < deadline) frame = requestAnimationFrame(focus);
       else setFocusDropped(null);
     };
+    // A delayed mount/drop focus must yield when the user starts using the sidebar or a
+    // portal menu. Otherwise terminal readiness can steal focus and dismiss that menu.
+    const onOutsidePointer = (event: PointerEvent): void => {
+      if (event.target instanceof Node && rootRef.current?.contains(event.target)) return;
+      cancelAnimationFrame(frame);
+      setFocusDropped(null);
+    };
+    window.addEventListener("pointerdown", onOutsidePointer, true);
     frame = requestAnimationFrame(focus);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("pointerdown", onOutsidePointer, true);
+    };
   }, [focusDropped, tree]);
   useEffect(() => {
     if (dragRef.current && !validDockDrag(tree, roster.map(pane => pane.pane_id), dragRef.current, ["application/x-herdr-pane"])) cancelDrag();

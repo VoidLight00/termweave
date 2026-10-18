@@ -7,4 +7,4 @@ if [ "${1:-}" = --deployment ]; then
   printf 'FAIL[full-parity] cmux native/browser/transport parity remains incomplete; see tracking/cmux-tmux-parity.json\n' >&2
   exit 1
 fi
-exec bun scripts/verify-isolated.ts test-cleanup ledger ledger-tests type build unit integration pane-mesh workspace-status render tmux sidebar-lifecycle
+exec bun scripts/verify-isolated.ts test-cleanup ledger ledger-tests type build unit integration pane-mesh workspace-status workspace-reorder render tmux sidebar-lifecycle

@@ -71,7 +71,7 @@ import { handleUsageRequest, UsageService } from "./usage.ts";
 import { handleVoiceRequest, VoiceService } from "./voice.ts";
 
 import { BRIDGE_PROTOCOL } from "../shared/machines.ts";
-import { bridgeIdentity, registerBridge } from "./bridge.ts";
+import { bridgeIdentity, registerBridge, socketPath } from "./bridge.ts";
 import { MachineManager } from "./machines.ts";
 import { handleMachineRequest } from "./machine-api.ts";
 import { MachineRelay } from "./machine-relay.ts";
@@ -306,7 +306,7 @@ export function createServer(
   const mobileRelay = options.mobileRelay ?? new MobileRelayGateway(options.stateDir ?? defaultStateDir());
   const tmux = options.tmux ?? new TmuxRuntime(join(options.stateDir ?? defaultStateDir(), "tmux"));
   const tmuxClients = new Set<TmuxTerminal>();
-  const paneNumbers = new PaneNumbers(options.stateDir ?? defaultStateDir());
+  const paneNumbers = new PaneNumbers(options.stateDir ?? defaultStateDir(), socketPath());
   /** whether this bridge can `terminal attach`: herdr is asked once, and the PTY sidecar has to be runnable here (server/pty/sidecar.ts) */
   /** whether the sidecar can run, settled as the server starts so that attach, /api/health and /api/bridge tell one answer; a forced answer (tests) stands in for it */
   const sidecar = options.sidecar ?? (options.terminalAttach === undefined ? sidecarAvailable() : options.terminalAttach !== false);
@@ -481,13 +481,13 @@ export function createServer(
   });
   /** herdr's snapshot with OmO's own status in it: what the completion tracker and web push are given */
   const rawSnapshot = async (): Promise<SessionSnapshot> => {
-    const snapshot = await sessionSnapshot();
+    const snapshot = await paneNumbers.read(sessionSnapshot);
     await omo.refresh(snapshot.panes);
     return omo.apply(snapshot);
   };
   /** the snapshot clients get: finishes settled, OmO panes named, their running background tasks counted */
   const clientSnapshot = async (): Promise<SessionSnapshot> => {
-    const snapshot = paneNumbers.annotate(await completions.readSnapshot(rawSnapshot));
+    const snapshot = await completions.readSnapshot(rawSnapshot);
     if (!snapshot.panes.some((pane) => omo.backgroundOf(pane.pane_id) > 0)) return snapshot;
     return { ...snapshot, panes: snapshot.panes.map((pane) => omo.backgroundOf(pane.pane_id) > 0 ? { ...pane, background_tasks: omo.backgroundOf(pane.pane_id) } : pane) };
   };
@@ -1352,12 +1352,16 @@ export function createServer(
           return badRequest("invalid_lines", "lines must be a number");
         }
         try {
+          const terminalId = url.searchParams.get("terminal_id");
+          const sameTerminal = async () => (await sessionSnapshot()).panes.some(pane => pane.pane_id === paneId && pane.terminal_id === terminalId && !pane.restore_error);
+          if (terminalId !== null && !await sameTerminal()) return jsonResponse({error: "terminal_changed"}, 409);
           const read = await paneRead({
             paneId,
             source: (url.searchParams.get("source") ?? "visible") as never,
             format: (url.searchParams.get("format") ?? "text") as never,
             ...(lines === undefined ? {} : { lines }),
           });
+          if (terminalId !== null && !await sameTerminal()) return jsonResponse({error: "terminal_changed"}, 409);
           return jsonResponse({ read });
         } catch (error) {
           return errorResponse(error);

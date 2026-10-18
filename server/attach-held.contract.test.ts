@@ -14,9 +14,9 @@ import type { ClientMessage, ServerMessage } from "../shared/protocol.ts";
 const rootA = mkdtempSync(join(tmpdir(), "herdr-held-a-"));
 const rootB = mkdtempSync(join(tmpdir(), "herdr-held-b-"));
 const first = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: rootA });
-const second = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: rootB, attachHeldRetryMs: 200 });
+const second = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(rootB, "second-bridge"), attachHeldRetryMs: 200 });
 // a short read-race budget, so a wait for the other bridge outlasts it
-const third = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: rootB, attachHeldRetryMs: 200, attachRetryForMs: 300 });
+const third = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(rootB, "third-bridge"), attachHeldRetryMs: 200, attachRetryForMs: 300 });
 const workspaces: string[] = [];
 const sockets: WebSocket[] = [];
 afterAll(async () => {

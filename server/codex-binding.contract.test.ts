@@ -56,7 +56,7 @@ const pane = async (label: string, command: string): Promise<string> => {
   const created = await workspaceCreate({ cwd: root, label: `herdr-web-ui-test-codex-binding-${label}` });
   workspaces.push(created.workspace.workspace_id);
   const paneId = created.root_pane.pane_id;
-  await herdrRpc("pane.send_text", { pane_id: paneId, text: `${command}\n` });
+  await herdrRpc("pane.send_text", { pane_id: paneId, text: `FLOOD_RELEASE='${join(root, `flood-${paneId}`)}' ${command}\n` });
   await herdrRpc("pane.report_agent", { pane_id: paneId, source: "manual", agent: "codex", state: "working" });
   await codexRunning(paneId);
   return paneId;
@@ -90,6 +90,10 @@ const onScreen = async (paneId: string, answer: string): Promise<void> => {
 };
 /** Waits until the pane's flood has pushed the answer out of the 400 lines the match reads. */
 const floodedAway = async (paneId: string, answer: string): Promise<void> => {
+  // The scenario requires a proven binding BEFORE its screen evidence disappears.
+  // Never let wall-clock shell startup or HTTP latency erase that precondition.
+  expect(lastAnswer(await read(paneId))).toBe(answer);
+  writeFileSync(join(root, `flood-${paneId}`), "release");
   for (let attempt = 0; attempt < 100; attempt++) {
     const recent = await paneRead({ paneId, source: "recent", lines: 400, stripAnsi: true });
     if (!recent.text.replace(/\s+/g, " ").includes(answer.slice(0, 48))) return;
@@ -122,7 +126,7 @@ beforeAll(() => {
   // `--say NAME` shows the question typed and its answer; `--quote NAME` only the answer, as
   // pasted; `--both NAME` the question and answer of NAME and the matched thread's answer too;
   // THEN=NAME shows NAME's answers after the flood
-  writeFileSync(script, `#!/bin/sh\nname="\${2:-matched}"\n[ "$1" = --say ] || [ "$1" = --both ] && echo "› question for $name"\n[ "$1" = --say ] || [ "$1" = --quote ] || [ "$1" = --both ] && cat "$(dirname "$0")/$name.txt"\n[ "$1" = --both ] && cat "$(dirname "$0")/matched.txt"\nsleep "\${FLOOD_AFTER:-600}"\nseq 1 600\n[ -n "$THEN" ] && cat "$(dirname "$0")/$THEN.txt"\nsleep 600\n`);
+  writeFileSync(script, `#!/bin/sh\nname="\${2:-matched}"\n[ "$1" = --say ] || [ "$1" = --both ] && echo "› question for $name"\n[ "$1" = --say ] || [ "$1" = --quote ] || [ "$1" = --both ] && cat "$(dirname "$0")/$name.txt"\n[ "$1" = --both ] && cat "$(dirname "$0")/matched.txt"\nwhile [ ! -f "$FLOOD_RELEASE" ]; do sleep 0.05; done\nseq 1 600\n[ -n "$THEN" ] && cat "$(dirname "$0")/$THEN.txt"\nsleep 600\n`);
   chmodSync(script, 0o755);
   server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: join(root, "push"), codexHome });
 });
@@ -149,7 +153,7 @@ it("reads the thread a Codex TUI was resumed on while none of its answers is on 
 });
 
 it("keeps a matched rollout while tool output scrolls the answer away, and drops it for another process", async () => {
-  const paneId = await pane("matched", `FLOOD_AFTER=3 ${join(root, "bin", "codex")} --say`);
+  const paneId = await pane("matched", `${join(root, "bin", "codex")} --say`);
   const first = await codexRunning(paneId);
   for (let attempt = 0; attempt < 30 && lastAnswer(await read(paneId)) !== answers.matched; attempt++) await Bun.sleep(100);
   expect(lastAnswer(await read(paneId))).toBe(answers.matched);
@@ -205,7 +209,7 @@ it("reads a thread whose answers are all short by its newest answers on screen, 
     try { expect((await read(shortPane)).source).toBe("scrollback"); } finally { forked(); }
     expect((await read(shortPane)).source).toBe("codex-transcript");
     // a pane a long answer bound keeps that rollout when another thread's short answers show later
-    const bound = await pane("bound-short", `FLOOD_AFTER=3 THEN=short ${join(root, "bin", "codex")} --say`);
+    const bound = await pane("bound-short", `THEN=short ${join(root, "bin", "codex")} --say`);
     for (let attempt = 0; attempt < 30 && lastAnswer(await read(bound)) !== answers.matched; attempt++) await Bun.sleep(100);
     expect(lastAnswer(await read(bound))).toBe(answers.matched);
     await floodedAway(bound, answers.matched);
@@ -235,7 +239,7 @@ it("reads a thread whose answers are all short by its newest answers on screen, 
 }, 30_000);
 
 it("drops a matched rollout once a newer interactive thread begins in its cwd, as /new does, not for a subagent or codex exec", async () => {
-  const paneId = await pane("renewed", `FLOOD_AFTER=3 ${join(root, "bin", "codex")} --say`);
+  const paneId = await pane("renewed", `${join(root, "bin", "codex")} --say`);
   for (let attempt = 0; attempt < 30 && lastAnswer(await read(paneId)) !== answers.matched; attempt++) await Bun.sleep(100);
   expect(lastAnswer(await read(paneId))).toBe(answers.matched);
   await floodedAway(paneId, answers.matched);
@@ -259,7 +263,7 @@ it("drops a matched rollout once a newer interactive thread begins in its cwd, a
 }, 30_000);
 
 it("keeps a matched rollout when the newer thread shows in another Codex pane, whether or not its chat was opened", async () => {
-  const paneId = await pane("mine", `FLOOD_AFTER=3 ${join(root, "bin", "codex")} --say`);
+  const paneId = await pane("mine", `${join(root, "bin", "codex")} --say`);
   for (let attempt = 0; attempt < 30 && lastAnswer(await read(paneId)) !== answers.matched; attempt++) await Bun.sleep(100);
   await floodedAway(paneId, answers.matched);
   const remove = newerThread("cli", threads.other, rollout("other"), "question for other");
@@ -293,7 +297,7 @@ it("finds a pane's thread however many codex exec runs the repo had since", asyn
 }, 30_000);
 
 it("claims nothing for a pane whose screen matches this pane's thread as well, nor for a closed pane", async () => {
-  const paneId = await pane("unique", `FLOOD_AFTER=3 ${join(root, "bin", "codex")} --say`);
+  const paneId = await pane("unique", `${join(root, "bin", "codex")} --say`);
   for (let attempt = 0; attempt < 30 && lastAnswer(await read(paneId)) !== answers.matched; attempt++) await Bun.sleep(100);
   await floodedAway(paneId, answers.matched);
   const remove = newerThread("cli", threads.fresh, rollout("fresh"), "question for fresh");

@@ -1,6 +1,7 @@
 import { AgentMark } from "./AgentMark.tsx";
 import { paneNumber } from "../lib/paneNumber.ts";
-import { useCallback, useEffect, useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useWorkspaceReorder } from "../lib/workspaceReorder.ts";
 import { ChevronRight, Ellipsis, Folder, GripVertical, Layers, Palette, Pencil, Plus, X } from "lucide-react";
 import { readCollapsedWorkspaces, workspaceCollapseId, writeCollapsedWorkspaces } from "../lib/workspaceCollapse.ts";
 
@@ -104,7 +105,14 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [workspaceLabel, setWorkspaceLabel] = useState("");
   const [workspaceOrder, setWorkspaceOrder] = useState<string[]>([]);
-  const [dragWorkspaceId, setDragWorkspaceId] = useState<string | null>(null);
+  const [reorderPending, setReorderPending] = useState(false);
+  const pending = useRef<{ structure: string; previous: string[]; next: string[]; valid: boolean } | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  // Status/revision/focus pushes are not structural and must not reset preview or optimistic order.
+  const structure = JSON.stringify([machineId, snapshot === null, snapshot?.workspaces.map(w => [w.workspace_id, w.label]),
+    snapshot?.panes.map(p => [p.pane_id, p.workspace_id, p.tab_id, p.terminal_id])]);
+  const serverOrderKey = JSON.stringify(snapshot?.workspaces.map(w => w.workspace_id) ?? []);
   const [inlineError, setInlineError] = useState<InlineError | null>(null);
   const [collapsed, setCollapsed] = useState(readCollapsedWorkspaces);
   const toggleTerminals = (id: string): void => {
@@ -119,14 +127,14 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
     return () => window.clearTimeout(timer);
   }, [inlineError]);
 
-  useEffect(() => {
-    if (!snapshot) {
-      setWorkspaceOrder([]);
-      return;
-    }
-    const serverOrder = snapshot.workspaces.map((workspace) => workspace.workspace_id);
-    setWorkspaceOrder((current) => current.join("\u0000") === serverOrder.join("\u0000") ? current : serverOrder);
-  }, [snapshot, machineId]);
+  useLayoutEffect(() => {
+    const serverOrder = snapshot?.workspaces.map(workspace => workspace.workspace_id) ?? [];
+    const request = pending.current;
+    if (request?.valid && request.structure === structure) return;
+    // A roster change invalidates stale rollback, but the in-flight request still holds the lock.
+    if (request) request.valid = false;
+    setWorkspaceOrder(current => JSON.stringify(current) === serverOrderKey ? current : serverOrder);
+  }, [structure, serverOrderKey]);
 
   const orderedWorkspaces = useMemo(() => {
     if (!snapshot) return [];
@@ -190,6 +198,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
   };
 
   const reorderWorkspace = (workspaceId: string, insertIndex: number): void => {
+    if (pending.current) return;
     const sourceIndex = workspaceOrder.indexOf(workspaceId);
     if (sourceIndex < 0) return;
     const boundedIndex = Math.max(0, Math.min(workspaceOrder.length - 1, insertIndex));
@@ -197,45 +206,41 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
     const previous = workspaceOrder;
     const remaining = workspaceOrder.filter(id => id !== workspaceId);
     const next = [...remaining.slice(0, boundedIndex), workspaceId, ...remaining.slice(boundedIndex)];
+    const request = { structure, previous, next, valid: true };
+    pending.current = request;
+    setReorderPending(true);
     setWorkspaceOrder(next);
     void moveWorkspace(workspaceId, boundedIndex).catch((reason: unknown) => {
+      if (!mounted.current || pending.current !== request || !request.valid) return;
       setWorkspaceOrder(previous);
       noteError(t("Reorder failed: {reason}", { reason: reason instanceof Error ? reason.message : String(reason) }));
+    }).finally(() => {
+      if (pending.current !== request) return;
+      pending.current = null;
+      if (mounted.current) setReorderPending(false);
     });
   };
-
-  const onDragStart = (event: DragEvent<HTMLElement>, workspaceId: string): void => {
-    setDragWorkspaceId(workspaceId);
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("application/x-herdr-workspace", JSON.stringify({ machine_id: machineId, workspace_id: workspaceId }));
-  };
-
-  const onDrop = (event: DragEvent<HTMLElement>, targetWorkspaceId: string): void => {
-    event.preventDefault();
-    let payload: { machine_id?: string; workspace_id?: string };
-    try { payload = JSON.parse(event.dataTransfer.getData("application/x-herdr-workspace")); } catch { return; }
-    if (payload.machine_id !== machineId || typeof payload.workspace_id !== "string") return;
-    const sourceId = dragWorkspaceId ?? payload.workspace_id;
-    setDragWorkspaceId(null);
-    reorderWorkspace(sourceId, workspaceOrder.indexOf(targetWorkspaceId));
-  };
+  const workspaceDrag = useWorkspaceReorder(`${structure}:${JSON.stringify([...collapsed])}`, reorderPending, reorderWorkspace);
 
   const onHandleKeyDown = (event: KeyboardEvent<HTMLButtonElement>, workspaceId: string): void => {
-    if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+    if (workspaceDrag.dragging() || !event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
     event.preventDefault();
     const current = workspaceOrder.indexOf(workspaceId);
     reorderWorkspace(workspaceId, current + (event.key === "ArrowUp" ? -1 : 1));
   };
 
-  const dragHandle = (workspace: WorkspaceInfo, draggable: boolean) => (
+  const dragHandle = (workspace: WorkspaceInfo) => (
     <button
       type="button"
       className="sidebar-drag-handle"
       aria-label={t("Reorder workspace {name}", { name: workspace.label })}
       title={t("Drag to reorder · Alt+↑/↓")}
-      draggable={draggable}
-      onDragStart={(event) => onDragStart(event, workspace.workspace_id)}
-      onDragEnd={() => setDragWorkspaceId(null)}
+      aria-disabled={reorderPending || undefined}
+      onPointerDown={event => workspaceDrag.onPointerDown(event, workspace.workspace_id)}
+      onPointerMove={workspaceDrag.onPointerMove}
+      onPointerUp={workspaceDrag.onPointerUp}
+      onPointerCancel={workspaceDrag.onPointerCancel}
+      onLostPointerCapture={workspaceDrag.onLostPointerCapture}
       onKeyDown={(event) => onHandleKeyDown(event, workspace.workspace_id)}
     >
       <GripVertical aria-hidden="true" />
@@ -255,11 +260,9 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
       { key: "running", status: "working", label: t("Running"), target: summary.running },
       { key: "done", status: "done", label: t("Done"), target: summary.done },
     ];
-    return <section className={`workspace${dragWorkspaceId === workspace.workspace_id ? " is-dragging" : ""}`} key={workspace.workspace_id}
-      onDragOver={event => { if (event.dataTransfer.types.includes("application/x-herdr-workspace")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
-      onDrop={event => onDrop(event, workspace.workspace_id)}>
+    return <section className="workspace" data-reorder-workspace={workspace.workspace_id} key={workspace.workspace_id}>
       <div className={`pane-item${selected ? " is-selected" : ""}`}><div className="pane-row">
-        {dragHandle(workspace, true)}
+        {dragHandle(workspace)}
         <button type="button" className="sidebar-row-action workspace-disclosure"
           aria-label={t(expanded ? "Collapse terminals in {name}" : "Expand terminals in {name}", { name: workspace.label })}
           title={t(expanded ? "Collapse terminals in {name}" : "Expand terminals in {name}", { name: workspace.label })}

@@ -113,8 +113,25 @@
   padding-left: var(--space-1);
 }
 
-.workspace.is-dragging {
-  opacity: 0.55;
+/* Measured transforms keep real sections mounted; only the lifted section tracks directly. */
+.sidebar-list { position: relative; }
+.sidebar-list.is-reordering > .workspace {
+  transition: transform 160ms cubic-bezier(.2,.8,.2,1);
+  will-change: transform;
+}
+.sidebar-list.is-reordering > .workspace.is-dragging {
+  position: relative;
+  z-index: 2;
+  opacity: 1;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .3), 0 0 0 1px var(--border);
+  transition: none;
+}
+.workspace.is-dragging .sidebar-drag-handle { opacity: 1; cursor: grabbing; }
+.sidebar-drag-handle { touch-action: none; user-select: none; }
+.sidebar-drag-handle[aria-disabled="true"] { cursor: default; }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-list.is-reordering > .workspace { transition: none; }
 }
 
 .workspace-header {

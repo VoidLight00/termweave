@@ -477,6 +477,16 @@ describe("GET /api/pane/read", () => {
     expect(typeof body.read.text).toBe("string");
   });
 
+  it("pins a read to its terminal identity and rejects a changed identity", async () => {
+    const { snapshot } = await (await fetch(`${base()}/api/session`)).json() as { snapshot: SessionSnapshot };
+    const pane = snapshot.panes[0]!;
+    const endpoint = `${base()}/api/pane/read?pane_id=${encodeURIComponent(pane.pane_id)}&terminal_id=`;
+    expect((await fetch(endpoint + encodeURIComponent(pane.terminal_id))).status).toBe(200);
+    const changed = await fetch(endpoint + "old-terminal");
+    expect(changed.status).toBe(409);
+    expect(await changed.json()).toEqual({ error: "terminal_changed" });
+  });
+
   it("rejects an unknown pane id with a clean JSON error and keeps serving", async () => {
     const res = await fetch(`${base()}/api/pane/read?pane_id=w9999:p9999&source=visible&format=text`);
     expect(res.ok).toBe(false);
@@ -913,8 +923,16 @@ describe("WebSocket roles and status push", () => {
       const sizeFile = join(stateDir, `covered-grid-${Date.now()}.txt`);
       await herdrRpc('pane.send_text', { pane_id: paneId, text: `stty size > '${sizeFile}'\n` });
       const deadline = Date.now() + 15_000;
-      while (!existsSync(sizeFile) && Date.now() < deadline) await Bun.sleep(25);
-      expect(readFileSync(sizeFile, 'utf8').trim()).toBe('27 91');
+      let size = '';
+      // Shell redirection creates the file before stty writes. Wait for the completed
+      // line, not file existence or the expected value (a wrong size must still fail).
+      while (Date.now() < deadline) {
+        if (existsSync(sizeFile)) size = readFileSync(sizeFile, 'utf8');
+        if (size.endsWith('\n')) break;
+        await Bun.sleep(25);
+      }
+      expect(size.endsWith('\n')).toBe(true);
+      expect(size.trim()).toBe('27 91');
       // Geometry is asserted through the owned shell's stty result, not a substring
       // in one transport chunk. WebSocket input ownership/Unicode is covered above.
       expect(phone.seen.some(frame => frame.type === 'input-ready' && frame.pane_id === paneId)).toBe(true);
@@ -1578,14 +1596,16 @@ describe("token auth", () => {
    * rest of the suite keeps proving that an empty token changes nothing.
    */
   const TOKEN = "s3cret";
+  const securedState = mkdtempSync(join(tmpdir(), "herdr-token-auth-"));
   let secured: { port: number; stop: () => void };
 
   beforeAll(() => {
-    secured = createServer({ port: 0, token: TOKEN, stateDir });
+    secured = createServer({ port: 0, token: TOKEN, stateDir: securedState });
   });
 
   afterAll(() => {
     secured?.stop();
+    rmSync(securedState, { recursive: true, force: true });
   });
 
   const securedBase = () => `http://127.0.0.1:${secured.port}`;

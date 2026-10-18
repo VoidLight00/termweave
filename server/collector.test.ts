@@ -137,6 +137,15 @@ function fakeHerdr(initial: HerdrPane[]) {
 }
 
 const tick = (ms = 0) => new Promise((resolve) => setTimeout(resolve, ms));
+const fixtureWaiter = () => {
+  const deadline = Date.now() + 1000;
+  return async (ready: () => boolean, stage: string) => {
+    while (!ready()) {
+      if (Date.now() >= deadline) throw new Error(`Collector fixture did not reach ${stage}`);
+      await tick(1);
+    }
+  };
+};
 const paneOf = (pane_id: string, agent_status: string) => ({ pane_id, agent_status }) as unknown as HerdrPane;
 const statusFrame = (pane_id: string, agent_status: string): EventFrame => ({ event: "pane.agent_status_changed", data: { pane_id, agent_status, agent: "claude" } });
 
@@ -266,18 +275,24 @@ describe("startStatusCollector recovery", () => {
     const herdr = fakeHerdr([paneOf("w1:p1", "working")]);
     const { log, handlers } = recorder();
     const collector = startStatusCollector(handlers, herdr.deps);
-    await tick();
-    herdr.status()!.start();
-    await tick(20);
-    // p1 finishes and a pane opens: herdr's snapshot shows both, its event for p1 is still unread when the connection closes
-    herdr.setPanes([paneOf("w1:p1", "unknown"), paneOf("w2:p1", "idle")]);
-    herdr.lifecycle().emit({ event: "pane_created", data: { type: "pane_created", pane_id: "w2:p1" } });
-    await tick(20);
-    expect(log.statuses).toEqual(["w1:p1:unknown (was working)"]);
-    herdr.status()!.start();
-    await tick(20);
-    expect(log.statuses).toEqual(["w1:p1:unknown (was working)"]);
-    collector.stop();
+    const waitFor = fixtureWaiter();
+    try {
+      await waitFor(() => !!herdr.status(), "initial subscription");
+      const first = herdr.status()!;
+      const baseline = log.baselines;
+      first.start();
+      await waitFor(() => log.baselines > baseline, "started subscription snapshot");
+      // p1 finishes and a pane opens: herdr's snapshot shows both, its event for p1 is still unread when the connection closes
+      herdr.setPanes([paneOf("w1:p1", "unknown"), paneOf("w2:p1", "idle")]);
+      herdr.lifecycle().emit({ event: "pane_created", data: { type: "pane_created", pane_id: "w2:p1" } });
+      // Replacement is opened only after the retiring subscription's replay settles.
+      await waitFor(() => first.closedByCollector && !!herdr.status() && herdr.status() !== first, "replacement subscription");
+      expect(log.statuses).toEqual(["w1:p1:unknown (was working)"]);
+      const recoveredBaseline = log.baselines;
+      herdr.status()!.start();
+      await waitFor(() => log.baselines > recoveredBaseline, "replacement snapshot");
+      expect(log.statuses).toEqual(["w1:p1:unknown (was working)"]);
+    } finally { collector.stop(); }
   });
 
   it("lets an event that was on its way outrank the snapshot that overtook it", async () => {
@@ -388,23 +403,33 @@ describe("startStatusCollector recovery", () => {
     const second = recorder();
     let failing = false;
     const snapshot = broken.deps.snapshot!;
-    const flaky = startStatusCollector(second.handlers, { ...broken.deps, snapshot: () => failing ? Promise.reject(new HerdrError("timeout", "no answer")) : snapshot() });
-    await tick();
-    broken.status()!.start();
-    await tick(20);
-    broken.setPanes([paneOf("w1:p1", "working"), paneOf("w2:p1", "idle")]);
-    broken.lifecycle().emit({ event: "pane_created", data: { type: "pane_created", pane_id: "w2:p1" } });
-    await tick(20);
-    // herdr stops answering snapshots inside the gap, for nobody knows how long; p1 finishes meanwhile
-    failing = true;
-    broken.status()!.start();
-    await tick(20);
-    broken.setPanes([paneOf("w1:p1", "idle"), paneOf("w2:p1", "idle")]);
-    failing = false;
-    await tick(30);
-    expect(second.log.statuses).toEqual([]);
-    expect(second.log.resyncs).toHaveLength(1);
-    flaky.stop();
+    let failures = 0;
+    const flaky = startStatusCollector(second.handlers, { ...broken.deps, snapshot: () => {
+      if (!failing) return snapshot();
+      failures++;
+      return Promise.reject(new HerdrError("timeout", "no answer"));
+    } });
+    const waitFor = fixtureWaiter();
+    try {
+      await waitFor(() => !!broken.status(), "initial broken subscription");
+      const initial = broken.status()!;
+      const baseline = second.log.baselines;
+      initial.start();
+      await waitFor(() => second.log.baselines > baseline, "initial broken snapshot");
+      broken.setPanes([paneOf("w1:p1", "working"), paneOf("w2:p1", "idle")]);
+      broken.lifecycle().emit({ event: "pane_created", data: { type: "pane_created", pane_id: "w2:p1" } });
+      await waitFor(() => initial.closedByCollector && !!broken.status() && broken.status() !== initial, "broken replacement subscription");
+      // Observe an actual rejected snapshot in the gap before allowing recovery.
+      failing = true;
+      broken.status()!.start();
+      await waitFor(() => failures > 0, "snapshot failure in gap");
+      broken.setPanes([paneOf("w1:p1", "idle"), paneOf("w2:p1", "idle")]);
+      const recoveredBaseline = second.log.baselines;
+      failing = false;
+      await waitFor(() => second.log.baselines > recoveredBaseline, "successful recovery snapshot");
+      expect(second.log.statuses).toEqual([]);
+      expect(second.log.resyncs).toHaveLength(1);
+    } finally { flaky.stop(); }
   });
 
   it("still tells the finish of work that was brought to the front while it went on", async () => {

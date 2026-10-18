@@ -5,6 +5,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import sys
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('privacy', Path(__file__).with_name('privacy.py'))
 privacy = importlib.util.module_from_spec(spec)
@@ -40,6 +42,26 @@ class PrivacyTests(unittest.TestCase):
 
     def test_clean_source(self):
         self.assertEqual(self.scan()['status'], 'PASS')
+
+    def test_detached_head_without_refs_still_scans_history(self):
+        self.write('old.py', 'sk-' + 'D' * 30)
+        self.commit()
+        branch = self.git('symbolic-ref', 'HEAD').decode().strip()
+        self.git('checkout', '--detach', '-q')
+        self.git('update-ref', '-d', branch)
+        self.assertEqual(self.git('for-each-ref'), b'')
+        self.assertTrue(any(f['scope'] == 'history' and f['category'] == 'credential'
+                            for f in self.scan()['findings']))
+
+    def test_history_read_failure_is_not_empty_history(self):
+        audit = privacy.Audit(self.root)
+        original = audit.git
+        def failed(*args):
+            if args[0] == 'rev-list':
+                raise RuntimeError('synthetic history failure')
+            return original(*args)
+        audit.git = failed
+        self.assertIn('repository_scan_incomplete', audit.run()['counts'])
 
     def test_secret_only_in_history(self):
         secret = 'sk-' + 'Z'*30
@@ -176,6 +198,142 @@ class PrivacyTests(unittest.TestCase):
         failed = subprocess.run([sys.executable, script, str(self.root)], capture_output=True)
         self.assertEqual(failed.returncode, 1)
         self.assertNotIn(secret.encode(), failed.stdout + failed.stderr)
+
+class UnbornPrivacyTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.git('init', '-q', '-b', 'main')
+
+    def git(self, *args):
+        return subprocess.run(['git', '-C', str(self.root), *args],
+                              capture_output=True, check=True).stdout
+
+    def scan(self):
+        return privacy.Audit(self.root).run()
+
+    def test_empty_and_staged_clean_repository(self):
+        self.assertEqual(self.scan()['status'], 'PASS')
+        (self.root / 'main.py').write_text('print("clean")\n')
+        self.git('add', '-A')
+        result = self.scan()
+        self.assertEqual(result['status'], 'PASS')
+        self.assertEqual(result['scanned_items'], 2)
+
+    def test_unborn_index_and_current_scanned_independently(self):
+        (self.root / 'main.py').write_text('sk-' + 'S' * 30)
+        self.git('add', '-A')
+        (self.root / 'main.py').write_text('clean')
+        (self.root / 'new.py').write_text('sk-' + 'T' * 30)
+        result = self.scan()
+        self.assertEqual(result['status'], 'FAIL')
+        self.assertEqual({f['scope'] for f in result['findings']
+                          if f['category'] == 'credential'}, {'index', 'current'})
+        self.assertNotIn('repository_scan_incomplete', result['counts'])
+
+    def test_corrupt_or_nonempty_refs_are_not_unborn(self):
+        for oid in ('not-an-object', 'a' * 40):
+            with self.subTest(oid=oid):
+                ref = self.root / '.git/refs/heads/broken'
+                ref.write_text(oid + '\n')
+                self.assertIn('repository_scan_incomplete', self.scan()['counts'])
+                ref.unlink()
+
+    def test_invalid_detached_head_is_not_unborn(self):
+        (self.root / '.git/HEAD').write_text('a' * 40 + '\n')
+        self.assertIn('repository_scan_incomplete', self.scan()['counts'])
+
+    def test_git_failures_are_not_empty_history(self):
+        original = subprocess.run
+        for command in ('for-each-ref', 'rev-parse', 'symbolic-ref', 'cat-file'):
+            with self.subTest(command=command):
+                def failed(args, **kwargs):
+                    if args[0] == 'git' and args[3] == command:
+                        return subprocess.CompletedProcess(args, 128, b'', b'synthetic error')
+                    return original(args, **kwargs)
+                with patch.object(privacy.subprocess, 'run', side_effect=failed):
+                    self.assertEqual(self.scan()['status'], 'FAIL')
+
+    def test_head_probe_error_is_not_unborn(self):
+        original = subprocess.run
+        for code in (1, 128):
+            with self.subTest(code=code):
+                def failed(args, **kwargs):
+                    if args[3:] == ['rev-parse', '--verify', '--quiet', 'HEAD']:
+                        return subprocess.CompletedProcess(args, code, b'', b'synthetic error')
+                    return original(args, **kwargs)
+                with patch.object(privacy.subprocess, 'run', side_effect=failed):
+                    self.assertIn('repository_scan_incomplete', self.scan()['counts'])
+
+    def test_unborn_cli_exit_codes(self):
+        script = str(Path(__file__).with_name('privacy.py'))
+        for dirty, expected in ((False, 0), (True, 1)):
+            if dirty:
+                (self.root / 'main.py').write_text('ghp_' + 'U' * 30)
+                self.git('add', '-A')
+            result = subprocess.run([sys.executable, script, str(self.root)], capture_output=True)
+            self.assertEqual(result.returncode, expected)
+            self.assertEqual(json.loads(result.stdout)['status'], 'FAIL' if dirty else 'PASS')
+
+    def test_build_guard_blocks_commit_without_running_export(self):
+        build = Path(__file__).with_name('build_public.sh').read_text()
+        start = build.index('git -C "$out" add -A\n')
+        stop = build.index('src=', start)
+        guard = build[start:stop]
+        self.assertIn('python3 "$repo/tools/public-release/privacy.py" "$out"', guard)
+        self.assertLess(stop, build.index('git -C "$out" commit'))
+        self.assertIn('"$harness" leakscan "$out" --public', build)
+        # Execute only the real staging/guard block, never the exporter or a commit.
+        # A function records whether control could reach the next (commit) operation.
+        repo = Path(__file__).resolve().parents[2]
+        script = 'set -euo pipefail\nrepo=$1\nout=$2\n' + guard
+        script += 'commit_probe() { touch "$3"; }\ncommit_probe "$@"\n'
+        marker = self.root / '.git/commit-reached'
+        for dirty, expected in ((False, 0), (True, 1)):
+            with self.subTest(dirty=dirty):
+                marker.unlink(missing_ok=True)
+                (self.root / 'main.py').write_text('sk-' + 'V' * 30 if dirty else 'clean')
+                result = subprocess.run(['zsh', '-c', script, 'guard-test', str(repo),
+                                         str(self.root), str(marker)], capture_output=True)
+                self.assertEqual(result.returncode, expected)
+                self.assertEqual(marker.exists(), not dirty)
+                self.assertEqual(self.git('for-each-ref'), b'')
+
+
+class EmailBoundaryTests(unittest.TestCase):
+    def test_patch_filename_tokens_are_not_emails(self):
+        for token in (b'@xterm%2Fxterm@5.5.0.patch', b'patches/@xterm%2Fxterm@5.5.0.patch',
+                      b'"@xterm%2Fxterm@5.5.0.patch"', b'@scope%2Fpkg@1.2.3.patch'):
+            with self.subTest(token=token):
+                self.assertIsNone(privacy.EMAIL.search(token))
+                audit = privacy.Audit('.')
+                audit.inspect('package.json', '', 'current', token)
+                self.assertEqual(audit.findings, [])
+                self.assertEqual(privacy.safe_path(token.decode()), token.decode())
+
+    def test_real_email_token_boundaries(self):
+        address = b'private.person+tag@personal-provider.org'
+        for text in (address, b'<' + address + b'>', b'"' + address + b'"',
+                     b'Contact: ' + address + b'.', b'mailto:' + address,
+                     address + b', next', b'(' + address + b')'):
+            with self.subTest(text=text):
+                self.assertEqual(privacy.EMAIL.search(text).group(), address)
+                audit = privacy.Audit('.')
+                audit.inspect('source.py', '', 'current', text)
+                self.assertEqual([f['category'] for f in audit.findings], ['personal_email'])
+        self.assertTrue(privacy.safe_path(address.decode()).startswith('[path-sha256:'))
+
+    def test_patch_like_real_email_is_not_blanket_excluded(self):
+        for address in (b'author@release.patch', b'author@5.5.0.patch',
+                        b'person%tag@personal-provider.org'):
+            self.assertEqual(privacy.EMAIL.search(address).group(), address)
+
+    def test_email_domain_not_truncated_to_example_exception(self):
+        audit = privacy.Audit('.')
+        audit.inspect('source.py', '', 'current', b'person@example.com.private-provider.org')
+        self.assertEqual([f['category'] for f in audit.findings], ['personal_email'])
+
 
 if __name__ == '__main__':
     unittest.main()

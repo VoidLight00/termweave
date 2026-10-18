@@ -39,6 +39,7 @@ esac
 run_gate type bun run typecheck
 run_gate status bun test ./src/lib/status.test.ts ./src/lib/snapshot.test.ts ./src/lib/needsInput.test.ts ./src/lib/i18n.test.ts ./scripts/ui-literals.test.ts
 run_gate tmux bun test ./server/tmux/client.test.ts ./scripts/tmux-mesh-isolation.test.ts
+run_gate identity-context bun test ./server/pane-numbers.test.ts ./scripts/pane-context.test.ts ./scripts/pane-mesh-roster.test.ts
 run_gate ownership bun test ./server/pane-mesh-ownership.test.ts ./scripts/pane-mesh-task.test.ts
 run_gate directory bun test ./server/pane-directory.test.ts ./scripts/terminal-mesh.test.ts ./scripts/terminal-mesh.native.test.ts
 run_gate native-agent-transport bun test ./scripts/terminal-mesh-agent.native.test.ts

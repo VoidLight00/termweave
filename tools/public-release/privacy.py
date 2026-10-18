@@ -18,7 +18,8 @@ PATTERNS = {
     'auth_value': re.compile(rb'(?i)(?:authorization\s*[:=]\s*[\"\x27]?\s*bearer\s+[A-Za-z0-9_.-]{12,200}|(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)\s*[:=]\s*[\"\x27][A-Za-z0-9_./+=-]{12,200}[\"\x27])'),
     'private_endpoint': re.compile(rb'(?<![\d.])(?:10\.(?:\d{1,3}\.){2}\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3})(?![\d.])|https?://[A-Za-z0-9.-]+\.(?:internal|local)(?:[:/]|\b)'),
 }
-EMAIL = re.compile(rb'[A-Za-z0-9_.+-]{1,80}@[A-Za-z0-9.-]{1,80}\.[A-Za-z]{2,20}')
+# Do not match a suffix inside a larger token (for example an encoded scoped-package patch).
+EMAIL = re.compile(rb'(?<![A-Za-z0-9_.+%@-])[A-Za-z0-9_.+%-]{1,80}@[A-Za-z0-9.-]{1,80}\.[A-Za-z]{2,20}(?![A-Za-z0-9_+%@-]|\.[A-Za-z0-9])')
 ARTIFACT_EXT = {'.log', '.db', '.sqlite', '.sqlite3', '.enex', '.har', '.pcap', '.pem', '.key', '.p12', '.pfx'}
 UNSUPPORTED_EXT = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.heic', '.pdf', '.zip', '.tar', '.gz', '.tgz', '.7z', '.rar', '.mp4', '.mov', '.webm', '.woff', '.woff2', '.ttf', '.otf'}
 
@@ -67,6 +68,28 @@ class Audit:
         if result.returncode:
             raise RuntimeError('git_read_failed')
         return result.stdout
+
+    def history_state(self):
+        # for-each-ref succeeds for an empty repository but still reports real read errors.
+        ref_result = subprocess.run(
+            ['git', '-C', str(self.root), 'for-each-ref', '--format=%(refname) %(objectname) %(symref)'],
+            capture_output=True, timeout=30)
+        if ref_result.returncode or ref_result.stderr:
+            raise RuntimeError('git_read_failed')
+        refs = ref_result.stdout
+        head = subprocess.run(
+            ['git', '-C', str(self.root), 'rev-parse', '--verify', '--quiet', 'HEAD'],
+            capture_output=True, timeout=30)
+        if head.returncode == 0:
+            return refs, head.stdout
+        if head.returncode != 1 or refs or head.stdout or head.stderr:
+            raise RuntimeError('git_read_failed')
+        # Only an unresolved, valid branch HEAD with no refs is genuinely unborn.
+        target = self.git('symbolic-ref', 'HEAD').decode().strip()
+        if not target.startswith('refs/heads/'):
+            raise RuntimeError('git_read_failed')
+        self.git('check-ref-format', target)
+        return refs, b''
 
     def load_exceptions(self, file):
         try:
@@ -166,7 +189,8 @@ class Audit:
             gp = Path(graft) if Path(graft).is_absolute() else self.root / graft
             if gp.exists() and gp.stat().st_size:
                 self.issue('git_grafts', incomplete=True)
-            refs_before = self.git('show-ref')
+            history_before = self.history_state()
+            has_history = bool(history_before[1])
             index_before = self.git('ls-files', '--stage', '-z')
             entries = index_before.split(b'\0')
             tracked = set()
@@ -212,7 +236,7 @@ class Audit:
                     self.inspect(path, '', 'current', data)
                 except Exception:
                     self.issue('unreadable_current_file', path, scope='current', incomplete=True)
-            commits = self.git('rev-list', '--all', 'HEAD').splitlines()
+            commits = self.git('rev-list', '--all', 'HEAD').splitlines() if has_history else []
             history_seen = set()
             for commit in commits:
                 for entry in self.git('ls-tree', '-rz', '--full-tree', commit.decode()).split(b'\0'):
@@ -227,8 +251,8 @@ class Audit:
                     history_seen.add(key)
                     self.blob(path, oid, 'history', mode)
             known = {oid for _, oid, _ in history_seen}
-            objects = self.git('rev-list', '--objects', '--no-object-names', '--all', 'HEAD').splitlines()
-            check = subprocess.run(['git', '-C', str(self.root), 'cat-file', '--batch-check'], input=b'\n'.join(objects)+b'\n', capture_output=True, timeout=30)
+            objects = self.git('rev-list', '--objects', '--no-object-names', '--all', 'HEAD').splitlines() if has_history else []
+            check = subprocess.run(['git', '-C', str(self.root), 'cat-file', '--batch-check'], input=b''.join(oid + b'\n' for oid in objects), capture_output=True, timeout=30)
             if check.returncode or len(check.stdout.splitlines()) != len(objects):
                 self.issue('object_inventory_incomplete', incomplete=True)
             else:
@@ -238,7 +262,7 @@ class Audit:
                         self.issue('unreadable_reachable_object', incomplete=True)
                     elif fields[1] == 'blob' and fields[0] not in known:
                         self.blob('[unmapped-blob]', fields[0], 'history', '')
-            if refs_before != self.git('show-ref') or index_before != self.git('ls-files', '--stage', '-z'):
+            if history_before != self.history_state() or index_before != self.git('ls-files', '--stage', '-z'):
                 self.issue('repository_changed_during_scan', incomplete=True)
         except Exception:
             self.issue('repository_scan_incomplete', incomplete=True)
