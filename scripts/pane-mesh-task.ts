@@ -94,7 +94,10 @@ export async function runTaskCli(args: readonly string[]): Promise<void> {
     if (action === "claim") {
       // An existing receipt can belong to a previous release. It must still be private.
       try { assertPrivateFile(receipt); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-      const claim = store.claim({ projectRoot, taskId, owner, scopes, ttlMs });
+      // An expired claim passes on only when its terminal is absent from this same live server.
+      const live = new Set((await sessionSnapshot(herdrSocketPath())).panes.map((pane) => pane.terminal_id));
+      const ownerGone = (held: TaskOwner) => held.backend === owner.backend && held.serverId === owner.serverId && !live.has(held.terminalId);
+      const claim = store.claim({ projectRoot, taskId, owner, scopes, ttlMs, ownerGone });
       try { writeFileSync(receipt, JSON.stringify({ token: claim.token, owner, projectRoot, taskId }), { mode: 0o600, flag: "w" }); }
       catch (error) { store.mutate("release", { projectRoot, taskId, owner, token: claim.token }); throw error; }
       process.stdout.write(`${JSON.stringify(claim.record)}\n`);

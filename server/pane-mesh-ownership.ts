@@ -163,7 +163,8 @@ const SCHEMA = `CREATE TABLE tasks (
   PRIMARY KEY(project, task_id)
 ) STRICT; PRAGMA user_version=1;`;
 
-/** Advisory coordination only: arbitrary shell writes are not intercepted. Expiry never transfers ownership. */
+/** Advisory coordination only: arbitrary shell writes are not intercepted. Expiry alone never transfers ownership:
+ *  an expired claim is released only when the caller proves the owner terminal is gone (ownerGone). */
 export class PaneMeshOwnership {
   private readonly db: Database;
   private readonly clock: () => number;
@@ -288,7 +289,8 @@ export class PaneMeshOwnership {
     const project = canonicalProject(projectRoot);
     return this.transaction(() => this.readRows().filter((row) => row.project === project).map((row) => this.record(row)));
   }
-  claim(input: { projectRoot: string; taskId: string; scopes: readonly TaskScope[]; owner: VerifiedTaskOwner; ttlMs?: number }): { record: TaskRecord; token: string } {
+  claim(input: { projectRoot: string; taskId: string; scopes: readonly TaskScope[]; owner: VerifiedTaskOwner; ttlMs?: number;
+    ownerGone?: (held: TaskOwner) => boolean }): { record: TaskRecord; token: string } {
     const key = requireOwner(input.owner);
     if (!text(input.taskId) || input.taskId.length > 256 || !Array.isArray(input.scopes) || !input.scopes.length || input.scopes.length > 256) fail("invalid_claim");
     const ttl = this.ttl(input.ttlMs);
@@ -296,12 +298,17 @@ export class PaneMeshOwnership {
       const project = canonicalProject(input.projectRoot);
       if (inside(project, this.statePath)) fail("state_in_project");
       const scopes = input.scopes.map((scope) => canonicalScope(project, scope));
+      const now = this.clock();
+      for (const row of this.readRows()) {
+        if (row.status === "active" && row.expires_at <= now && input.ownerGone?.(JSON.parse(row.owner) as TaskOwner)) {
+          this.db.query("UPDATE tasks SET status='released' WHERE project=? AND task_id=?").run(row.project, row.task_id);
+        }
+      }
       const rows = this.readRows();
       const previous = rows.find((row) => row.project === project && row.task_id === input.taskId);
       if (previous?.status === "completed") fail("task_completed");
       if (previous?.status === "active") fail("task_conflict");
       if (rows.some((row) => row.status === "active" && this.record(row).scopes.some((held) => scopes.some((scope) => scopesOverlap(held, scope))))) fail("scope_conflict");
-      const now = this.clock();
       const token = randomBytes(32).toString("hex");
       this.db.query(`INSERT INTO tasks VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, NULL)
         ON CONFLICT(project,task_id) DO UPDATE SET owner=excluded.owner, owner_key=excluded.owner_key, token=excluded.token,

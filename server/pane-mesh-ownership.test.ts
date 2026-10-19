@@ -91,6 +91,17 @@ describe("atomic task ownership", () => {
     expect(next.token).not.toBe(held.token);
     expect(() => mutate(db, "release", "one", held.token)).toThrow("owner_mismatch");
   });
+  test("expired claim passes on only when the owner terminal is gone", () => {
+    let now = 100; const db = store({ clock: () => now });
+    const held = db.claim({ projectRoot: project, taskId: "one", scopes: [file("src/a.ts")], owner, ttlMs: 5 });
+    const gone = () => true;
+    expect(() => db.claim({ projectRoot: project, taskId: "two", scopes: [file("src/a.ts")], owner: other, ownerGone: gone })).toThrow("scope_conflict");
+    now = 110;
+    expect(() => db.claim({ projectRoot: project, taskId: "two", scopes: [file("src/a.ts")], owner: other, ownerGone: () => false })).toThrow("scope_conflict");
+    const next = db.claim({ projectRoot: project, taskId: "one", scopes: [file("src/a.ts")], owner: other, ownerGone: gone });
+    expect(next.record.owner.workspaceId).toBe("w2");
+    expect(() => mutate(db, "heartbeat", "one", held.token)).toThrow("owner_mismatch");
+  });
   test("canonical project and internal symlink aliases share conflicts", () => {
     symlinkSync(project, join(root, "alias")); symlinkSync(join(project, "src"), join(project, "alias-src"));
     const db = store(); claim(db, "one", [file("alias-src/a.ts")]);
