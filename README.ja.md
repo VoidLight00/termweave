@@ -66,6 +66,46 @@ TERMWEAVE_MACHINE_NAME を設定すると、デモや録画中にサイドバー
 
 ![Mac ネイティブウィンドウと正しい韓国語入力: 実際のアプリ画面、サンプルプロジェクトのデモセッション](assets/ja/gallery-3.png)
 
+## 機能ツアー
+
+以下の画像はすべて実際の TermWeave の画面です。`scripts/public-feature-capture.ts` が隔離した herdr セッションで撮影しました。ワークスペース名とターミナル出力はデモ用のデータです。
+
+### ターミナル分割とプロジェクトごとのフォルダー
+
+プロジェクトごとにワークスペースがあり、ワークスペースごとにフォルダーの色が異なります。ターミナルを並べて分割しても P 番号はそのまま残ります。
+
+![1 つのワークスペースに分割したデモ用ターミナル 3 つ: 実際のアプリ画面](assets/screenshots/desktop-workspaces.png)
+
+### エージェントが待っていると通知が届きます
+
+別のターミナルのエージェントが返答を待つと、画面上部から通知が下りてきて、そのターミナルが「Needs you」に並びます。通知をクリックするとそのターミナルが開きます。
+
+![入力を待つエージェントのアプリ内通知: 実際のアプリ画面](assets/screenshots/desktop-alert.png)
+
+スマートフォンでも同じ通知が上部に表示されます。設定では通知する場面を選べます: 入力待ち、作業の完了(長い作業のみ、または毎回)。プッシュ通知を有効にしたスマートフォンは、アプリを閉じていても通知を受け取ります。
+
+<p><img src="assets/screenshots/mobile-alert.png" width="300" alt="幅 390 px の画面のアプリ内通知: 実際のアプリ画面"> <img src="assets/screenshots/mobile-notification-settings.png" width="300" alt="幅 390 px の画面の通知設定: 実際のアプリ画面"></p>
+
+### ターミナルツール
+
+各ターミナルには横に開くツールパネルがあります。
+
+![ターミナルツールパネル: 実際のアプリ画面](assets/screenshots/desktop-pane-tools.png)
+
+### ワークスペースの色とテーマ色の調整
+
+ワークスペースごとにフォルダーの色を選べます。アプリ全体の色はテーマから始めて、Photoshop 風のカラーピッカーで調整します。ピッカーには彩度・明度の四角形、色相スライダー、HEX・RGB・HSB の入力欄があります。
+
+![ワークスペースの色の選択画面: 実際のアプリ画面](assets/screenshots/desktop-session-palette.png)
+
+![カスタムカラーピッカー: 実際のアプリ画面](assets/screenshots/desktop-color-picker.png)
+
+### スマートフォンのブラウザー
+
+同じサーバーをスマートフォンのブラウザーでも使えます。下部のキーバーで Esc、Tab、Ctrl、矢印キー、Ctrl+C を押せます。ドロワーにはすべてのワークスペースが並びます。
+
+<p><img src="assets/screenshots/mobile-terminal.png" width="300" alt="幅 390 px の画面のターミナルとキーバー: 実際のアプリ画面"> <img src="assets/screenshots/mobile-sidebar.png" width="300" alt="幅 390 px の画面のワークスペースドロワー: 実際のアプリ画面"></p>
+
 ## 制約とプライバシー
 
 - herdr は必須で、別途インストールが必要です。TermWeave は herdr を同梱も更新もしません。これまでの検証は macOS の herdr 0.9.1 のみで、Linux と Windows は未検証です。

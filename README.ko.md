@@ -66,6 +66,46 @@ TERMWEAVE_MACHINE_NAME을 설정하면 시연이나 녹화 중 사이드바에 �
 
 ![맥 전용 앱 창과 깨지지 않는 한글 입력: 실제 앱 화면, 샘플 프로젝트를 띄운 시연 세션](assets/ko/gallery-3.png)
 
+## 기능 둘러보기
+
+아래 이미지는 모두 실제 TermWeave 화면입니다. `scripts/public-feature-capture.ts`가 격리된 herdr 세션에서 촬영했고, 작업 공간 이름과 터미널 출력은 시연용 데이터입니다.
+
+### 터미널 분할과 프로젝트별 폴더
+
+프로젝트마다 작업 공간이 하나씩 있고, 작업 공간마다 폴더 색이 다릅니다. 터미널을 나란히 나눠도 P 번호는 그대로 유지됩니다.
+
+![한 작업 공간에 나눠 띄운 시연용 터미널 3개: 실제 앱 화면](assets/screenshots/desktop-workspaces.png)
+
+### 에이전트가 기다리면 알림이 옵니다
+
+다른 터미널의 에이전트가 답을 기다리면 화면 위쪽에서 알림이 내려오고, 그 터미널이 "Needs you" 목록에 올라갑니다. 알림을 누르면 해당 터미널이 열립니다.
+
+![입력을 기다리는 에이전트의 앱 내 알림: 실제 앱 화면](assets/screenshots/desktop-alert.png)
+
+휴대폰에서도 같은 알림이 위쪽에 나타납니다. 설정에서 알림을 받을 상황을 고를 수 있습니다: 입력 대기, 작업 완료(오래 걸린 작업만 또는 매번). 푸시 알림을 켠 휴대폰은 앱이 닫혀 있어도 알림을 받습니다.
+
+<p><img src="assets/screenshots/mobile-alert.png" width="300" alt="390px 너비 화면의 앱 내 알림: 실제 앱 화면"> <img src="assets/screenshots/mobile-notification-settings.png" width="300" alt="390px 너비 화면의 알림 설정: 실제 앱 화면"></p>
+
+### 터미널 도구
+
+터미널마다 옆에서 여는 도구 패널이 있습니다.
+
+![터미널 도구 패널: 실제 앱 화면](assets/screenshots/desktop-pane-tools.png)
+
+### 작업 공간 색과 테마 색 직접 조정
+
+작업 공간마다 폴더 색을 고를 수 있습니다. 앱 전체 색은 테마에서 출발해 포토샵 방식 색상 선택기로 조정합니다. 선택기에는 채도·명도 사각형, 색상 막대, HEX·RGB·HSB 입력이 있습니다.
+
+![작업 공간 색 선택 창: 실제 앱 화면](assets/screenshots/desktop-session-palette.png)
+
+![사용자 지정 색상 선택기: 실제 앱 화면](assets/screenshots/desktop-color-picker.png)
+
+### 휴대폰 브라우저
+
+같은 서버를 휴대폰 브라우저에서도 씁니다. 아래쪽 키 막대로 Esc, Tab, Ctrl, 방향키, Ctrl+C를 누를 수 있고, 서랍 메뉴에서 모든 작업 공간을 볼 수 있습니다.
+
+<p><img src="assets/screenshots/mobile-terminal.png" width="300" alt="390px 너비 화면의 터미널과 키 막대: 실제 앱 화면"> <img src="assets/screenshots/mobile-sidebar.png" width="300" alt="390px 너비 화면의 작업 공간 서랍: 실제 앱 화면"></p>
+
 ## 한계와 개인정보
 
 - herdr가 반드시 필요하며 따로 설치해야 합니다. TermWeave는 herdr를 포함하거나 업그레이드하지 않습니다. 지금까지는 macOS의 herdr 0.9.1로만 검증했고, Linux와 Windows는 검증하지 않았습니다.

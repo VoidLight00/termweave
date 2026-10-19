@@ -66,6 +66,46 @@ PC 旁的 + 会创建文件夹会话：先选文件夹并命名，不选代理�
 
 ![Mac 原生窗口与正确的韩文输入: 真实应用界面，使用示例项目的演示会话](assets/zh/gallery-3.png)
 
+## 功能一览
+
+下面的图片都是 TermWeave 的真实界面,由 `scripts/public-feature-capture.ts` 在隔离的 herdr 会话中截取。工作区名称和终端输出是演示数据。
+
+### 分屏终端,每个项目一个文件夹
+
+每个项目对应一个工作区,每个工作区有自己的文件夹颜色。终端并排分屏后,P 编号保持不变。
+
+![在一个工作区中分屏的 3 个演示终端: 真实应用界面](assets/screenshots/desktop-workspaces.png)
+
+### 智能体等待时会收到提醒
+
+当另一个终端中的智能体等待回复时,提醒会从屏幕顶部落下,该终端会出现在 "Needs you" 列表中。点击提醒即可打开该终端。
+
+![等待输入的智能体的应用内提醒: 真实应用界面](assets/screenshots/desktop-alert.png)
+
+在手机上,同样的提醒会出现在顶部。在设置中可以选择哪些情况发出提醒: 等待输入、任务完成(仅长任务或每次)。开启推送的手机即使关闭应用也能收到提醒。
+
+<p><img src="assets/screenshots/mobile-alert.png" width="300" alt="390 px 宽屏幕上的应用内提醒: 真实应用界面"> <img src="assets/screenshots/mobile-notification-settings.png" width="300" alt="390 px 宽屏幕上的提醒设置: 真实应用界面"></p>
+
+### 终端工具
+
+每个终端旁边都有可以打开的工具面板。
+
+![终端工具面板: 真实应用界面](assets/screenshots/desktop-pane-tools.png)
+
+### 工作区颜色与自定义主题颜色
+
+可以为每个工作区选择文件夹颜色。整个应用的颜色从主题开始,再用 Photoshop 风格的取色器调整。取色器包括饱和度与明度方块、色相滑块,以及 HEX、RGB、HSB 输入框。
+
+![工作区颜色选择窗口: 真实应用界面](assets/screenshots/desktop-session-palette.png)
+
+![自定义取色器: 真实应用界面](assets/screenshots/desktop-color-picker.png)
+
+### 手机浏览器
+
+同一台服务器也可以在手机浏览器中使用。底部按键栏提供 Esc、Tab、Ctrl、方向键和 Ctrl+C,抽屉菜单列出所有工作区。
+
+<p><img src="assets/screenshots/mobile-terminal.png" width="300" alt="390 px 宽屏幕上的终端与按键栏: 真实应用界面"> <img src="assets/screenshots/mobile-sidebar.png" width="300" alt="390 px 宽屏幕上的工作区抽屉: 真实应用界面"></p>
+
 ## 限制与隐私
 
 - 必须单独安装 herdr；TermWeave 不捆绑也不升级它。目前仅在 macOS 上用 herdr 0.9.1 验证过，Linux 和 Windows 未验证。

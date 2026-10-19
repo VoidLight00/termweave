@@ -1,0 +1,128 @@
+{
+  "command": "bun scripts/public-feature-capture.ts",
+  "capturedAt": "2026-10-19T07:15:00.087Z",
+  "app": "Existing repository dist/index.html served by server/index.ts; no replacement HTML/CSS or screenshot compositing.",
+  "distIndexSha256": "e2ad2fa8e438d246f3a03196fcf9cb5d804ffaddc809d0daefb0a58ef9ee037f",
+  "isolation": "Fresh test-isolation HOME/XDG/native herdr session, fresh Chromium context, loopback server on ephemeral port, browser network allowlist. Synthetic workspace names and output only.",
+  "folderColors": [
+    "rgb(86, 136, 199)",
+    "rgb(76, 152, 118)",
+    "rgb(146, 121, 186)"
+  ],
+  "captures": [
+    {
+      "file": "assets/screenshots/desktop-workspaces.png",
+      "description": "Real three-pane terminal layout; synthetic native terminal output; three folder-icon colors, not colored rows.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "sha256": "0aecee7e23c00d7d5e66715392bbeb15384ce85e2a454211a78c58c4e33f3c1f"
+    },
+    {
+      "file": "assets/screenshots/desktop-pane-tools.png",
+      "description": "Actual terminal tools panel over the native terminal layout.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "sha256": "4f5eb046983164e1cfd38ef109e6e8ff853f505b5b1a0403d6bc3b11504e27fe"
+    },
+    {
+      "file": "assets/screenshots/desktop-alert.png",
+      "description": "Actual in-app alert: an agent in another workspace needs input. The agent status is reported through herdr pane.report_agent; no OS push delivery.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "sha256": "9b05b8e982890b4783fe5141ba6eee0648e3b01da115d4b3ab61387ce62eee5d"
+    },
+    {
+      "file": "assets/screenshots/desktop-session-palette.png",
+      "description": "Actual workspace session-color selection dialog.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "sha256": "78b2a246717ed3e9e9c59e7effb8f7ceebfa6d65911d934e0a8908c01d00b077"
+    },
+    {
+      "file": "assets/screenshots/desktop-settings.png",
+      "description": "Actual appearance settings; no configuration has been published.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "sha256": "55ecb056437a0cd903ac19c3381966b54c7cdab36f66bd64956319a12a7be4f4"
+    },
+    {
+      "file": "assets/screenshots/desktop-color-picker.png",
+      "description": "Actual custom color picker: saturation and brightness square, hue slider, HEX, RGB and HSB fields.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "sha256": "3da1e5a88213c4cc0e409fe38945db8ff14d38554e8310ee77483581653545c7"
+    },
+    {
+      "file": "assets/screenshots/mobile-terminal.png",
+      "description": "390x844 responsive browser viewport; single native terminal view. Not a physical device capture.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "722898fda0f687805e7c278bd30528d38935e8a364d335c809b24a11bed668ae"
+    },
+    {
+      "file": "assets/screenshots/mobile-alert.png",
+      "description": "Actual in-app alert at 390x844 in a responsive browser viewport. Not a physical device or OS notification.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "b5bbfa8497118662218dde574de518642d99d85448941792da49b721ba6f1b64"
+    },
+    {
+      "file": "assets/screenshots/mobile-sidebar.png",
+      "description": "Actual mobile workspace drawer with colored folder icons.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "949177096c34d2b0959996b2c560a0adedb3ac066717bed9b41ba221c41f3fe7"
+    },
+    {
+      "file": "assets/screenshots/mobile-appearance.png",
+      "description": "Actual mobile appearance settings at 390x844.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "fe8164cd5d5926f428a55fd9d22eb12140a3b9c8dba40f600f401b26b631d88f"
+    },
+    {
+      "file": "assets/screenshots/mobile-notification-settings.png",
+      "description": "Actual notification preferences only; no simulated event or device push delivery.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "ef4acf2bc46640789248077518c836edb9ed8cd6958e1d4e7426d7192d815c70"
+    },
+    {
+      "file": "assets/screenshots/mobile-companion-settings.png",
+      "description": "Actual Android devices settings in a browser; no companion pairing or Android device delivery tested.",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "sha256": "8faf038afeb6fa3975011598a721ba2c1d2c520777b20d7ca13bdb61dead775e"
+    }
+  ],
+  "browserErrors": [],
+  "limits": [
+    "Existing built frontend used; source freshness is not asserted.",
+    "Mobile screenshots use responsive Chromium viewport, not physical device or Android WebView.",
+    "Notification delivery, companion pairing and physical-device behavior are not tested."
+  ]
+}

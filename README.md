@@ -66,6 +66,46 @@ Set TERMWEAVE_MACHINE_NAME to show a neutral PC name in the sidebar during demos
 
 ![Native Mac window with correct Korean input: real app screen, demo session with sample projects](assets/gallery-3.png)
 
+## Feature tour
+
+Every image below is a real TermWeave screen, captured by `scripts/public-feature-capture.ts` against an isolated herdr session. The workspace names and terminal output are demo data.
+
+### Split terminals, one folder per project
+
+Each project is a workspace with its own folder color. Panes split side by side and keep their P-numbers.
+
+![Three demo terminals split in one workspace: real app screen](assets/screenshots/desktop-workspaces.png)
+
+### Alerts when an agent needs you
+
+When an agent in another pane waits for an answer, an alert drops in from the top of the screen and the pane moves to "Needs you". Click the alert to open that pane.
+
+![In-app alert for an agent that needs input: real app screen](assets/screenshots/desktop-alert.png)
+
+On a phone the same alert appears at the top. In Settings you choose which events alert you: needs input, and finished turns (long turns only, or every turn). A phone with push enabled also gets them while the app is closed.
+
+<p><img src="assets/screenshots/mobile-alert.png" width="300" alt="In-app alert on a 390 px wide screen: real app screen"> <img src="assets/screenshots/mobile-notification-settings.png" width="300" alt="Alert settings on a 390 px wide screen: real app screen"></p>
+
+### Terminal tools
+
+Each pane has a tools panel next to its terminal.
+
+![Terminal tools panel: real app screen](assets/screenshots/desktop-pane-tools.png)
+
+### Workspace colors and custom theme colors
+
+Pick a folder color for each workspace. For the whole app, start from a theme and adjust any color with a Photoshop-style picker: a saturation and brightness square, a hue slider, and HEX, RGB and HSB fields.
+
+![Workspace color dialog: real app screen](assets/screenshots/desktop-session-palette.png)
+
+![Custom color picker: real app screen](assets/screenshots/desktop-color-picker.png)
+
+### Phone browser
+
+The same server works in a phone browser. A key bar gives Esc, Tab, Ctrl, the arrow keys and Ctrl+C, and the drawer lists every workspace.
+
+<p><img src="assets/screenshots/mobile-terminal.png" width="300" alt="Terminal with key bar on a 390 px wide screen: real app screen"> <img src="assets/screenshots/mobile-sidebar.png" width="300" alt="Workspace drawer on a 390 px wide screen: real app screen"></p>
+
 ## Limits and privacy
 
 - herdr is required and installed separately; TermWeave does not bundle or upgrade it. Validation so far used herdr 0.9.1 on macOS; Linux and Windows are not validated.
