@@ -68,7 +68,7 @@ TERMWEAVE_MACHINE_NAME을 설정하면 시연이나 녹화 중 사이드바에 �
 
 ## 기능 둘러보기
 
-아래 이미지는 모두 실제 TermWeave 화면입니다. `scripts/public-feature-capture.ts`가 격리된 herdr 세션에서 촬영했고, 작업 공간 이름과 터미널 출력은 시연용 데이터입니다.
+아래 이미지는 모두 실제 TermWeave 화면입니다. `scripts/public-feature-capture.ts`가 격리된 herdr 세션에서 촬영했고, 작업 공간 이름과 터미널 출력은 시연용 데이터이고, 위쪽 막대의 폴더 경로는 흐리게 처리했습니다.
 
 ### 터미널 분할과 프로젝트별 폴더
 
@@ -91,6 +91,12 @@ TERMWEAVE_MACHINE_NAME을 설정하면 시연이나 녹화 중 사이드바에 �
 터미널마다 옆에서 여는 도구 패널이 있습니다.
 
 ![터미널 도구 패널: 실제 앱 화면](assets/screenshots/desktop-pane-tools.png)
+
+### 터미널을 다른 폴더로 옮기기
+
+터미널의 `...` 메뉴에서 "다른 곳으로 이동…"을 고릅니다. 옮길 폴더, 옆에 둘 터미널, 오른쪽 또는 아래를 선택하면 됩니다. 데스크톱에서는 터미널 줄을 다른 폴더로 끌어다 놓아도 옮겨집니다. herdr가 터미널을 옮기는 방식이라 실행 중인 프로그램은 다시 시작되지 않고 그대로 이어집니다.
+
+![폴더, 옆에 둘 터미널, 위치를 고르는 이동 창: 실제 앱 화면](assets/screenshots/desktop-move-pane.png)
 
 ### 작업 공간 색과 테마 색 직접 조정
 

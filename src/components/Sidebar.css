@@ -591,3 +591,10 @@
 @media (max-width: 768px) {
   .app .sidebar { width: min(94vw, 360px); }
 }
+/* a pane dragged over another folder: a soft tint, never a side stripe */
+.workspace.is-pane-drop { background: color-mix(in srgb, var(--accent) 12%, transparent); border-radius: 10px; }
+.workspace-terminal-row[draggable="true"] { cursor: grab; }
+.move-pane-dialog .modal-body { display: grid; gap: 12px; }
+.move-pane-dialog label { display: grid; gap: 6px; }
+.move-pane-side { display: flex; gap: 16px; }
+.move-pane-side label { display: flex; align-items: center; gap: 6px; }

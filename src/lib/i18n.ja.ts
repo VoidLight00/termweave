@@ -1124,4 +1124,13 @@ export const JA: Record<string, string> = {
   "Held": "保留",
   "Waiting for input": "入力待ち",
   "Startup failed": "起動失敗",
+  "Another move is still running.": "別の移動がまだ実行中です。",
+  "Move to…": "移動先を選ぶ…",
+  "Move {name}": "{name} を移動",
+  "Folder": "フォルダー",
+  "Place beside": "隣に置くターミナル",
+  "Side": "位置",
+  "Below": "下",
+  "Drag to another folder or terminal to move it": "別のフォルダーやターミナルへドラッグして移動できます",
+  "Move failed: {reason}": "移動できませんでした: {reason}",
 };

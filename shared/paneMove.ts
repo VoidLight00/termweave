@@ -9,6 +9,8 @@ export interface PaneMoveRequest {
   target_pane_id: string;
   target_workspace_id: string;
   target_tab_id: string;
+  /** where the pane lands beside target_pane_id; herdr 0.9.1 splits right or down */
+  split?: "right" | "down";
 }
 export interface PaneMoveResult {
   changed: boolean;
@@ -20,11 +22,13 @@ const fields = ["pane_id", "workspace_id", "tab_id", "terminal_id", "target_pane
 export function isPaneMoveRequest(value: unknown): value is PaneMoveRequest {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
-  return Object.keys(record).length === fields.length && fields.every(key => typeof record[key] === "string" && record[key].length > 0);
+  const keys = Object.keys(record).filter(key => key !== "split");
+  if (record.split !== undefined && record.split !== "right" && record.split !== "down") return false;
+  return keys.length === fields.length && fields.every(key => typeof record[key] === "string" && record[key].length > 0);
 }
-export function moveRequest(source: HerdrPane, target: HerdrPane): PaneMoveRequest {
+export function moveRequest(source: HerdrPane, target: HerdrPane, split?: "right" | "down"): PaneMoveRequest {
   return { pane_id: source.pane_id, workspace_id: source.workspace_id, tab_id: source.tab_id, terminal_id: source.terminal_id,
-    target_pane_id: target.pane_id, target_workspace_id: target.workspace_id, target_tab_id: target.tab_id };
+    target_pane_id: target.pane_id, target_workspace_id: target.workspace_id, target_tab_id: target.tab_id, ...(split ? { split } : {}) };
 }
 export function moveTargets(panes: readonly HerdrPane[], source: HerdrPane | undefined): HerdrPane[] {
   return source && !source.restore_error ? panes.filter(pane => !pane.restore_error && pane.tab_id !== source.tab_id && !!pane.terminal_id) : [];

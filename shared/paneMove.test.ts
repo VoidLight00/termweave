@@ -11,6 +11,8 @@ describe("native pane move model", () => {
   it("requires exact placement and rejects machine fields or malformed bodies", () => {
     expect(isPaneMoveRequest(request)).toBe(true);
     for (const value of [null, [], {}, { ...request, terminal_id: "" }, { ...request, machine_id: "other" }]) expect(isPaneMoveRequest(value)).toBe(false);
+    expect(isPaneMoveRequest(moveRequest(source, target, "down"))).toBe(true);
+    expect(isPaneMoveRequest({ ...request, split: "left" })).toBe(false);
   });
   it("checks both workspaces, tabs, source identity and restored terminal availability", () => {
     expect(moveSnapshotError(snapshot, request)).toBeNull();

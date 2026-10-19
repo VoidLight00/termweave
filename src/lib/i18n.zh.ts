@@ -1126,4 +1126,13 @@ export const ZH: Record<string, string> = {
   "Held": "已暂停",
   "Waiting for input": "等待输入",
   "Startup failed": "启动失败",
+  "Another move is still running.": "另一个移动仍在进行中。",
+  "Move to…": "移动到…",
+  "Move {name}": "移动 {name}",
+  "Folder": "文件夹",
+  "Place beside": "放在哪个终端旁边",
+  "Side": "位置",
+  "Below": "下方",
+  "Drag to another folder or terminal to move it": "拖到其他文件夹或终端即可移动",
+  "Move failed: {reason}": "移动失败: {reason}",
 };

@@ -14,7 +14,7 @@ export async function handlePaneMove(request: Request): Promise<Response> {
     if (code) return jsonResponse({ error: { code, message: "Pane placement changed or destination is unavailable. Refresh before another move." } }, 409);
     const result = await herdrRpc<{ move_result: PaneMoveResult }>("pane.move", {
       pane_id: payload.pane_id,
-      destination: { type: "tab", tab_id: payload.target_tab_id, target_pane_id: payload.target_pane_id, split: "right" },
+      destination: { type: "tab", tab_id: payload.target_tab_id, target_pane_id: payload.target_pane_id, split: payload.split ?? "right" },
       focus: false,
     });
     if (!isMoveResult(result?.move_result, payload)) return jsonResponse({ error: {

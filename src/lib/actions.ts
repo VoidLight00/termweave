@@ -4,6 +4,8 @@
  * keyboard shortcut, a palette row and a sidebar button all run the same code.
  */
 
+import type { PaneMoveRequest } from "../../shared/paneMove.ts";
+
 export type PaneView = "chat" | "terminal";
 
 export interface AppActions {
@@ -25,6 +27,8 @@ export interface AppActions {
   /** null once alerts are on (or unsupported); otherwise asks for permission */
   enableNotifications: (() => void) | null;
   refresh: () => void;
+  /** a native herdr move of one pane beside another (another folder or tab); rejects when nothing moved */
+  movePane: (request: PaneMoveRequest, machineId: string) => Promise<void>;
   /** null without a pane: the files of its folder, each opened in the file viewer */
   openFiles: (() => void) | null;
 }

@@ -1122,4 +1122,13 @@ export const KO: Record<string, string> = {
   "Held": "보류",
   "Waiting for input": "입력 대기",
   "Startup failed": "시작 실패",
+  "Another move is still running.": "다른 이동이 아직 진행 중입니다.",
+  "Move to…": "다른 곳으로 이동…",
+  "Move {name}": "{name} 이동",
+  "Folder": "폴더",
+  "Place beside": "옆에 둘 터미널",
+  "Side": "위치",
+  "Below": "아래",
+  "Drag to another folder or terminal to move it": "다른 폴더나 터미널로 끌어서 옮길 수 있습니다",
+  "Move failed: {reason}": "이동하지 못했습니다: {reason}",
 };

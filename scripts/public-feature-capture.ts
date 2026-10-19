@@ -77,6 +77,10 @@ try {
     const group = (index: number) => ({ kind: 'group', id: `demo-${index}`, tabs: [panes[index]], active: panes[index] });
     localStorage.setItem(`termweave:dock:v1:local:${workspace}`, JSON.stringify({ kind: 'split', id: 'demo-main', axis: 'columns', ratio: 0.55, first: group(0), second: { kind: 'split', id: 'demo-right', axis: 'rows', ratio: 0.5, first: group(1), second: group(2) } }));
   }, { panes, workspace: owned[0], colorKeys, colors });
+  // the demo folders live under a temporary test root: blur the header path, not the product
+  await context.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+    const style = document.createElement('style'); style.textContent = '.context-cwd { filter: blur(5px); }'; document.head.append(style);
+  }));
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on('pageerror', error => { errors = [...errors, error.message]; });
@@ -115,6 +119,12 @@ try {
   await page.locator('.droplet').waitFor({ state: 'detached' });
   await page.goto(`${origin}/?pane=${panes[0]}`);
   await page.locator('.conn-live').waitFor();
+  const moveRow = page.locator(`.workspace-terminal-row:has([data-terminal-pane="${panes[1]}"])`);
+  await moveRow.locator('.terminal-menu-toggle').click();
+  await page.getByRole('menuitem', { name: 'Move to…', exact: true }).click();
+  await page.locator('.move-pane-dialog').waitFor();
+  await capture(page, 'desktop-move-pane', 'Actual "Move to…" dialog: choose a folder, the terminal to sit beside, and right or below.');
+  await page.locator('.move-pane-dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
   await page.getByRole('button', { name: `More for workspace ${names[0]}`, exact: true }).click();
   await page.getByRole('menuitem', { name: 'Session color', exact: true }).click();
   await page.locator('.session-color-dialog').waitFor();

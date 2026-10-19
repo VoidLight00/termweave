@@ -1,8 +1,8 @@
 {
   "command": "bun scripts/public-feature-capture.ts",
-  "capturedAt": "2026-10-19T07:15:00.087Z",
+  "capturedAt": "2026-10-19T07:42:35.064Z",
   "app": "Existing repository dist/index.html served by server/index.ts; no replacement HTML/CSS or screenshot compositing.",
-  "distIndexSha256": "e2ad2fa8e438d246f3a03196fcf9cb5d804ffaddc809d0daefb0a58ef9ee037f",
+  "distIndexSha256": "f4c8a6531301cd79a735ab0068840263eb2fb0482da9cf544314523ba7f6a7f7",
   "isolation": "Fresh test-isolation HOME/XDG/native herdr session, fresh Chromium context, loopback server on ephemeral port, browser network allowlist. Synthetic workspace names and output only.",
   "folderColors": [
     "rgb(86, 136, 199)",
@@ -17,7 +17,7 @@
         "width": 1440,
         "height": 960
       },
-      "sha256": "0aecee7e23c00d7d5e66715392bbeb15384ce85e2a454211a78c58c4e33f3c1f"
+      "sha256": "1794eef02eb21afc206e115103eb54dec0ca3a462b849db252e3394e10b5c958"
     },
     {
       "file": "assets/screenshots/desktop-pane-tools.png",
@@ -26,7 +26,7 @@
         "width": 1440,
         "height": 960
       },
-      "sha256": "4f5eb046983164e1cfd38ef109e6e8ff853f505b5b1a0403d6bc3b11504e27fe"
+      "sha256": "309130325d0c7de34b94ac0a1373a340641be074ae4393f156db85b216147f14"
     },
     {
       "file": "assets/screenshots/desktop-alert.png",
@@ -35,7 +35,16 @@
         "width": 1440,
         "height": 960
       },
-      "sha256": "9b05b8e982890b4783fe5141ba6eee0648e3b01da115d4b3ab61387ce62eee5d"
+      "sha256": "a3f31c4ded653a1271e8d1b482b2363c325042139efddc1d11727e66ff429b41"
+    },
+    {
+      "file": "assets/screenshots/desktop-move-pane.png",
+      "description": "Actual \"Move to…\" dialog: choose a folder, the terminal to sit beside, and right or below.",
+      "viewport": {
+        "width": 1440,
+        "height": 960
+      },
+      "sha256": "cba3e3e5fa2d559c23149a889e8c0cda32244208fd6591e5bfdcf682158bfe11"
     },
     {
       "file": "assets/screenshots/desktop-session-palette.png",
@@ -44,7 +53,7 @@
         "width": 1440,
         "height": 960
       },
-      "sha256": "78b2a246717ed3e9e9c59e7effb8f7ceebfa6d65911d934e0a8908c01d00b077"
+      "sha256": "d75180a296730ba950ea756c6625e8759f94f2e60235ac0e982c54996b2f6b68"
     },
     {
       "file": "assets/screenshots/desktop-settings.png",
@@ -53,7 +62,7 @@
         "width": 1440,
         "height": 960
       },
-      "sha256": "55ecb056437a0cd903ac19c3381966b54c7cdab36f66bd64956319a12a7be4f4"
+      "sha256": "b4f53732cc19d6021b3125c052620f19665cd51b7e4628992e7c9d663255e90e"
     },
     {
       "file": "assets/screenshots/desktop-color-picker.png",
@@ -62,7 +71,7 @@
         "width": 1440,
         "height": 960
       },
-      "sha256": "3da1e5a88213c4cc0e409fe38945db8ff14d38554e8310ee77483581653545c7"
+      "sha256": "0a35d7b815c8e2f90f26609d2b4d5fe300030b7e9bd8b276537fb33b23450fcf"
     },
     {
       "file": "assets/screenshots/mobile-terminal.png",
@@ -80,7 +89,7 @@
         "width": 390,
         "height": 844
       },
-      "sha256": "b5bbfa8497118662218dde574de518642d99d85448941792da49b721ba6f1b64"
+      "sha256": "a8cca65ac6f3c8654584f39d9c9cac58b00038f77c35c4c52cc4f4c16738f293"
     },
     {
       "file": "assets/screenshots/mobile-sidebar.png",
@@ -89,7 +98,7 @@
         "width": 390,
         "height": 844
       },
-      "sha256": "949177096c34d2b0959996b2c560a0adedb3ac066717bed9b41ba221c41f3fe7"
+      "sha256": "43e3976dd2d4757b76e1b8e71cf55bfd0c5074485fe5211d652ef82c335c799e"
     },
     {
       "file": "assets/screenshots/mobile-appearance.png",

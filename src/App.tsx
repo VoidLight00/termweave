@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Search, SquareTerminal, Users, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane } from "../shared/protocol.ts";
-import { ApiError, authenticate, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, pairDevice, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
+import { ApiError, authenticate, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, movePane as movePaneRequest, pairDevice, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { SplitTerminals } from "./components/SplitTerminals.tsx";
@@ -20,7 +20,7 @@ import { MachineContext } from "./lib/machineContext.tsx";
 import { MachineActionBanner, MachineSidebar } from "./components/MachineSidebar.tsx";
 import { MachineDialog } from "./components/MachineDialog.tsx";
 import { focusWorkspaceListToggle } from "./lib/focus.ts";
-import type { PaneMoveResult } from "../shared/paneMove.ts";
+import type { PaneMoveRequest, PaneMoveResult } from "../shared/paneMove.ts";
 import { paneStorageId, type Machine, type MachineEvent } from "../shared/machines.ts";
 import { takeAuthTokenFromUrl } from "./lib/authLink.ts";
 import { applyPaneStatus } from "./lib/snapshot.ts";
@@ -635,9 +635,20 @@ export function App() {
       lock: canSignOut ? () => void lock() : null,
       enableNotifications: bellVisible && !bell.on ? () => void enableNotifications() : null,
       refresh: () => void load(),
+      movePane: async (request: PaneMoveRequest, machineId: string) => {
+        // the same guard and selection capture the dock's native move uses: one move at a time, no retry
+        if (movePendingRef.current) throw new Error(t("Another move is still running."));
+        moveSelectionRef.current = { machine: selectedMachineRef.current, epoch: navigationRef.current };
+        movePendingRef.current = 1; setNativeMovePending(true);
+        try {
+          const result = await movePaneRequest(request, machineId);
+          if (!result.changed) throw new Error(t("No native move occurred. Check zoom and destination."));
+          await onMoved(result, machineId, request.workspace_id);
+        } finally { movePendingRef.current = 0; setNativeMovePending(false); }
+      },
       openFiles: selectedPaneId !== null ? () => { setDrawerOpen(false); setFilesOpen(true); } : null,
     }),
-    [selectPane, selectedPaneId, selectedMachineId, setView, view, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.on, enableNotifications, load],
+    [selectPane, selectedPaneId, selectedMachineId, setView, view, updateSettings, resolvedTheme, canSignOut, lock, bellVisible, bell.on, enableNotifications, load, onMoved, t],
   );
 
   useShortcuts(actions, locked === false);
@@ -708,7 +719,7 @@ export function App() {
                   <span className="context-sep" aria-hidden="true">
                     ›
                   </span>
-                  <span>{selectedPane.cwd}</span>
+                  <span className="context-cwd">{selectedPane.cwd}</span>
                 </>
               )}
             </div>

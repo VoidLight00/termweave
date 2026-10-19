@@ -68,7 +68,7 @@ Set TERMWEAVE_MACHINE_NAME to show a neutral PC name in the sidebar during demos
 
 ## Feature tour
 
-Every image below is a real TermWeave screen, captured by `scripts/public-feature-capture.ts` against an isolated herdr session. The workspace names and terminal output are demo data.
+Every image below is a real TermWeave screen, captured by `scripts/public-feature-capture.ts` against an isolated herdr session. The workspace names and terminal output are demo data, and the folder path in the header is blurred.
 
 ### Split terminals, one folder per project
 
@@ -91,6 +91,12 @@ On a phone the same alert appears at the top. In Settings you choose which event
 Each pane has a tools panel next to its terminal.
 
 ![Terminal tools panel: real app screen](assets/screenshots/desktop-pane-tools.png)
+
+### Move a terminal to another folder
+
+Open a terminal's `...` menu and choose "Move to…". Pick the folder, the terminal to sit beside, and right or below. On a desktop you can also drag a terminal row onto another folder. The running program keeps running: herdr moves the terminal, it does not restart it.
+
+![Move to dialog with folder, neighbor terminal and side: real app screen](assets/screenshots/desktop-move-pane.png)
 
 ### Workspace colors and custom theme colors
 

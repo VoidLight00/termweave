@@ -1,6 +1,6 @@
 import { AgentMark } from "./AgentMark.tsx";
 import { paneNumber } from "../lib/paneNumber.ts";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { useWorkspaceReorder } from "../lib/workspaceReorder.ts";
 import { ChevronRight, Ellipsis, Folder, GripVertical, Layers, Palette, Pencil, Plus, X } from "lucide-react";
 import { readCollapsedWorkspaces, workspaceCollapseId, writeCollapsedWorkspaces } from "../lib/workspaceCollapse.ts";
@@ -20,6 +20,8 @@ import { focusWorkspaceListToggle } from "../lib/focus.ts";
 import { composeTitle, shortPathTitle } from "../lib/paneName.ts";
 import { useT } from "../lib/i18n.ts";
 import { TerminalMenu } from "./TerminalMenu.tsx";
+import { MovePaneDialog } from "./MovePaneDialog.tsx";
+import { moveRequest, moveTargets } from "../../shared/paneMove.ts";
 
 const ERROR_NOTE_MS = 5000;
 
@@ -101,6 +103,8 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
   const colorOf = (workspaceId: string): SessionColor | null => { void colorVersion; return readSessionColor(browserColorStorage(), colorKey(workspaceId)); };
   const { closeWorkspace, moveWorkspace, renameWorkspace } = useMachineApi();
   const [menu, setMenu] = useState<MenuState | null>(null);
+  const [moveSource, setMoveSource] = useState<PaneInfo | null>(null);
+  const [paneDrag, setPaneDrag] = useState<{ source: PaneInfo; over: string | null } | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [editingWorkspaceId, setEditingWorkspaceId] = useState<string | null>(null);
   const [workspaceLabel, setWorkspaceLabel] = useState("");
@@ -252,6 +256,27 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
     </button>
   );
 
+  const movePaneTo = async (source: PaneInfo, target: PaneInfo, split: "right" | "down" = "right"): Promise<void> => {
+    await actions.movePane(moveRequest(source, target, split), machineId);
+  };
+  /** a drop on a pane row sits beside it; a drop on the folder sits beside its first pane */
+  const dropTarget = (workspaceId: string, paneId?: string): PaneInfo | undefined => {
+    if (!paneDrag) return undefined;
+    const valid = moveTargets(snapshot?.panes ?? [], paneDrag.source).filter(pane => pane.workspace_id === workspaceId);
+    return valid.find(pane => pane.pane_id === paneId) ?? valid[0];
+  };
+  const dropOn = (event: DragEvent, workspaceId: string): void => {
+    const paneId = (event.target as HTMLElement).closest<HTMLElement>("[data-terminal-pane]")?.dataset.terminalPane;
+    const target = dropTarget(workspaceId, paneId);
+    const source = paneDrag?.source;
+    setPaneDrag(null);
+    if (!target || !source) return;
+    event.preventDefault();
+    void movePaneTo(source, target).catch((reason: unknown) => {
+      noteError(t("Move failed: {reason}", { reason: reason instanceof Error ? reason.message : String(reason) }));
+    });
+  };
+
   const renderWorkspace = (workspace: WorkspaceInfo, visiblePanes: PaneInfo[], scope = "") => {
     const collapseId = workspaceCollapseId(machineId, workspace.workspace_id);
     const expanded = !collapsed.has(collapseId);
@@ -265,7 +290,11 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
       { key: "running", status: "working", label: t("Running"), target: summary.running },
       { key: "done", status: "done", label: t("Done"), target: summary.done },
     ];
-    return <section className="workspace" data-reorder-workspace={workspace.workspace_id} key={workspace.workspace_id}>
+    return <section className={`workspace${paneDrag?.over === workspace.workspace_id ? " is-pane-drop" : ""}`} data-reorder-workspace={workspace.workspace_id} key={workspace.workspace_id}
+      onDragOver={event => { if (!dropTarget(workspace.workspace_id)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move";
+        if (paneDrag?.over !== workspace.workspace_id) setPaneDrag(drag => drag && { ...drag, over: workspace.workspace_id }); }}
+      onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaneDrag(drag => drag && { ...drag, over: null }); }}
+      onDrop={event => dropOn(event, workspace.workspace_id)}>
       <div className={`pane-item${selected ? " is-selected" : ""}`}><div className="pane-row">
         {dragHandle(workspace)}
         <button type="button" className="sidebar-row-action workspace-disclosure"
@@ -304,14 +333,17 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
           ))}
         </div>
         <div className="workspace-terminals" id={terminalsId} hidden={!expanded}>
-          {visiblePanes.map(pane => <div className="workspace-terminal-row" key={pane.terminal_id || pane.pane_id}><button type="button"
+          {visiblePanes.map(pane => <div className="workspace-terminal-row" key={pane.terminal_id || pane.pane_id}
+            draggable={!!pane.terminal_id && !pane.restore_error} title={t("Drag to another folder or terminal to move it")}
+            onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", paneNumber(pane)); setPaneDrag({ source: pane, over: null }); }}
+            onDragEnd={() => setPaneDrag(null)}><button type="button"
             className="workspace-terminal" data-terminal-pane={pane.pane_id} title={displayPaneTitle(pane)}
             aria-current={pane.pane_id === selectedPaneId ? "true" : undefined}
             onClick={() => actions.selectPane(pane.pane_id)}>
             <span className="pane-number" data-pane-number={paneNumber(pane)}>{paneNumber(pane)}</span>
             <AgentMark agent={pane.agent || "shell"} size={16} /><span className="workspace-terminal-title">{displayPaneTitle(pane)}</span>
             <StatusBadge status={pane.agent_status} />
-          </button><TerminalMenu pane={pane} machineId={machineId} onRefresh={() => actions.refresh()} /></div>)}
+          </button><TerminalMenu pane={pane} machineId={machineId} onRefresh={() => actions.refresh()} onMove={() => setMoveSource(pane)} /></div>)}
         </div>
       </div>
     </section>;
@@ -332,6 +364,8 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
           <p className="sidebar-inline-error" role="alert">{inlineError.message}</p>
         )}
       </nav>
+      {moveSource && <MovePaneDialog source={moveSource} panes={snapshot?.panes ?? []} workspaces={orderedWorkspaces} title={displayPaneTitle}
+        onMove={(target, split) => movePaneTo(moveSource, target, split)} onClose={() => setMoveSource(null)} />}
       {menu && <RowMenu anchor={menu.anchor} title={menu.workspace.label} items={menuItems(menu)} onClose={closeMenu} />}
       {colorTarget && <SessionColorDialog title={t("Session color: {name}", { name: colorTarget.label })} selected={colorOf(colorTarget.id)}
         onSelect={color => { writeSessionColor(browserColorStorage(), colorKey(colorTarget.id), color); setColorVersion(v => v + 1); }}
