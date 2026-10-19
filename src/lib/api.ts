@@ -23,7 +23,7 @@ import type { PaneScrollInfo } from "../../shared/herdr-api.generated.ts";
 import type { HerdrUpdateStatus, UpdateCommand, UpdateStatus } from "../../shared/update.ts";
 import type { AlertPrefs } from "../../shared/notify-policy.ts";
 import type { VoiceConfigUpdate, VoiceStatus } from "../../shared/voice.ts";
-import { isMoveResult, type PaneMoveRequest, type PaneMoveResult } from "../../shared/paneMove.ts";
+import { isMoveResult, type PaneMoveRequest, type PaneMoveResult, type PaneSwapRequest } from "../../shared/paneMove.ts";
 
 /** Settings → Phone: what Tailscale on the server's PC already serves, or the command to run. */
 export function fetchRemoteAccess(): Promise<RemoteAccess> {
@@ -300,6 +300,14 @@ export async function movePane(request: PaneMoveRequest, machineId = "local"): P
   const result: unknown = await response.json();
   if (!isMoveResult(result, request)) throw new Error("Move outcome unknown. Refresh before another move.");
   return result;
+}
+
+/** Native same-tab swap on one selected PC. No retry. */
+export async function swapPanes(request: PaneSwapRequest, machineId = "local"): Promise<boolean> {
+  const response = await sendJson(machinePath(machineId, "pane/swap"), "POST", request);
+  const result = await response.json() as { changed?: unknown };
+  if (typeof result.changed !== "boolean") throw new Error("Swap outcome unknown. Refresh before another move.");
+  return result.changed;
 }
 
 /** POST /api/pane/rename: sets the pane's label in herdr (an empty label clears it). */

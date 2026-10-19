@@ -76,7 +76,7 @@ import { handleMachineRequest } from "./machine-api.ts";
 import { MachineRelay } from "./machine-relay.ts";
 import { sameOrigin } from "./machine-security.ts";
 import { handlePaneSplit } from "./pane-split.ts";
-import { handlePaneMove } from "./pane-move.ts";
+import { handlePaneMove, handlePaneSwap } from "./pane-move.ts";
 import { TmuxRuntime } from "./tmux/runtime.ts";
 import { PaneNumbers } from "./pane-numbers.ts";
 import { handleTmuxRequest } from "./tmux/api.ts";
@@ -1211,6 +1211,7 @@ export function createServer(
 
       if (pathname === "/api/pane/split") return handlePaneSplit(request);
       if (pathname === "/api/pane/move") return handlePaneMove(request);
+      if (pathname === "/api/pane/swap") return handlePaneSwap(request);
 
       if (pathname === "/api/workspace/create") {
         if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");

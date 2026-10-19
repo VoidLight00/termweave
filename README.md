@@ -94,7 +94,7 @@ Each pane has a tools panel next to its terminal.
 
 ### Move a terminal to another folder
 
-Open a terminal's `...` menu and choose "Move to…". Pick the folder, the terminal to sit beside, and right or below. On a desktop you can also drag a terminal row onto another folder. The running program keeps running: herdr moves the terminal, it does not restart it.
+Open a terminal's `...` menu and choose "Move to…". Pick the folder, the terminal to sit beside, and right or below. On a desktop you can also drag a terminal row onto another folder. Inside one folder, drop it on another terminal to swap places, or use Move up and Move down in the same menu. The running program keeps running: herdr moves the terminal, it does not restart it.
 
 ![Move to dialog with folder, neighbor terminal and side: real app screen](assets/screenshots/desktop-move-pane.png)
 

@@ -1135,4 +1135,6 @@ export const ZH: Record<string, string> = {
   "Below": "下方",
   "Drag to another folder or terminal to move it": "拖到其他文件夹或终端即可移动",
   "Move failed: {reason}": "移动失败: {reason}",
+  "Move up": "上移",
+  "Move down": "下移",
 };

@@ -55,3 +55,20 @@ export function isMoveResult(value: unknown, request: PaneMoveRequest): value is
     && pane.workspace_id === (result.changed ? request.target_workspace_id : request.workspace_id)
     && pane.tab_id === (result.changed ? request.target_tab_id : request.tab_id);
 }
+
+/** Two panes of one native tab trade places. Both terminal identities are claimed and checked. */
+export interface PaneSwapRequest { pane_id: string; terminal_id: string; target_pane_id: string; target_terminal_id: string }
+export function isPaneSwapRequest(value: unknown): value is PaneSwapRequest {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = ["pane_id", "terminal_id", "target_pane_id", "target_terminal_id"];
+  return Object.keys(record).length === keys.length && keys.every(key => typeof record[key] === "string" && (record[key] as string).length > 0)
+    && record.pane_id !== record.target_pane_id;
+}
+export function swapSnapshotError(snapshot: SessionSnapshot, request: PaneSwapRequest): string | null {
+  const source = snapshot.panes.find(pane => pane.pane_id === request.pane_id);
+  const target = snapshot.panes.find(pane => pane.pane_id === request.target_pane_id);
+  if (!source || !target) return "pane_not_found";
+  if (source.terminal_id !== request.terminal_id || target.terminal_id !== request.target_terminal_id) return "stale_move";
+  return source.tab_id === target.tab_id && !source.restore_error && !target.restore_error ? null : "invalid_target";
+}

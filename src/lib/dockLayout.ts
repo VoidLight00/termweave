@@ -89,3 +89,10 @@ export function preset(tabs: string[], mode: "single" | "columns" | "rows" | "gr
   if (mode !== "grid" || leaves.length < 3) return pair(leaves[0]!, leaves[1]!, `${id}-split`, mode === "rows" ? "rows" : "columns");
   return pair(pair(leaves[0]!, leaves[1]!, `${id}-top`, "columns"), leaves[3] ? pair(leaves[2]!, leaves[3], `${id}-bottom`, "columns") : leaves[2]!, `${id}-root`, "rows");
 }
+
+/** Two panes trade places wherever they sit in the dock; everything else stays. */
+export function swapTabs(tree: Layout, a: string, b: string): Layout {
+  const swap = (id: string | null) => id === a ? b : id === b ? a : id;
+  if (tree.kind === "group") return { ...tree, tabs: tree.tabs.map(id => swap(id)!), active: swap(tree.active) };
+  return { ...tree, first: swapTabs(tree.first, a, b), second: swapTabs(tree.second, a, b) };
+}

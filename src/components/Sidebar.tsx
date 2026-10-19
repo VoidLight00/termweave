@@ -259,22 +259,33 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
   const movePaneTo = async (source: PaneInfo, target: PaneInfo, split: "right" | "down" = "right"): Promise<void> => {
     await actions.movePane(moveRequest(source, target, split), machineId);
   };
-  /** a drop on a pane row sits beside it; a drop on the folder sits beside its first pane */
-  const dropTarget = (workspaceId: string, paneId?: string): PaneInfo | undefined => {
-    if (!paneDrag) return undefined;
-    const valid = moveTargets(snapshot?.panes ?? [], paneDrag.source).filter(pane => pane.workspace_id === workspaceId);
-    return valid.find(pane => pane.pane_id === paneId) ?? valid[0];
+  const swapPanes = async (source: PaneInfo, target: PaneInfo): Promise<void> => {
+    await actions.swapPanes({ pane_id: source.pane_id, terminal_id: source.terminal_id, target_pane_id: target.pane_id, target_terminal_id: target.terminal_id },
+      source.workspace_id, machineId);
   };
+  const moveFailed = (reason: unknown) => noteError(t("Move failed: {reason}", { reason: reason instanceof Error ? reason.message : String(reason) }));
+  /** a pane of the same tab swaps places; another tab's pane gets a neighbor; a folder takes it beside its first pane */
+  const dropTarget = (workspaceId: string, paneId?: string): { pane: PaneInfo; swap: boolean } | undefined => {
+    if (!paneDrag) return undefined;
+    const hovered = snapshot?.panes.find(pane => pane.pane_id === paneId && pane.workspace_id === workspaceId);
+    if (hovered && hovered.pane_id !== paneDrag.source.pane_id && hovered.tab_id === paneDrag.source.tab_id && hovered.terminal_id) return { pane: hovered, swap: true };
+    const valid = moveTargets(snapshot?.panes ?? [], paneDrag.source).filter(pane => pane.workspace_id === workspaceId);
+    const pane = valid.find(candidate => candidate.pane_id === paneId) ?? valid[0];
+    return pane && { pane, swap: false };
+  };
+  const hoveredPane = (event: DragEvent) => (event.target as HTMLElement).closest<HTMLElement>("[data-terminal-pane]")?.dataset.terminalPane;
   const dropOn = (event: DragEvent, workspaceId: string): void => {
-    const paneId = (event.target as HTMLElement).closest<HTMLElement>("[data-terminal-pane]")?.dataset.terminalPane;
-    const target = dropTarget(workspaceId, paneId);
+    const target = dropTarget(workspaceId, hoveredPane(event));
     const source = paneDrag?.source;
     setPaneDrag(null);
     if (!target || !source) return;
     event.preventDefault();
-    void movePaneTo(source, target).catch((reason: unknown) => {
-      noteError(t("Move failed: {reason}", { reason: reason instanceof Error ? reason.message : String(reason) }));
-    });
+    void (target.swap ? swapPanes(source, target.pane) : movePaneTo(source, target.pane)).catch(moveFailed);
+  };
+  /** keyboard and phone: trade places with the previous or next pane of the same tab */
+  const neighborInTab = (pane: PaneInfo, step: -1 | 1): PaneInfo | undefined => {
+    const tab = (snapshot?.panes ?? []).filter(other => other.tab_id === pane.tab_id && other.terminal_id);
+    return tab[tab.findIndex(other => other.pane_id === pane.pane_id) + step];
   };
 
   const renderWorkspace = (workspace: WorkspaceInfo, visiblePanes: PaneInfo[], scope = "") => {
@@ -291,7 +302,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
       { key: "done", status: "done", label: t("Done"), target: summary.done },
     ];
     return <section className={`workspace${paneDrag?.over === workspace.workspace_id ? " is-pane-drop" : ""}`} data-reorder-workspace={workspace.workspace_id} key={workspace.workspace_id}
-      onDragOver={event => { if (!dropTarget(workspace.workspace_id)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move";
+      onDragOver={event => { if (!dropTarget(workspace.workspace_id, hoveredPane(event))) return; event.preventDefault(); event.dataTransfer.dropEffect = "move";
         if (paneDrag?.over !== workspace.workspace_id) setPaneDrag(drag => drag && { ...drag, over: workspace.workspace_id }); }}
       onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaneDrag(drag => drag && { ...drag, over: null }); }}
       onDrop={event => dropOn(event, workspace.workspace_id)}>
@@ -343,7 +354,9 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
             <span className="pane-number" data-pane-number={paneNumber(pane)}>{paneNumber(pane)}</span>
             <AgentMark agent={pane.agent || "shell"} size={16} /><span className="workspace-terminal-title">{displayPaneTitle(pane)}</span>
             <StatusBadge status={pane.agent_status} />
-          </button><TerminalMenu pane={pane} machineId={machineId} onRefresh={() => actions.refresh()} onMove={() => setMoveSource(pane)} /></div>)}
+          </button><TerminalMenu pane={pane} machineId={machineId} onRefresh={() => actions.refresh()} onMove={() => setMoveSource(pane)}
+            onMoveUp={neighborInTab(pane, -1) ? () => void swapPanes(pane, neighborInTab(pane, -1)!).catch(moveFailed) : undefined}
+            onMoveDown={neighborInTab(pane, 1) ? () => void swapPanes(pane, neighborInTab(pane, 1)!).catch(moveFailed) : undefined} /></div>)}
         </div>
       </div>
     </section>;

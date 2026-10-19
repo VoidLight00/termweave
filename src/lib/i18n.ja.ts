@@ -1133,4 +1133,6 @@ export const JA: Record<string, string> = {
   "Below": "下",
   "Drag to another folder or terminal to move it": "別のフォルダーやターミナルへドラッグして移動できます",
   "Move failed: {reason}": "移動できませんでした: {reason}",
+  "Move up": "上へ移動",
+  "Move down": "下へ移動",
 };

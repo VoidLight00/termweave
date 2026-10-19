@@ -68,7 +68,20 @@ try {
   await until(async () => (await where(moving.terminal_id))?.workspace_id === alpha.workspace.workspace_id, 'drag move reaches Alpha');
   console.log('PASS dragging a pane onto another folder moves it there');
 
-  // 3. phone width: the dialog fits
+  // 3. same tab: dragging one pane onto its neighbor swaps their places; Move up swaps back
+  const order = async () => (await sessionSnapshot()).panes.filter(pane => pane.workspace_id === alpha.workspace.workspace_id).map(pane => pane.terminal_id);
+  const before = await order();
+  assert.equal(before.length, 2, 'Alpha has two panes in one tab');
+  const paneOf = async (terminal: string) => (await where(terminal))!.pane_id;
+  await page.locator(`.workspace-terminal-row:has([data-terminal-pane="${await paneOf(before[1]!)}"])`)
+    .dragTo(page.locator(`.workspace-terminal-row:has([data-terminal-pane="${await paneOf(before[0]!)}"]) .workspace-terminal`));
+  await until(async () => JSON.stringify(await order()) === JSON.stringify([before[1], before[0]]), 'same-tab drag swaps the order');
+  await page.locator(`.workspace-terminal-row:has([data-terminal-pane="${await paneOf(before[0]!)}"]) .terminal-menu-toggle`).click();
+  await page.getByRole('menuitem', { name: 'Move up', exact: true }).click();
+  await until(async () => JSON.stringify(await order()) === JSON.stringify(before), 'Move up swaps back');
+  console.log('PASS same-tab drag and Move up swap places without new terminals');
+
+  // 4. phone width: the dialog fits
   await page.setViewportSize({ width: 320, height: 700 });
   await page.locator('.drawer-toggle').click();
   const back = (await where(moving.terminal_id))!;

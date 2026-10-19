@@ -13,7 +13,7 @@ import { NativePaneMove } from "./NativePaneMove.tsx";
 import { BrowserPanel } from "./BrowserPanel.tsx";
 import { dockInsertion, validDockDrag, type DockPreview } from "../lib/dockDrag.ts";
 import { spatialChord, spatialNeighbor } from "../lib/spatialFocus.ts";
-import { dock, group, groups, removeTab, resizeSplit, sanitize, updateGroup, type Edge, type Layout } from "../lib/dockLayout.ts";
+import { dock, group, groups, removeTab, resizeSplit, sanitize, swapTabs, updateGroup, type Edge, type Layout } from "../lib/dockLayout.ts";
 import { PaneTerminal, type PaneTerminalProps } from "./PaneTerminal.tsx";
 import { DockGroup } from "./DockGroup.tsx";
 import { DockDivider } from "./DockDivider.tsx";
@@ -58,9 +58,15 @@ function DockWorkspace({ machineId, panes, primaryId, ownerId, terminal, onSelec
       setTree(saved.tree);
       if (saved.primary) { onSelectPrimary(saved.primary); setFocusCreated(saved.primary); }
     };
+    // a sidebar reorder swapped two panes of this tab: their dock places follow
+    const swapped = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.machine === machineId && detail?.workspace === workspace) setTree(current => swapTabs(current, detail.a, detail.b));
+    };
     window.addEventListener('herdr-session-shell-created', completed);
-    return () => window.removeEventListener('herdr-session-shell-created', completed);
-  }, [machineId, ownerId, onSelectPrimary]);
+    window.addEventListener('termweave-dock-swap', swapped);
+    return () => { window.removeEventListener('herdr-session-shell-created', completed); window.removeEventListener('termweave-dock-swap', swapped); };
+  }, [machineId, ownerId, onSelectPrimary, workspace]);
   const [zoom, setZoom] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

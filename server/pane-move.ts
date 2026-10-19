@@ -1,6 +1,6 @@
 import { herdrRpc, sessionSnapshot } from "./herdr/client.ts";
 import { badRequest, errorResponse, jsonResponse } from "./http.ts";
-import { isMoveResult, isPaneMoveRequest, moveSnapshotError, type PaneMoveResult } from "../shared/paneMove.ts";
+import { isMoveResult, isPaneMoveRequest, isPaneSwapRequest, moveSnapshotError, swapSnapshotError, type PaneMoveResult } from "../shared/paneMove.ts";
 
 /** index.ts owns auth, origin, watch-role and machine routing. No fallback or retry. */
 export async function handlePaneMove(request: Request): Promise<Response> {
@@ -21,5 +21,20 @@ export async function handlePaneMove(request: Request): Promise<Response> {
       code: "move_outcome_unknown", message: "The move reply was unexpected. Refresh the panes. Do not repeat the move automatically.",
     } }, 502);
     return jsonResponse(result.move_result);
+  } catch (error) { return errorResponse(error); }
+}
+
+/** Same-tab reordering: herdr refuses pane.move within one tab, so the two panes swap places. */
+export async function handlePaneSwap(request: Request): Promise<Response> {
+  if (request.method !== "POST") return jsonResponse({ error: { code: "method_not_allowed", message: "use POST" } }, 405);
+  let payload: unknown;
+  try { payload = await request.json(); } catch { return badRequest("invalid_json", "request body must be JSON"); }
+  if (!isPaneSwapRequest(payload)) return badRequest("invalid_body", "two different panes and their terminal identities are required");
+  try {
+    const code = swapSnapshotError(await sessionSnapshot(), payload);
+    if (code) return jsonResponse({ error: { code, message: "Panes changed or are not in the same tab. Refresh before another move." } }, 409);
+    const result = await herdrRpc<{ swap?: { changed?: boolean } }>("pane.swap", { source_pane_id: payload.pane_id, target_pane_id: payload.target_pane_id });
+    if (typeof result?.swap?.changed !== "boolean") return jsonResponse({ error: { code: "move_outcome_unknown", message: "The swap reply was unexpected. Refresh the panes." } }, 502);
+    return jsonResponse({ changed: result.swap.changed });
   } catch (error) { return errorResponse(error); }
 }

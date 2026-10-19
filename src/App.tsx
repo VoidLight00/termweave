@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Search, SquareTerminal, Users, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane } from "../shared/protocol.ts";
-import { ApiError, authenticate, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, movePane as movePaneRequest, pairDevice, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
+import { ApiError, authenticate, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, movePane as movePaneRequest, pairDevice, swapPanes as swapPanesRequest, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
 import { deviceLabel, takePairCode } from "./lib/phone.ts";
 import { displayPaneTitle } from "./components/Sidebar.tsx";
 import { SplitTerminals } from "./components/SplitTerminals.tsx";
-import { initialWorkspaceLayout } from "./lib/sessionLayout.ts";
+import { initialWorkspaceLayout, swapStoredLayout } from "./lib/sessionLayout.ts";
 import { AccessGate } from "./components/AccessGate.tsx";
 import { AgentMark } from "./components/AgentMark.tsx";
 import { NewSessionDialog } from "./components/NewSessionDialog.tsx";
@@ -20,7 +20,7 @@ import { MachineContext } from "./lib/machineContext.tsx";
 import { MachineActionBanner, MachineSidebar } from "./components/MachineSidebar.tsx";
 import { MachineDialog } from "./components/MachineDialog.tsx";
 import { focusWorkspaceListToggle } from "./lib/focus.ts";
-import type { PaneMoveRequest, PaneMoveResult } from "../shared/paneMove.ts";
+import type { PaneMoveRequest, PaneMoveResult, PaneSwapRequest } from "../shared/paneMove.ts";
 import { paneStorageId, type Machine, type MachineEvent } from "../shared/machines.ts";
 import { takeAuthTokenFromUrl } from "./lib/authLink.ts";
 import { applyPaneStatus } from "./lib/snapshot.ts";
@@ -635,6 +635,17 @@ export function App() {
       lock: canSignOut ? () => void lock() : null,
       enableNotifications: bellVisible && !bell.on ? () => void enableNotifications() : null,
       refresh: () => void load(),
+      swapPanes: async (request: PaneSwapRequest, workspaceId: string, machineId: string) => {
+        if (movePendingRef.current) throw new Error(t("Another move is still running."));
+        movePendingRef.current = 1; setNativeMovePending(true);
+        try {
+          if (!(await swapPanesRequest(request, machineId))) throw new Error(t("No native move occurred. Check zoom and destination."));
+          // the dock is this browser's own layout: the open workspace follows by event, a closed one in storage
+          swapStoredLayout(machineId, workspaceId, request.pane_id, request.target_pane_id);
+          window.dispatchEvent(new CustomEvent("termweave-dock-swap", { detail: { machine: machineId, workspace: workspaceId, a: request.pane_id, b: request.target_pane_id } }));
+          await load();
+        } finally { movePendingRef.current = 0; setNativeMovePending(false); }
+      },
       movePane: async (request: PaneMoveRequest, machineId: string) => {
         // the same guard and selection capture the dock's native move uses: one move at a time, no retry
         if (movePendingRef.current) throw new Error(t("Another move is still running."));

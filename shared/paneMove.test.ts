@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { HerdrPane, SessionSnapshot } from "./protocol.ts";
-import { isMoveResult, isPaneMoveRequest, moveRequest, moveSnapshotError, moveTargets } from "./paneMove.ts";
+import { isMoveResult, isPaneMoveRequest, isPaneSwapRequest, moveRequest, moveSnapshotError, moveTargets, swapSnapshotError } from "./paneMove.ts";
 
 const source = { pane_id: "w1:p1", workspace_id: "w1", tab_id: "w1:t1", terminal_id: "term1" } as HerdrPane;
 const target = { pane_id: "w2:p1", workspace_id: "w2", tab_id: "w2:t1", terminal_id: "term2" } as HerdrPane;
@@ -32,5 +32,20 @@ describe("native pane move model", () => {
     expect(isMoveResult(result, request)).toBe(true);
     for (const altered of [{ ...result, previous_pane_id: "wrong" }, { ...result, pane: { ...result.pane, terminal_id: "new-shell" } }, { ...result, pane: { ...result.pane, workspace_id: "wrong" } }]) expect(isMoveResult(altered, request)).toBe(false);
     expect(isMoveResult({ changed: false, previous_pane_id: source.pane_id, pane: source, reason: "zoomed_tab" }, request)).toBe(true);
+  });
+});
+
+describe("same-tab swap model", () => {
+  const near = { ...target, workspace_id: "w1", tab_id: "w1:t1" } as HerdrPane;
+  const swap = { pane_id: source.pane_id, terminal_id: "term1", target_pane_id: near.pane_id, target_terminal_id: "term2" };
+  it("needs two different panes with terminal identities", () => {
+    expect(isPaneSwapRequest(swap)).toBe(true);
+    for (const value of [null, {}, { ...swap, target_pane_id: swap.pane_id }, { ...swap, extra: "x" }, { ...swap, terminal_id: "" }]) expect(isPaneSwapRequest(value)).toBe(false);
+  });
+  it("swaps only within one tab and only the claimed terminals", () => {
+    expect(swapSnapshotError({ ...snapshot, panes: [source, near] }, swap)).toBeNull();
+    expect(swapSnapshotError(snapshot, swap)).toBe("invalid_target");
+    expect(swapSnapshotError({ ...snapshot, panes: [source, { ...near, terminal_id: "other" }] }, swap)).toBe("stale_move");
+    expect(swapSnapshotError({ ...snapshot, panes: [source] }, swap)).toBe("pane_not_found");
   });
 });

@@ -1131,4 +1131,6 @@ export const KO: Record<string, string> = {
   "Below": "아래",
   "Drag to another folder or terminal to move it": "다른 폴더나 터미널로 끌어서 옮길 수 있습니다",
   "Move failed: {reason}": "이동하지 못했습니다: {reason}",
+  "Move up": "위로 이동",
+  "Move down": "아래로 이동",
 };

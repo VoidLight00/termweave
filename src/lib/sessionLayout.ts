@@ -1,4 +1,4 @@
-import { group, groups, parseLayout, updateGroup, type Layout } from './dockLayout.ts';
+import { group, groups, parseLayout, swapTabs, updateGroup, type Layout } from './dockLayout.ts';
 
 // v2 remains available for recovery; workspace navigation never writes or deletes it.
 export const sessionLayoutKey = (machine: string, owner: string) => `termweave:dock:session:v2:${encodeURIComponent(machine)}:${encodeURIComponent(owner)}`;
@@ -59,4 +59,8 @@ export function initialSessionLayout(machine: string, owner: string, workspace: 
     }
   } catch { /* recovery keys stay intact */ }
   return { tree: group('main', [owner]), primary: owner, workspace };
+}
+export function swapStoredLayout(machine: string, workspace: string, a: string, b: string): void {
+  const stored = readWorkspaceLayout(machine, workspace);
+  if (stored) saveWorkspaceLayout(machine, workspace, { ...stored, tree: swapTabs(stored.tree, a, b), primary: stored.primary === a ? b : stored.primary === b ? a : stored.primary });
 }

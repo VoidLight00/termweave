@@ -79,7 +79,7 @@ it("watch devices cannot move local or remote panes", async () => {
   const paired = store.pair(store.startPairing().code, "owned-watch-test", "watch")!;
   const server = createServer({ port: 0, stateDir: state, tailscaleOwner: null });
   try {
-    for (const path of ["/api/pane/move", "/api/machines/local/pane/move", "/api/machines/remote/pane/move"]) {
+    for (const path of ["/api/pane/move", "/api/machines/local/pane/move", "/api/machines/remote/pane/move", "/api/pane/swap", "/api/machines/local/pane/swap"]) {
       const response = await fetch(`http://127.0.0.1:${server.port}${path}`, { method: "POST", headers: {
         cookie: `termweave_device=${paired.token}`, "x-forwarded-for": "203.0.113.5", "x-herdr-machine": "1", "content-type": "application/json",
       }, body: "{}" });
