@@ -220,12 +220,12 @@ async function results(children: ReturnType<typeof child>[]) {
 }
 test("separate processes race for one task: exactly one winner", async () => {
   const outcomes = await results([child("same", file("src/a.ts")), child("same", file("src/b.ts"))]);
-  expect(outcomes.map((r) => r.out).sort()).toEqual(["claimed", "task_conflict"]);
-  expect(outcomes.every((r) => r.err === "")).toBe(true);
+  // code, output and stderr together, so a rare failure names its cause
+  expect(outcomes.map((r) => `${r.code}:${r.out}:${r.err}`).sort()).toEqual(["0:claimed:", "2:task_conflict:"]);
 });
 test("separate processes race for overlapping directory scopes", async () => {
   const outcomes = await results([child("a", dir("src")), child("b", file("src/a.ts"))]);
-  expect(outcomes.map((r) => r.out).sort()).toEqual(["claimed", "scope_conflict"]);
+  expect(outcomes.map((r) => `${r.code}:${r.out}:${r.err}`).sort()).toEqual(["0:claimed:", "2:scope_conflict:"]);
 });
 test("separate processes claim disjoint scopes", async () => {
   const outcomes = await results([child("a", file("src/a.ts")), child("b", file("src/b.ts"))]);

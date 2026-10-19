@@ -41,6 +41,23 @@ export async function resolveHerdrTaskOwner(explicit?: TaskOwner): Promise<Verif
   return result;
 }
 
+/** serverId is [socket path, dev, ino, birthtime, ctime]. ctime moves on chmod, so it never proves a restart. */
+function serverParts(serverId: string): { path: string; instance: string } | undefined {
+  try {
+    const [path, dev, ino, birth] = JSON.parse(serverId) as unknown[];
+    return typeof path === "string" ? { path, instance: JSON.stringify([path, dev, ino, birth]) } : undefined;
+  } catch { return undefined; }
+}
+/**
+ * An expired claim passes on only with live evidence that its owner is gone: the same herdr server no longer lists
+ * the terminal, or a new server now owns the same socket path (the old server and all its terminals exited).
+ */
+export function taskOwnerGone(held: TaskOwner, current: TaskOwner, liveTerminals: ReadonlySet<string>): boolean {
+  const before = serverParts(held.serverId); const now = serverParts(current.serverId);
+  if (held.backend !== current.backend || !before || !now || before.path !== now.path) return false;
+  return before.instance !== now.instance || !liveTerminals.has(held.terminalId);
+}
+
 function parse(args: readonly string[]): { action: string; options: Record<string, string>; scopes: TaskScope[] } {
   const [action = "", ...rest] = args;
   let options: Record<string, string> = {};
@@ -94,9 +111,8 @@ export async function runTaskCli(args: readonly string[]): Promise<void> {
     if (action === "claim") {
       // An existing receipt can belong to a previous release. It must still be private.
       try { assertPrivateFile(receipt); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
-      // An expired claim passes on only when its terminal is absent from this same live server.
       const live = new Set((await sessionSnapshot(herdrSocketPath())).panes.map((pane) => pane.terminal_id));
-      const ownerGone = (held: TaskOwner) => held.backend === owner.backend && held.serverId === owner.serverId && !live.has(held.terminalId);
+      const ownerGone = (held: TaskOwner) => taskOwnerGone(held, owner, live);
       const claim = store.claim({ projectRoot, taskId, owner, scopes, ttlMs, ownerGone });
       try { writeFileSync(receipt, JSON.stringify({ token: claim.token, owner, projectRoot, taskId }), { mode: 0o600, flag: "w" }); }
       catch (error) { store.mutate("release", { projectRoot, taskId, owner, token: claim.token }); throw error; }

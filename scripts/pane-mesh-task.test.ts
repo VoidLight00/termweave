@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { PaneMeshOwnership } from "../server/pane-mesh-ownership.ts";
-import { resolveHerdrTaskOwner } from "./pane-mesh-task.ts";
+import { resolveHerdrTaskOwner, taskOwnerGone } from "./pane-mesh-task.ts";
 
 let root: string; let socketPath: string; let stateDir: string;
 let listener: ReturnType<typeof Bun.listen>; let methods: string[];
@@ -90,4 +90,17 @@ test("explicit future-adapter identity must match live metadata", async () => {
       if (old[key] === undefined) delete process.env[key]; else process.env[key] = old[key];
     }
   }
+});
+
+test("expired claim owner counts as gone only with live evidence", () => {
+  const who = (serverId: string, terminalId = "term-1") => ({ backend: "herdr", serverId, workspaceId: "w1", tabId: "t1", paneId: "w1:p1",
+    terminalId, agentSession: { agent: "claude", kind: "id", source: "native", value: "s" } });
+  const server = (ino: number, ctime = 1, path = "/run/herdr.sock") => JSON.stringify([path, 1, ino, 100, ctime]);
+  const live = new Set(["term-1"]);
+  expect(taskOwnerGone(who(server(7)), who(server(7), "term-2"), live)).toBe(false);
+  expect(taskOwnerGone(who(server(7), "term-9"), who(server(7)), live)).toBe(true);
+  expect(taskOwnerGone(who(server(7)), who(server(7, 2)), live)).toBe(false);
+  expect(taskOwnerGone(who(server(7)), who(server(8)), live)).toBe(true);
+  expect(taskOwnerGone(who(server(7, 1, "/other.sock")), who(server(8)), live)).toBe(false);
+  expect(taskOwnerGone(who("not json"), who(server(8)), live)).toBe(false);
 });
