@@ -261,6 +261,13 @@ export function terminalTheme(theme: ResolvedTheme, palette: Palette = "amber", 
   return TERMINAL_THEMES[palette][theme];
 }
 
+/** Agents such as Claude Code paint with dark-theme colors whatever our theme is: faint greys
+ * and dark row bars vanish on a light surface. xterm lifts each foreground to this ratio
+ * (dim text to half of it); dark mode keeps the colors as sent. */
+export function terminalContrast(theme: ResolvedTheme): number {
+  return theme === "light" ? 7 : 1;
+}
+
 /** `<meta name="theme-color">` follows the panel surface so the PWA title bar matches. */
 const THEME_COLOR: Record<Palette, Record<ResolvedTheme, string>> = {
   amber: { dark: "#181613", light: "#faf8f3" },

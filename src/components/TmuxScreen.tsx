@@ -4,7 +4,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { UnicodeGraphemesAddon } from "@xterm/addon-unicode-graphemes";
 import "@xterm/xterm/css/xterm.css";
 import type { TmuxPaneState } from "../../shared/tmux.ts";
-import { terminalTheme, useSettings } from "../lib/settings.ts";
+import { terminalContrast, terminalTheme, useSettings } from "../lib/settings.ts";
 import { terminalFontStack } from "../lib/fontFamily.ts";
 import { useT } from "../lib/i18n.ts";
 
@@ -21,7 +21,7 @@ export function TmuxScreen({ target }: { target: TmuxPaneState }) {
     setConnected(false);
     let disposed = false;
     const term = new Terminal({ allowProposedApi: true, cursorBlink: true, fontSize: settings.terminalFontSize,
-      fontFamily: terminalFontStack(settings.terminalFontFamily), theme: terminalTheme(resolvedTheme, settings.palette, settings), scrollback: 10000 });
+      fontFamily: terminalFontStack(settings.terminalFontFamily), theme: terminalTheme(resolvedTheme, settings.palette, settings), minimumContrastRatio: terminalContrast(resolvedTheme), scrollback: 10000 });
     terminal.current = term;
     const fit = new FitAddon(); term.loadAddon(fit);
     const unicode = new UnicodeGraphemesAddon(); term.loadAddon(unicode); term.unicode.activeVersion = "15-graphemes";
@@ -54,7 +54,9 @@ export function TmuxScreen({ target }: { target: TmuxPaneState }) {
     return () => { disposed = true; observer.disconnect(); input.dispose(); socket.close(); term.dispose(); terminal.current = null; };
   }, [target.socket, target.generation, target.sessionId, retry, settings.terminalFontSize, settings.terminalFontFamily, settings.palette, resolvedTheme]);
   useEffect(() => {
-    if (terminal.current) terminal.current.options.theme = terminalTheme(resolvedTheme, settings.palette, settings);
+    if (!terminal.current) return;
+    terminal.current.options.theme = terminalTheme(resolvedTheme, settings.palette, settings);
+    terminal.current.options.minimumContrastRatio = terminalContrast(resolvedTheme);
   }, [resolvedTheme, settings.palette, settings.appearancePreset, settings.customColors]);
   return <section className="tmux-screen" aria-label={t("tmux terminal")}>
     <div className="tmux-screen-status" role="status">{t(connected ? "Connected to tmux" : "tmux disconnected")}

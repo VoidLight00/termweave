@@ -29,7 +29,7 @@ import { RenderBoundary } from "./RenderBoundary.tsx";
 import { Composer } from "./Composer.tsx";
 import type { AgentStatus, ClientRole, ConversationMetadata, InteractivePrompt, ServerMessage } from "../../shared/protocol.ts";
 import type { PaneView } from "../lib/actions.ts";
-import { useSettings, terminalTheme, type Palette, type ResolvedTheme } from "../lib/settings.ts";
+import { useSettings, terminalTheme, terminalContrast, type Palette, type ResolvedTheme } from "../lib/settings.ts";
 import { imeEdit, imeSpaces } from "../lib/imeDiff.ts";
 import { loadFontStack, TERMINAL_FONT_STACK, terminalFontStack } from "../lib/fontFamily.ts";
 import { useT } from "../lib/i18n.ts";
@@ -288,6 +288,7 @@ export function PaneTerminal({
       // a chosen family follows in the font effect below, once its faces have loaded
       fontFamily: TERMINAL_FONT_STACK,
       theme: terminalTheme(theme, palette, settings),
+      minimumContrastRatio: terminalContrast(theme),
       linkHandler: {
         activate: (event, uri) => {
           if (!linkPressed(event)) return;
@@ -1036,7 +1037,9 @@ export function PaneTerminal({
   // the theme follows the settings without a remount
   useEffect(() => {
     const term = termRef.current;
-    if (term) term.options.theme = terminalTheme(theme, palette, settings);
+    if (!term) return;
+    term.options.theme = terminalTheme(theme, palette, settings);
+    term.options.minimumContrastRatio = terminalContrast(theme);
   }, [theme, palette, settings.appearancePreset, settings.customColors]);
 
   // the font follows too, and a font change moves the grid. xterm measures the cell (and the DOM
