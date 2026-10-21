@@ -18,6 +18,8 @@ herdr 向けの cmux 風 Web・Mac クライアントです。ワークスペー
 
 ## クイックスタート
 
+AI エージェントの方は [AGENTS.md](AGENTS.md) を読んでください。`sh scripts/install.sh` の一行でインストールと起動ができます。
+
 macOS または Linux、Bun 1.4.2、Node 18 以上、別途インストールした herdr が必要です（macOS の herdr 0.9.1 で検証）。コマンドは通常のシェルで実行します。
 
 ```text

@@ -18,6 +18,8 @@ A cmux-style web and Mac client for herdr: docked, numbered panes per workspace,
 
 ## Quick start
 
+AI agent? Read [AGENTS.md](AGENTS.md). One command installs and starts TermWeave: `sh scripts/install.sh`.
+
 macOS or Linux, Bun 1.4.2, Node 18+ and a separately installed herdr (validated with herdr 0.9.1 on macOS). Run the commands in a normal shell.
 
 ```text

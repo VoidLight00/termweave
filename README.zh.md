@@ -18,6 +18,8 @@
 
 ## 快速开始
 
+AI 代理请阅读 [AGENTS.md](AGENTS.md)。一条命令即可安装并启动：`sh scripts/install.sh`。
+
 需要 macOS 或 Linux、Bun 1.4.2、Node 18 及以上，以及单独安装的 herdr（已在 macOS 上用 herdr 0.9.1 验证）。请在普通 shell 中运行命令。
 
 ```text

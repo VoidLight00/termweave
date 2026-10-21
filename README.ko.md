@@ -18,6 +18,8 @@ herdr를 위한 cmux 스타일 웹·맥 클라이언트입니다. 작업 공간�
 
 ## 빠른 시작
 
+AI 에이전트라면 [AGENTS.md](AGENTS.md)를 읽으십시오. `sh scripts/install.sh` 한 줄로 설치하고 실행합니다.
+
 macOS 또는 Linux, Bun 1.4.2, Node 18 이상, 그리고 별도로 설치한 herdr가 필요합니다(macOS의 herdr 0.9.1로 검증). 명령은 일반 셸에서 실행합니다.
 
 ```text
