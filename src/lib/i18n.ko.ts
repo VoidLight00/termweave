@@ -1144,4 +1144,8 @@ export const KO: Record<string, string> = {
   "Move failed: {reason}": "이동하지 못했습니다: {reason}",
   "Move up": "위로 이동",
   "Move down": "아래로 이동",
+  "Custom color": "사용자 지정 색상",
+  "Recent colors": "최근 사용한 색상",
+  "Preview: {color}": "미리 보기: {color}",
+  "Apply": "적용",
 };

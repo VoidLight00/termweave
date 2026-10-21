@@ -15,7 +15,7 @@ import { knownStatus, STATUS_WORD, workspaceStatusSummary } from "../lib/status.
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { RowMenu, type RowMenuItem } from "./RowMenu.tsx";
 import { SessionColorDialog } from "./SessionColorDialog.tsx";
-import { SESSION_COLORS, browserColorStorage, readSessionColor, sessionColorKey, writeSessionColor, type SessionColor } from "../lib/sessionColor.ts";
+import { resolveSessionColor, browserColorStorage, readSessionColor, sessionColorKey, writeSessionColor, type SessionColor } from "../lib/sessionColor.ts";
 import { focusWorkspaceListToggle } from "../lib/focus.ts";
 import { composeTitle, shortPathTitle } from "../lib/paneName.ts";
 import { useT } from "../lib/i18n.ts";
@@ -318,7 +318,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
           aria-current={selected ? "true" : undefined} title={workspace.label}
           onClick={() => onSelectWorkspace?.(workspace.workspace_id)}
           onKeyDown={event => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); onSelectWorkspace?.(workspace.workspace_id); } }}>
-          <span className="agent-mark-holder is-shell" style={{ color: SESSION_COLORS.find(c => c.id === colorOf(workspace.workspace_id))?.value }}><Folder aria-hidden="true" /></span>
+          <span className="agent-mark-holder is-shell" style={{ color: resolveSessionColor(colorOf(workspace.workspace_id)) }}><Folder aria-hidden="true" /></span>
           <span className="pane-copy"><span className="pane-primary">
             {editing ? <input className="input workspace-rename-input" aria-label={t("Workspace name")} autoFocus value={workspaceLabel}
               onClick={event => event.stopPropagation()} onChange={event => setWorkspaceLabel(event.target.value)} onBlur={() => saveWorkspaceRename(workspace.workspace_id)}

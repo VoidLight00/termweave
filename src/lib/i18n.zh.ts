@@ -1148,4 +1148,8 @@ export const ZH: Record<string, string> = {
   "Move failed: {reason}": "移动失败: {reason}",
   "Move up": "上移",
   "Move down": "下移",
+  "Custom color": "自定义颜色",
+  "Recent colors": "最近使用的颜色",
+  "Preview: {color}": "预览：{color}",
+  "Apply": "应用",
 };

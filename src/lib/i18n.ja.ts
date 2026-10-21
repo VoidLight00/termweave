@@ -1146,4 +1146,8 @@ export const JA: Record<string, string> = {
   "Move failed: {reason}": "移動できませんでした: {reason}",
   "Move up": "上へ移動",
   "Move down": "下へ移動",
+  "Custom color": "カスタムカラー",
+  "Recent colors": "最近使った色",
+  "Preview: {color}": "プレビュー: {color}",
+  "Apply": "適用",
 };
