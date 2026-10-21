@@ -578,6 +578,11 @@ button {
   border-color: var(--accent);
 }
 
+/* blocked or unsupported: the crossed bell stays, muted, and opens the settings */
+.bell-button.is-blocked {
+  color: var(--text-dim);
+}
+
 /* ---------- primitives ---------- */
 
 .icon-button {

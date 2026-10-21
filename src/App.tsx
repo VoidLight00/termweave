@@ -1,7 +1,7 @@
 import { initialPaneView, readPaneView, writePaneView } from "./lib/paneView.ts";
 import { adjacentWorkspacePane } from "./lib/workspaceNavigation.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Search, SquareTerminal, Users, X } from "lucide-react";
+import { Bell, BellOff, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Search, SquareTerminal, Users, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane } from "../shared/protocol.ts";
 import { ApiError, authenticate, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, movePane as movePaneRequest, pairDevice, swapPanes as swapPanesRequest, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
@@ -579,8 +579,20 @@ export function App() {
     [selectedPaneId, selectedMachineId],
   );
 
+  // a blocked or missing Notification API keeps the bell, crossed out, instead of hiding it: a
+  // bell that vanished on the tap that got it denied read as a broken button
+  const bellBlocked = notifications === "unsupported" || notifications === "denied";
   const bell: { label: string; title: string; on: boolean; run: () => Promise<unknown> } =
-    notifications !== "granted"
+    bellBlocked
+      ? {
+          label: t("Notifications blocked"),
+          title: notifications === "denied"
+            ? t("This browser blocked notifications. Allow them in the site or app settings. In-app alerts still show.")
+            : t("System notifications are not available here. In-app alerts still show."),
+          on: false,
+          run: async () => setSettingsOpen(true),
+        }
+    : notifications !== "granted"
       ? { label: t("Enable notifications"), title: t("Notify me when a pane needs input or finishes"), on: false, run: enableNotifications }
       : !alertsOn
         ? { label: t("Alerts off"), title: t("Alerts off on this device — tap to turn them on"), on: false, run: enableNotifications }
@@ -595,7 +607,7 @@ export function App() {
               on: true,
               run: disableNotifications,
             };
-  const bellVisible = notifications !== "unsupported" && notifications !== "denied";
+  const bellVisible = !bellBlocked;
 
   useEffect(() => {
     document.title = selectedTitle ? `${selectedTitle} · TermWeave` : APP_TITLE;
@@ -772,18 +784,16 @@ export function App() {
           <button type="button" className="icon-button" aria-label={t("Command palette")} title={t("Command palette (⌘⇧K)")} onClick={() => setPaletteOpen(true)}>
             <Search />
           </button>
-          {bellVisible && (
-            <button
-              type="button"
-              className={`icon-button bell-button${bell.on ? " is-on" : ""}`}
-              aria-label={bell.label}
-              aria-pressed={bell.on}
-              title={bell.title}
-              onClick={() => void bell.run()}
-            >
-              <Bell />
-            </button>
-          )}
+          <button
+            type="button"
+            className={`icon-button bell-button${bell.on ? " is-on" : ""}${bellBlocked ? " is-blocked" : ""}`}
+            aria-label={bell.label}
+            aria-pressed={bellBlocked ? undefined : bell.on}
+            title={bell.title}
+            onClick={() => void bell.run()}
+          >
+            {bellBlocked ? <BellOff /> : <Bell />}
+          </button>
           {canSignOut && (
             <button type="button" className="icon-button lock-button header-desktop-only" aria-label={t("Sign out")} title={t("Sign out")} onClick={() => void lock()}>
               <Lock />
