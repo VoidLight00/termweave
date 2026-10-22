@@ -19,7 +19,7 @@ export class PaneNumbers {
     mkdirSync(this.directory, { recursive: true, mode: 0o700 });
     const path = join(this.directory, "pane-numbers.sqlite");
     for (const candidate of [this.directory, path]) {
-      try { const info = lstatSync(candidate); if (info.isSymbolicLink() || info.uid !== process.getuid?.()) throw new Error("Untrusted pane number store"); }
+      try { const info = lstatSync(candidate); if (info.isSymbolicLink() || (process.getuid !== undefined && info.uid !== process.getuid())) throw new Error("Untrusted pane number store"); }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     }
     const db = new Database(path, { create: true });

@@ -1,3 +1,4 @@
+import { WorkspaceColors, isWorkspaceColor } from "./workspace-colors.ts";
 import { AndroidRuntime } from "./android/runtime.ts";
 import { handleAndroidRequest } from "./android/api.ts";
 import { OpenRigRuntime } from "./openrig/runtime.ts";
@@ -306,6 +307,7 @@ export function createServer(
   const mobileRelay = options.mobileRelay ?? new MobileRelayGateway(options.stateDir ?? defaultStateDir());
   const tmux = options.tmux ?? new TmuxRuntime(join(options.stateDir ?? defaultStateDir(), "tmux"));
   const tmuxClients = new Set<TmuxTerminal>();
+  const workspaceColors = new WorkspaceColors(options.stateDir ?? defaultStateDir());
   const paneNumbers = new PaneNumbers(options.stateDir ?? defaultStateDir(), socketPath());
   /** whether this bridge can `terminal attach`: herdr is asked once, and the PTY sidecar has to be runnable here (server/pty/sidecar.ts) */
   /** whether the sidecar can run, settled as the server starts so that attach, /api/health and /api/bridge tell one answer; a forced answer (tests) stands in for it */
@@ -1294,6 +1296,20 @@ export function createServer(
         }
       }
 
+      if (pathname === "/api/workspace/colors") {
+        if (request.method === "GET") return jsonResponse({ colors: workspaceColors.all() });
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use GET or POST");
+        let payload: { workspace_id?: unknown; color?: unknown };
+        try { payload = (await request.json()) as typeof payload; } catch { return badRequest("invalid_json", "request body must be JSON"); }
+        if (!isJsonObject(payload) || typeof payload.workspace_id !== "string" || !payload.workspace_id || payload.workspace_id.length > 200) {
+          return badRequest("missing_workspace_id", "workspace_id is required");
+        }
+        if (payload.color !== null && !isWorkspaceColor(payload.color)) return badRequest("invalid_color", "color must be a preset id, #rrggbb or null");
+        workspaceColors.set(payload.workspace_id, payload.color as string | null);
+        broadcastAll({ type: "session-changed" });
+        return jsonResponse({ ok: true });
+      }
+
       if (pathname === "/api/workspace/rename" || pathname === "/api/workspace/move" || pathname === "/api/workspace/close") {
         if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
         let payload: { workspace_id?: unknown; label?: unknown; insert_index?: unknown };
@@ -1316,6 +1332,8 @@ export function createServer(
           if (pathname === "/api/workspace/rename") await workspaceRename(payload.workspace_id, payload.label as string);
           else if (pathname === "/api/workspace/move") await workspaceMove(payload.workspace_id, payload.insert_index as number);
           else await workspaceClose(payload.workspace_id);
+          // herdr does not report every rename or move: tell the other screens now
+          broadcastAll({ type: "session-changed" });
           return jsonResponse({ ok: true });
         } catch (error) {
           return errorResponse(error);

@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { piAgentDir } from "./pi-models.ts";
 import { join, relative, sep } from "node:path";
@@ -140,7 +141,7 @@ function piTemplates(root: string, source: SlashCommand["source"]): SlashCommand
   return result;
 }
 
-export function paneCommands(agent: string | null | undefined, cwd: string | null | undefined, home = process.env.HOME ?? ""): SlashCommand[] {
+export function paneCommands(agent: string | null | undefined, cwd: string | null | undefined, home = process.env.HOME || homedir()): SlashCommand[] {
   if (!agent || !(agent in BUILTINS)) return [];
   const commands: SlashCommand[] = (BUILTINS[agent] ?? []).map((name) => ({ name, description: (agent === "pi" ? PI_DESCRIPTIONS[name] : undefined) ?? DESCRIPTIONS[name] ?? `Run /${name}`, source: "builtin" }));
   if (agent === "claude") {

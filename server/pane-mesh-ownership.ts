@@ -4,6 +4,8 @@ import { closeSync, existsSync, lstatSync, mkdirSync, openSync, realpathSync, st
 import { homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+/** Windows reports no POSIX permission bits (stat.mode looks world-writable); its ACLs guard the profile. */
+const POSIX_MODES = process.platform !== "win32";
 
 export interface TaskOwner {
   backend: string;
@@ -118,7 +120,7 @@ export function scopesOverlap(a: TaskScope, b: TaskScope): boolean {
 }
 
 export function defaultOwnershipStateDir(): string {
-  return join(process.env.XDG_STATE_HOME ?? join(process.env.HOME ?? homedir(), ".local", "state"), "termweave-pane-mesh");
+  return join(process.env.XDG_STATE_HOME ?? join(process.env.HOME || homedir(), ".local", "state"), "termweave-pane-mesh");
 }
 /** State must not be tracked by Git, symlinked, shared, or owned by another uid. */
 export function protectOwnershipState(directory: string): string {
@@ -136,12 +138,12 @@ export function protectOwnershipState(directory: string): string {
   }
   if (!existsSync(path)) mkdirSync(path, { recursive: true, mode: 0o700 });
   const info = lstatSync(path);
-  if (!info.isDirectory() || (info.mode & 0o077) !== 0 || (process.getuid && info.uid !== process.getuid())) fail("unsafe_state");
+  if (!info.isDirectory() || (POSIX_MODES && (info.mode & 0o077) !== 0) || (process.getuid && info.uid !== process.getuid())) fail("unsafe_state");
   return realpathSync(path);
 }
 export function assertPrivateFile(path: string): void {
   const info = lstatSync(path);
-  if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1 || (info.mode & 0o077) !== 0 || (process.getuid && info.uid !== process.getuid())) fail("unsafe_state");
+  if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1 || (POSIX_MODES && (info.mode & 0o077) !== 0) || (process.getuid && info.uid !== process.getuid())) fail("unsafe_state");
 }
 function checkDatabaseHeader(path: string): void {
   const info = statSync(path);

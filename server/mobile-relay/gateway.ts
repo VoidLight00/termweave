@@ -26,7 +26,7 @@ export class MobileRelayGateway {
   private state: MobileRelayState = {type:"mobile-relay-state",configured:false,endpoint:null,connected:false,relayConnected:false,sharing:false,inputAllowed:false,streamId:null,error:null,revocationConfirmed:false};
   constructor(private stateDir: string, private connectSocket = (c:Config) => new AuthSocket(c.endpoint,{headers:{Authorization:`Bearer ${c.viewerToken}`}})) {
     this.file=join(stateDir,"mobile-relay.json");
-    try {const stat=lstatSync(this.file);if(!stat.isFile()||stat.isSymbolicLink()||(stat.mode&0o077)!==0||stat.uid!==process.getuid?.())throw new Error();this.config=this.validate(JSON.parse(readFileSync(this.file,"utf8")));this.state.configured=true;this.state.endpoint=this.config.endpoint;}catch{this.config=null;}
+    try {const stat=lstatSync(this.file);if(!stat.isFile()||stat.isSymbolicLink()||(process.platform!=="win32"&&(stat.mode&0o077)!==0)||(process.getuid!==undefined&&stat.uid!==process.getuid()))throw new Error();this.config=this.validate(JSON.parse(readFileSync(this.file,"utf8")));this.state.configured=true;this.state.endpoint=this.config.endpoint;}catch{this.config=null;}
   }
   private validate(body: Record<string, unknown>): Config {
     if(typeof body.endpoint!=="string"||typeof body.viewerToken!=="string")throw new Error("invalid_relay_config");

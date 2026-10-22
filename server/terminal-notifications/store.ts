@@ -19,7 +19,7 @@ export class TerminalNotificationStore {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     const path = join(directory, "terminal-notifications.sqlite");
     for (const entry of [directory, path, `${path}-wal`, `${path}-shm`]) {
-      try { const stat = lstatSync(entry); if (stat.isSymbolicLink() || stat.uid !== process.getuid?.()) throw new Error("Untrusted notification store"); }
+      try { const stat = lstatSync(entry); if (stat.isSymbolicLink() || (process.getuid !== undefined && stat.uid !== process.getuid())) throw new Error("Untrusted notification store"); }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
     }
     this.db = new Database(path, { create: true }); chmodSync(path, 0o600);

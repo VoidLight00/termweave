@@ -460,3 +460,12 @@ export async function saveVoiceConfig(update: VoiceConfigUpdate): Promise<VoiceS
   if (!response.ok) throw await errorFrom("/api/voice/config", response);
   return (await response.json()) as VoiceStatus;
 }
+
+/** GET /api/workspace/colors: folder colors shared by every screen of this server. */
+export async function fetchWorkspaceColors(machineId = "local"): Promise<Record<string, string>> {
+  return (await getJson<{ colors: Record<string, string> }>(machinePath(machineId, "workspace/colors"))).colors;
+}
+
+export async function setWorkspaceColor(workspaceId: string, color: string | null, machineId = "local"): Promise<void> {
+  await sendJson(machinePath(machineId, "workspace/colors"), "POST", { workspace_id: workspaceId, color });
+}

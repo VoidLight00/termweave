@@ -15,7 +15,7 @@ import { knownStatus, STATUS_WORD, workspaceStatusSummary } from "../lib/status.
 import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import { RowMenu, type RowMenuItem } from "./RowMenu.tsx";
 import { SessionColorDialog } from "./SessionColorDialog.tsx";
-import { resolveSessionColor, browserColorStorage, readSessionColor, sessionColorKey, writeSessionColor, type SessionColor } from "../lib/sessionColor.ts";
+import { resolveSessionColor, browserColorStorage, readSessionColor, sessionColorKey, toSessionColor, writeSessionColor, type SessionColor } from "../lib/sessionColor.ts";
 import { focusWorkspaceListToggle } from "../lib/focus.ts";
 import { composeTitle, shortPathTitle } from "../lib/paneName.ts";
 import { useT } from "../lib/i18n.ts";
@@ -98,10 +98,29 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
   const machineId = useMachineId();
   // cmux-style session color: per browser, per PC and workspace, shown on the folder mark
   const [colorTarget, setColorTarget] = useState<{ id: string; label: string } | null>(null);
-  const [colorVersion, setColorVersion] = useState(0);
   const colorKey = (workspaceId: string): string => sessionColorKey(window.location.origin, machineId, workspaceId);
-  const colorOf = (workspaceId: string): SessionColor | null => { void colorVersion; return readSessionColor(browserColorStorage(), colorKey(workspaceId)); };
-  const { closeWorkspace, moveWorkspace, renameWorkspace } = useMachineApi();
+  const { closeWorkspace, moveWorkspace, renameWorkspace, fetchWorkspaceColors, setWorkspaceColor } = useMachineApi();
+  // colors live on the server so the app and every browser match; null = an older server, keep this browser's own
+  const [serverColors, setServerColors] = useState<Record<string, string> | null>(null);
+  const [colorVersion, setColorVersion] = useState(0);
+  useEffect(() => {
+    let live = true;
+    fetchWorkspaceColors().then(colors => {
+      if (!live) return;
+      // one-time carry-over: a color this browser kept before the server stored them
+      const local = (snapshot?.workspaces ?? []).flatMap(w => { const c = readSessionColor(browserColorStorage(), colorKey(w.workspace_id)); return c && !colors[w.workspace_id] ? [[w.workspace_id, c] as const] : []; });
+      for (const [id, color] of local) { void setWorkspaceColor(id, color).catch(() => undefined); writeSessionColor(browserColorStorage(), colorKey(id), null); }
+      setServerColors({ ...colors, ...Object.fromEntries(local) });
+    }, () => { if (live) setServerColors(null); });
+    return () => { live = false; };
+  }, [snapshot, colorVersion]);
+  useEffect(() => {
+    const changed = () => setColorVersion(v => v + 1);
+    window.addEventListener("termweave:session-changed", changed);
+    return () => window.removeEventListener("termweave:session-changed", changed);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const colorOf = (workspaceId: string): SessionColor | null => serverColors
+    ? toSessionColor(serverColors[workspaceId]) : readSessionColor(browserColorStorage(), colorKey(workspaceId));
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [moveSource, setMoveSource] = useState<PaneInfo | null>(null);
   const [paneDrag, setPaneDrag] = useState<{ source: PaneInfo; over: string | null } | null>(null);
@@ -381,7 +400,13 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
         onMove={(target, split) => movePaneTo(moveSource, target, split)} onClose={() => setMoveSource(null)} />}
       {menu && <RowMenu anchor={menu.anchor} title={menu.workspace.label} items={menuItems(menu)} onClose={closeMenu} />}
       {colorTarget && <SessionColorDialog title={t("Session color: {name}", { name: colorTarget.label })} selected={colorOf(colorTarget.id)}
-        onSelect={color => { writeSessionColor(browserColorStorage(), colorKey(colorTarget.id), color); setColorVersion(v => v + 1); }}
+        onSelect={color => {
+          const id = colorTarget.id;
+          if (!serverColors) { writeSessionColor(browserColorStorage(), colorKey(id), color); setColorVersion(v => v + 1); return; }
+          const { [id]: _, ...rest } = serverColors;
+          setServerColors(color === null ? rest : { ...rest, [id]: color });
+          setWorkspaceColor(id, color).catch(() => setColorVersion(v => v + 1));
+        }}
         onClose={() => setColorTarget(null)} />}
       {confirm && <ConfirmDialog title={confirm.title} body={confirm.body} confirmLabel={t("Close")} onConfirm={confirm.run} onClose={() => setConfirm(null)} />}
     </div>

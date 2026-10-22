@@ -1,0 +1,15 @@
+server:
+  - changed-files:
+      - any-glob-to-any-file: ['server/**', 'shared/**']
+ui:
+  - changed-files:
+      - any-glob-to-any-file: ['src/**', 'public/**', 'index.html']
+mobile:
+  - changed-files:
+      - any-glob-to-any-file: ['android/**', 'mobile/**']
+docs:
+  - changed-files:
+      - any-glob-to-any-file: ['**/*.md', 'docs/**']
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ['.github/**', 'scripts/**']

@@ -359,6 +359,8 @@ export function App() {
         if (pane) showPaneEndedNotification(message.pane_id, `${machine.name} · ${displayPaneTitle(pane)}`, () => selectTargetRef.current(machine.id, message.pane_id), machine.id);
       }
       if (message.type === "session-changed" || message.type === "pane-exited") scheduleRefetch();
+      // a color change leaves the snapshot equal: the sidebar re-reads colors on this
+      if (message.type === "session-changed") window.dispatchEvent(new Event("termweave:session-changed"));
     };
     return () => events.close();
   }, [locked, scheduleRefetch, dropIn]);
