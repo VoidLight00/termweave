@@ -394,6 +394,8 @@ describe("startStatusCollector recovery", () => {
     await tick(20);
     herdr.setPanes([paneOf("w1:p1", "working"), paneOf("w1:p2", "idle"), paneOf("w2:p1", "idle")]);
     herdr.status()!.start();
+    // a slow CI runner needs more than a fixed tick: wait for the finish to be told
+    await fixtureWaiter()(() => log.statuses.length > 0, "p2 finish");
     await tick(20);
     // p2's finish is told; p1 was taken in anew by the snapshot that saw the new pane, and did not change since
     expect(log.statuses).toEqual(["w1:p2:idle (was working)"]);
