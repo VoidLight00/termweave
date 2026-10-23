@@ -8,14 +8,21 @@ process, so agents come back as empty shells. This fills that gap.
   termweave-resurrect snapshot   record current pane -> agent session map
   termweave-resurrect restore    resume agents if the snapshot is from a previous boot
   termweave-resurrect daemon     restore once, then snapshot every 60s (LaunchAgent)
+
+Agents started through a proxy wrapper (claude-code-router, LiteLLM, a Codex
+provider profile) must be resumed through that wrapper. The wrapper exports
+TERMWEAVE_RESUME_CMD_B64 (base64 of a shell command with {id}) and optionally
+TERMWEAVE_RESUME_HEALTH (a URL that must answer first). A proxied agent without
+that hint is left alone: a plain resume would silently switch its model.
+See docs/proxy-session-restore.md.
 """
-import json, os, re, subprocess, sys, time
+import base64, json, os, re, shutil, subprocess, sys, time
 from pathlib import Path
 
 HOME = Path.home()
 STATE = Path(os.environ.get("TERMWEAVE_RESURRECT_STATE", HOME / ".local/state/termweave/resurrect.json"))
 LOG = HOME / ".local/state/termweave/resurrect.log"
-HERDR = "/opt/homebrew/bin/herdr"
+HERDR = shutil.which("herdr") or "/opt/homebrew/bin/herdr"
 UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 
 
@@ -42,10 +49,34 @@ def panes():
     return {p["pane_id"]: p for p in json.loads(out)["result"]["panes"]}
 
 
-def pane_of(pid):
-    _, out = run("ps", "eww", "-o", "command=", "-p", str(pid))
-    m = re.search(r"HERDR_PANE_ID=(\S+)", out)
+def env_of(pid):
+    """Command line plus environment of pid, as `ps eww` prints it."""
+    return run("ps", "eww", "-o", "command=", "-p", str(pid))[1]
+
+
+def pane_of(env):
+    m = re.search(r"HERDR_PANE_ID=(\S+)", env)
     return m.group(1) if m else None
+
+
+HINT = re.compile(r"(?<!\S)(TERMWEAVE_RESUME_CMD_B64|TERMWEAVE_RESUME_HEALTH|ANTHROPIC_BASE_URL|OPENAI_BASE_URL)=(\S+)")
+CODEX_PROVIDER = re.compile(r"(?<!\S)(--profile|-p)(?=[\s=])|model_provider")
+
+
+def launcher(env, cmd=""):
+    """Resume hints a wrapper left in the agent environment (cmd: argv without env)."""
+    kv = dict(HINT.findall(env))
+    hint = {}
+    if "ANTHROPIC_BASE_URL" in kv or "OPENAI_BASE_URL" in kv or CODEX_PROVIDER.search(cmd):
+        hint["proxied"] = True
+    if "TERMWEAVE_RESUME_CMD_B64" in kv:
+        try:
+            hint["resume"] = base64.b64decode(kv["TERMWEAVE_RESUME_CMD_B64"], validate=True).decode()
+        except ValueError:  # binascii.Error and UnicodeDecodeError: never guess a plain resume
+            hint["proxied"] = True
+    if "TERMWEAVE_RESUME_HEALTH" in kv:
+        hint["health"] = kv["TERMWEAVE_RESUME_HEALTH"]
+    return hint
 
 
 def claude_sessions():
@@ -57,9 +88,10 @@ def claude_sessions():
             continue
         if d.get("kind") != "interactive" or not d.get("sessionId"):
             continue
-        pane = pane_of(d["pid"])
+        env = env_of(d["pid"])
+        pane = pane_of(env)
         if pane:
-            found[pane] = {"kind": "claude", "id": d["sessionId"], "cwd": d.get("cwd")}
+            found[pane] = {"kind": "claude", "id": d["sessionId"], "cwd": d.get("cwd"), **launcher(env)}
     return found
 
 
@@ -70,7 +102,8 @@ def codex_sessions():
         _, cmd = run("ps", "-o", "command=", "-p", pid)
         if "app-server" in cmd or " exec" in cmd:
             continue
-        pane = pane_of(pid)
+        env = env_of(pid)
+        pane = pane_of(env)
         if not pane:
             continue
         _, files = run("lsof", "-p", pid, "-Fn")
@@ -78,7 +111,7 @@ def codex_sessions():
         ids = UUID.findall(rollouts[-1]) if rollouts else []
         _, cwd = run("lsof", "-a", "-p", pid, "-d", "cwd", "-Fn")
         cwd = next((l[1:] for l in cwd.splitlines() if l.startswith("n")), None)
-        found[pane] = {"kind": "codex", "id": ids[-1] if ids else None, "cwd": cwd}
+        found[pane] = {"kind": "codex", "id": ids[-1] if ids else None, "cwd": cwd, **launcher(env, cmd)}
     return found
 
 
@@ -95,7 +128,13 @@ def snapshot():
 
 
 def resume_cmd(a):
+    """Shell command that resumes agent a, or None to leave the pane empty."""
     cd = f"cd {sh(a['cwd'])} && " if a.get("cwd") else ""
+    if a.get("resume"):
+        # the wrapper's own command keeps its router, model and context window
+        return cd + a["resume"].replace("{id}", a["id"]) if UUID.fullmatch(a.get("id") or "") else None
+    if a.get("proxied"):
+        return None  # a plain resume would silently switch the model; a human resumes it
     if a["kind"] == "claude":
         return f"{cd}claude --resume {a['id']}"
     # ponytail: codex without a readable rollout id falls back to --last in that cwd
@@ -104,6 +143,15 @@ def resume_cmd(a):
 
 def sh(s):
     return "'" + s.replace("'", "'\\''") + "'"
+
+
+def answers(url, tries=60):
+    """True once url gives any HTTP status. The router may start after this daemon."""
+    for _ in range(tries):
+        if run("curl", "-s", "-m", "2", "-o", "/dev/null", "-w", "%{http_code}", url)[1].strip() not in ("", "000"):
+            return True
+        time.sleep(2)
+    return False
 
 
 def restore():
@@ -120,6 +168,7 @@ def restore():
             time.sleep(2)
     else:
         return log("restore: herdr not ready after 120s")
+    up = {}  # health URL -> answered, so each router is waited for once
     for pane, a in data["panes"].items():
         p = live.get(pane)
         if not p:
@@ -128,7 +177,17 @@ def restore():
         if p.get("agent"):
             log(f"restore: {pane} already runs {p['agent']}, skip")
             continue
-        rc, out = run(HERDR, "pane", "run", pane, resume_cmd(a))
+        cmd = resume_cmd(a)
+        if not cmd:
+            log(f"restore: {pane} {a['kind']} {a.get('id')} proxied without a usable resume hint, left empty")
+            continue
+        url = a.get("health")
+        if url and url not in up:
+            up[url] = answers(url)
+        if url and not up[url]:
+            log(f"restore: {pane} {a['kind']} {a.get('id')} {url} did not answer in 120s, left empty")
+            continue
+        rc, out = run(HERDR, "pane", "run", pane, cmd)
         log(f"restore: {pane} {a['kind']} {a.get('id')} rc={rc} {out.strip()[:200]}")
     data["boot"] = boot_id()  # mark consumed so a daemon restart never replays it
     STATE.write_text(json.dumps(data, ensure_ascii=False, indent=1))
@@ -155,6 +214,6 @@ if __name__ == "__main__":
         daemon()
     elif mode == "cmd":  # print what restore would run, without running it
         for pane, a in json.loads(STATE.read_text())["panes"].items():
-            print(pane, "->", resume_cmd(a))
+            print(pane, "->", resume_cmd(a) or "(left empty: proxied without a resume hint)")
     else:
         sys.exit(f"unknown mode: {mode}")

@@ -52,6 +52,7 @@ Never print, log or commit a token.
 - Cloudflare tunnel: same token rules. Ask first.
 - Android companion: build from `mobile/android`. See `docs/mobile-android-integration.md`.
 - OpenRig teams: turn on later from the OpenRig panel in the app.
+- Resume agents after a reboot (macOS): follow `docs/proxy-session-restore.md`. If the person starts Claude Code or Codex through a proxy or wrapper (claude-code-router, LiteLLM, `ANTHROPIC_BASE_URL`, `codex --profile`), step 4 of that guide is required. Without it, a resumed session can switch to a different model.
 
 ## Common errors
 
