@@ -71,6 +71,8 @@ export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }
   const send = useCallback(() => {
     if (!connected || terminalDraftSending(owner) || composing.current) return;
     setNote(null);
+    // the stored line, not this render's: a send that waited for an IME commit runs before the re-render
+    const text = readTerminalDraft(owner);
     if (text.length === 0) {
       if (!onEnter()) setNote(t("Not sent: the terminal is disconnected."));
       return;
@@ -87,7 +89,29 @@ export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }
         acknowledgeTerminalDraft(owner);
       } else setNote(result);
     }).catch(() => setNote(t("Not confirmed. Check the terminal before sending again."))).finally(() => { setTerminalDraftSending(owner, false); });
-  }, [connected, dictation.forget, onEnter, onSend, owner, setText, t, text]);
+  }, [connected, dictation.forget, onEnter, onSend, owner, t]);
+
+  // A phone keyboard keeps the last syllable open, and the button keeps focus in the box, so a
+  // tap on Send arrived mid-composition and was dropped. Commit the syllable first, then send.
+  const sendLatest = useRef(send);
+  sendLatest.current = send;
+  const sendAfterCommit = useRef(false);
+  const finishCommitSend = useCallback(() => {
+    if (!sendAfterCommit.current) return;
+    sendAfterCommit.current = false;
+    composing.current = false;
+    composingCallback.current?.(false);
+    setTimeout(() => sendLatest.current(), 0); // after the commit's input event
+  }, []);
+  const onSendClick = (): void => {
+    if (!composing.current) { send(); return; }
+    sendAfterCommit.current = true;
+    const element = box.current;
+    element?.blur(); // ends the composition: compositionend, then the committed text
+    element?.focus({ preventScroll: true });
+    // ponytail: a keyboard that never reports compositionend on blur sends what the box shows
+    setTimeout(finishCommitSend, 250);
+  };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     // Enter sends; Shift+Enter breaks the line; an IME keeps its Enter, including the committing
@@ -121,7 +145,7 @@ export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }
         value={text}
         maxLength={TERMINAL_LINE_LIMIT}
         onCompositionStart={() => { composing.current = true; onComposing?.(true); }}
-        onCompositionEnd={() => { composing.current = false; onComposing?.(false); }}
+        onCompositionEnd={() => { composing.current = false; onComposing?.(false); finishCommitSend(); }}
         placeholder={t("Type for the terminal…")}
         aria-label={t("Terminal input line")}
         enterKeyHint="send"
@@ -138,7 +162,7 @@ export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }
         disabled={!connected || sending}
         // the soft keyboard stays up for the next line
         onPointerDown={(event) => event.preventDefault()}
-        onClick={send}
+        onClick={onSendClick}
       >
         {text.length === 0 ? <CornerDownLeft aria-hidden="true" /> : <SendHorizontal aria-hidden="true" />}
       </button>
