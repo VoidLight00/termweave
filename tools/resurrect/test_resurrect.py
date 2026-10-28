@@ -56,4 +56,21 @@ with tempfile.TemporaryDirectory() as d:
     log = r.LOG.read_text()
     assert log.count("did not answer") == 2 and "left empty" in log and "c claude" in log
     assert json.loads(r.STATE.read_text())["boot"] == "new"
+
+    # a restore that brought no agent back survives snapshots until an agent runs there
+    assert set(json.loads(r.STATE.read_text())["pending"]) == {"a", "b", "c", "d"}
+    r.claude_sessions, r.codex_sessions = lambda: {"d": {"kind": "claude", "id": ID}}, lambda: {}
+    snap = r.snapshot()
+    assert set(snap["pending"]) == {"a", "b", "c"} and snap["panes"]["a"] == dead, snap
+    assert r.snapshot()["pending"] == snap["pending"]  # stable across snapshots
+
+    # retry runs only the pending panes, even in the same boot
+    calls.clear()
+    r.restore()  # same boot: nothing
+    assert not [c for c in calls if c[:3] == (r.HERDR, "pane", "run")]
+    data = json.loads(r.STATE.read_text())
+    data["pending"] = {"a": {"kind": "claude", "id": ID, "resume": TPL}}
+    r.STATE.write_text(json.dumps(data))
+    r.restore(retry=True)
+    assert [c[3] for c in calls if c[:3] == (r.HERDR, "pane", "run")] == ["a"]
 print("test_resurrect: ok")

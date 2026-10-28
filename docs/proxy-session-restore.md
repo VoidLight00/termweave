@@ -106,6 +106,7 @@ Obey these rules:
 4. Do not put a token, key or password in the command. The snapshot stores the command as plain text.
 5. Use the permanent address of the router for `TERMWEAVE_RESUME_HEALTH`. Do not use a temporary relay port.
 6. Keep the base64 value on one line.
+7. Make the wrapper find the agent binary by an absolute path if `command -v claude` fails. A shell function or alias named `claude` in `~/.zshrc` does not exist in a bash wrapper. After a reinstall moves the binary, every resume fails with "not found".
 
 Bash wrapper that starts Claude Code through a router:
 
@@ -176,6 +177,8 @@ Do this test. Do not report success without it.
 10. Find the new PID of the same `sessionId`. Run `ps eww -o command= -p <pid>`. Expected: `TERMWEAVE_RESUME_CMD_B64=` is present.
 11. Search the transcript `~/.claude/projects/*/<sessionId>.jsonl` for `could not be restored` and `Switched to`. Expected: zero matches.
 12. Close the test workspace: `herdr workspace close <workspace_id>`.
+
+If a resume fails (the router is down, or the wrapper exits), the pane stays in `pending` in the snapshot until an agent runs in it again. The next boot tries again. To try again now, run `python3 ~/.local/bin/termweave-resurrect retry`.
 
 Fail-closed check (optional, 2 minutes): repeat steps 6 to 8 with `health` set to `http://127.0.0.1:1/`. Expected: after 120 seconds, `~/.local/state/termweave/resurrect.log` says `did not answer in 120s, left empty`. The pane stays a shell.
 

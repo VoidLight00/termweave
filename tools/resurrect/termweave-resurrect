@@ -8,6 +8,11 @@ process, so agents come back as empty shells. This fills that gap.
   termweave-resurrect snapshot   record current pane -> agent session map
   termweave-resurrect restore    resume agents if the snapshot is from a previous boot
   termweave-resurrect daemon     restore once, then snapshot every 60s (LaunchAgent)
+  termweave-resurrect retry      resume the panes whose restore did not bring an agent back
+
+A pane whose restore fails (router down, wrapper error) keeps its entry in
+"pending" until an agent runs in it again, so the next boot or `retry` tries
+again instead of forgetting the session.
 
 Agents started through a proxy wrapper (claude-code-router, LiteLLM, a Codex
 provider profile) must be resumed through that wrapper. The wrapper exports
@@ -119,7 +124,10 @@ def snapshot():
     live = panes()
     agents = {**codex_sessions(), **claude_sessions()}
     agents = {k: v for k, v in agents.items() if k in live}
-    data = {"boot": boot_id(), "saved": time.strftime("%F %T"), "panes": agents}
+    old = json.loads(STATE.read_text()).get("pending", {}) if STATE.exists() else {}
+    # a failed restore stays until an agent runs in that pane again
+    pending = {k: v for k, v in old.items() if k in live and k not in agents and not live[k].get("agent")}
+    data = {"boot": boot_id(), "saved": time.strftime("%F %T"), "panes": {**pending, **agents}, "pending": pending}
     STATE.parent.mkdir(parents=True, exist_ok=True)
     tmp = STATE.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1))
@@ -154,11 +162,11 @@ def answers(url, tries=60):
     return False
 
 
-def restore():
+def restore(retry=False):
     if not STATE.exists():
         return log("restore: no snapshot")
     data = json.loads(STATE.read_text())
-    if data.get("boot") == boot_id():
+    if not retry and data.get("boot") == boot_id():
         return log("restore: snapshot is from this boot, skip")
     for _ in range(60):  # herdr server may still be starting after login
         try:
@@ -169,7 +177,8 @@ def restore():
     else:
         return log("restore: herdr not ready after 120s")
     up = {}  # health URL -> answered, so each router is waited for once
-    for pane, a in data["panes"].items():
+    pending = {}  # checked by the next snapshot: dropped once an agent runs there
+    for pane, a in (data.get("pending", {}) if retry else data["panes"]).items():
         p = live.get(pane)
         if not p:
             log(f"restore: {pane} gone, skip {a}")
@@ -177,6 +186,7 @@ def restore():
         if p.get("agent"):
             log(f"restore: {pane} already runs {p['agent']}, skip")
             continue
+        pending[pane] = a
         cmd = resume_cmd(a)
         if not cmd:
             log(f"restore: {pane} {a['kind']} {a.get('id')} proxied without a usable resume hint, left empty")
@@ -190,6 +200,7 @@ def restore():
         rc, out = run(HERDR, "pane", "run", pane, cmd)
         log(f"restore: {pane} {a['kind']} {a.get('id')} rc={rc} {out.strip()[:200]}")
     data["boot"] = boot_id()  # mark consumed so a daemon restart never replays it
+    data["pending"] = pending
     STATE.write_text(json.dumps(data, ensure_ascii=False, indent=1))
 
 
@@ -212,6 +223,8 @@ if __name__ == "__main__":
         restore()
     elif mode == "daemon":
         daemon()
+    elif mode == "retry":
+        restore(retry=True)
     elif mode == "cmd":  # print what restore would run, without running it
         for pane, a in json.loads(STATE.read_text())["panes"].items():
             print(pane, "->", resume_cmd(a) or "(left empty: proxied without a resume hint)")
