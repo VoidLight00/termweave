@@ -6,6 +6,15 @@
  * braces keep their English names.
  */
 export const KO: Record<string, string> = {
+  "Add team folder": "팀 폴더 추가",
+  "Add team folder in {name}": "{name} 안에 팀 폴더 추가",
+  "Rename team folder {name}": "{name} 팀 폴더 이름 변경",
+  "Remove team folder {name} without closing terminals": "터미널을 유지하고 {name} 팀 폴더 삭제",
+  "Team folder name": "팀 폴더 이름",
+  "Team folder for {name}": "{name} 패널의 팀 폴더",
+  "No team folder": "팀 폴더 없음",
+  "Team folders are not saved. Browser storage is unavailable.": "브라우저 저장소를 사용할 수 없어 팀 폴더를 저장하지 못했습니다.",
+  "Save": "저장",
   "Delete": "삭제",
   "Rename terminal": "터미널 이름 변경",
   "Rename terminal {id}": "터미널 {id} 이름 변경",

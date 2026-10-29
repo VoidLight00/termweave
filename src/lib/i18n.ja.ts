@@ -8,6 +8,15 @@
  * in English. Placeholders in braces keep their English names.
  */
 export const JA: Record<string, string> = {
+  "Add team folder": "チームフォルダーを追加",
+  "Add team folder in {name}": "{name} 内にチームフォルダーを追加",
+  "Rename team folder {name}": "チームフォルダー {name} の名前を変更",
+  "Remove team folder {name} without closing terminals": "ターミナルを残してチームフォルダー {name} を削除",
+  "Team folder name": "チームフォルダー名",
+  "Team folder for {name}": "{name} のチームフォルダー",
+  "No team folder": "チームフォルダーなし",
+  "Team folders are not saved. Browser storage is unavailable.": "ブラウザーのストレージを利用できないため、チームフォルダーを保存できませんでした。",
+  "Save": "保存",
   "Delete": "削除",
   "Rename terminal": "ターミナル名を変更",
   "Rename terminal {id}": "ターミナル {id} の名前を変更",

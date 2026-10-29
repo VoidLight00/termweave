@@ -7,9 +7,13 @@
 .dock-columns { grid-template-rows: minmax(0, 1fr); }
 .dock-rows { grid-template-columns: minmax(0, 1fr); }
 .dock-split > * { min-width: 0; min-height: 0; }
-.dock-tabs { display: flex; flex-direction: column; gap: 3px; padding: 4px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
-.dock-tab-strip { display: flex; align-items: center; gap: 3px; min-width: 0; overflow-x: auto; }
-.dock-tab-strip button { flex: 0 0 auto; white-space: nowrap; }
+.dock-tabs { display: flex; flex: 0 0 auto; flex-direction: column; gap: 3px; padding: 4px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
+.dock-tab-strip { display: flex; align-items: center; gap: 3px; min-width: 0; height: 36px; overflow-x: scroll; scrollbar-width: thin; }
+.dock-tab-strip button { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; max-width: min(280px, calc(100% - 12px)); min-width: 0; height: 28px; white-space: nowrap; }
+.dock-tab-strip button > :not(.dock-tab-title) { flex-shrink: 0; }
+.dock-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.dock-tab-strip::-webkit-scrollbar { height: 6px; }
+.dock-tab-strip::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
 .dock-tab-actions { display: flex; gap: 3px; overflow-x: auto; }
 .dock-tab-actions button { flex: 0 0 auto; white-space: nowrap; }
 .dock-strip-end { flex: 1 0 32px; align-self: stretch; min-height: 24px; border-radius: var(--radius-sm); }
@@ -43,9 +47,9 @@
 .dock-search input { background: var(--bg-input); color: var(--text); border: 1px solid var(--border); padding: 5px; }
 .dock-search button { background: var(--bg-hover); color: var(--text); border: 1px solid var(--border); padding: 5px; }
 .dock-search pre { max-height: 120px; overflow: auto; white-space: pre-wrap; margin: 4px 0; }
-@media (max-width: 760px) { .dock-tabs button { min-height: 32px; } }
+@media (max-width: 760px) { .dock-tabs button { min-height: 32px; } .dock-tab-strip { height: 40px; } }
 /* a finger, not a width, needs the larger target: touch tablets wider than 760px got none */
-@media (pointer: coarse) { .dock-tabs button { min-height: 44px; } }
+@media (pointer: coarse) { .dock-tabs button { min-height: 44px; } .dock-tab-strip { height: 52px; } }
 
 .dock-address { padding: 3px 8px; font-size: 11px; color: var(--text-dim); }
 .dock-address summary { cursor: pointer; }

@@ -10,6 +10,15 @@
  * Placeholders in braces keep their English names.
  */
 export const ZH: Record<string, string> = {
+  "Add team folder": "添加团队文件夹",
+  "Add team folder in {name}": "在 {name} 中添加团队文件夹",
+  "Rename team folder {name}": "重命名团队文件夹 {name}",
+  "Remove team folder {name} without closing terminals": "删除团队文件夹 {name} 并保留终端",
+  "Team folder name": "团队文件夹名称",
+  "Team folder for {name}": "{name} 的团队文件夹",
+  "No team folder": "无团队文件夹",
+  "Team folders are not saved. Browser storage is unavailable.": "浏览器存储不可用，未能保存团队文件夹。",
+  "Save": "保存",
   "Delete": "删除",
   "Rename terminal": "重命名终端",
   "Rename terminal {id}": "重命名终端 {id}",

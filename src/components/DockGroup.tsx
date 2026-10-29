@@ -2,7 +2,7 @@ import { Plus, Settings2, X } from "lucide-react";
 import { AgentMark } from "./AgentMark.tsx";
 import { paneNumber } from "../lib/paneNumber.ts";
 import { useT } from "../lib/i18n.ts";
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { HerdrPane } from "../../shared/protocol.ts";
 import type { Edge, Group } from "../lib/dockLayout.ts";
 import { PANE_DRAG_TYPE, type DockPreview } from "../lib/dockDrag.ts";
@@ -19,6 +19,23 @@ interface Props {
 }
 export function DockGroup({ node, panes, busy, zoomed, groupIds, activate, drop, add, split, canAdd, zoom, detach, children, search, nativeMove, address, terminate, rename, viewControls, preview, acceptsDrag, beginDrag, previewDrag, dragDrop }: Props) {
   const t = useT();
+  const stripRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const revealActive = () => {
+      const active = strip.querySelector<HTMLElement>('[aria-selected="true"]');
+      if (!active) return;
+      const viewport = strip.getBoundingClientRect(), tab = active.getBoundingClientRect();
+      if (tab.left < viewport.left) strip.scrollLeft -= viewport.left - tab.left;
+      else if (tab.right > viewport.right) strip.scrollLeft += tab.right - viewport.right;
+    };
+    revealActive();
+    const observer = new ResizeObserver(revealActive);
+    observer.observe(strip);
+    strip.querySelectorAll<HTMLElement>('[role="tab"]').forEach(tab => observer.observe(tab));
+    return () => observer.disconnect();
+  }, [node.active, node.tabs]);
   const edge = preview?.index === undefined ? preview?.edge : null;
   const boundary = (event: React.DragEvent, index: number) => index + (event.clientX > event.currentTarget.getBoundingClientRect().left + event.currentTarget.getBoundingClientRect().width / 2 ? 1 : 0);
   const over = (event: React.DragEvent, edge: Edge, index?: number) => {
@@ -39,7 +56,7 @@ export function DockGroup({ node, panes, busy, zoomed, groupIds, activate, drop,
   };
   return <section className="split-pane dock-group" data-group-id={node.id} data-pane-id={node.active ?? ""} aria-label={t("Terminal group {id}", { id: node.id })}>
     <div className="dock-tabs">
-      <div className="dock-tab-strip" role="tablist" aria-label={t("Terminal tabs")}
+      <div ref={stripRef} className="dock-tab-strip" role="tablist" aria-label={t("Terminal tabs")}
         onDragOver={event => over(event, "center", node.tabs.length)} onDragLeave={leave}
         onDrop={event => dragDrop(event, node.id, "center", node.tabs.length)}>
       {node.tabs.map((id, index) => <button key={id} type="button" role="tab" aria-selected={node.active === id}
@@ -47,7 +64,7 @@ export function DockGroup({ node, panes, busy, zoomed, groupIds, activate, drop,
         draggable onDragStart={event => { beginDrag(id); event.dataTransfer.setData(PANE_DRAG_TYPE, id); event.dataTransfer.effectAllowed = "move"; }}
         onDragOver={event => over(event, "center", boundary(event, index))}
         onDrop={event => dragDrop(event, node.id, "center", boundary(event, index))}
-        data-tab-id={id} title={displayPaneTitle(panes.find(pane => pane.pane_id === id) ?? { pane_id: id } as HerdrPane)} onClick={() => activate(id)}><span className="pane-number" data-pane-number={paneNumber(panes.find(p => p.pane_id === id))}>{paneNumber(panes.find(p => p.pane_id === id))}</span> <AgentMark agent={panes.find(p => p.pane_id === id)?.agent || "shell"} size={14} /> {displayPaneTitle(panes.find(pane => pane.pane_id === id) ?? { pane_id: id } as HerdrPane)}</button>)}
+        data-tab-id={id} title={displayPaneTitle(panes.find(pane => pane.pane_id === id) ?? { pane_id: id } as HerdrPane)} onClick={() => activate(id)}><span className="pane-number" data-pane-number={paneNumber(panes.find(p => p.pane_id === id))}>{paneNumber(panes.find(p => p.pane_id === id))}</span> <AgentMark agent={panes.find(p => p.pane_id === id)?.agent || "shell"} size={14} /> <span className="dock-tab-title">{displayPaneTitle(panes.find(pane => pane.pane_id === id) ?? { pane_id: id } as HerdrPane)}</span></button>)}
       <span className={`dock-strip-end${preview?.index === node.tabs.length ? " dock-insert-end" : ""}`} aria-hidden="true" />
       </div>
       <div className="dock-tab-actions">

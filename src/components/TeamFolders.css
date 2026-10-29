@@ -1,0 +1,28 @@
+.team-folders { min-width: 0; }
+.team-folder { min-width: 0; margin-block: var(--space-1); }
+.team-folder-header { display: flex; align-items: center; min-width: 0; }
+.team-folder-header .sidebar-row-action { opacity: 1; flex: 0 0 auto; }
+.team-folder-toggle, .team-folder-add {
+  display: flex; align-items: center; gap: var(--space-1); min-width: 0;
+  min-height: var(--control-h); padding: var(--space-1); border: 0;
+  border-radius: var(--radius-sm); background: transparent; color: var(--text-dim);
+  font: inherit; font-size: var(--fs-sm); text-align: start; cursor: pointer;
+}
+.team-folder-toggle { flex: 1; }
+.team-folder-toggle span { min-width: 0; word-break: keep-all; overflow-wrap: anywhere; text-wrap: pretty; }
+.team-folder-toggle svg, .team-folder-add svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.team-folder-toggle[aria-expanded="true"] > svg:first-child { transform: rotate(90deg); }
+.team-folder-toggle:hover, .team-folder-add:hover { background: var(--bg-hover); color: var(--text-strong); }
+.team-folder-contents { margin-inline-start: var(--space-2); }
+.team-folder-contents[hidden] { display: none; }
+.team-pane { min-width: 0; }
+.team-assignment { display: block; margin-inline: var(--space-2); }
+.team-assignment select {
+  width: 100%; min-width: 0; min-height: var(--control-h); padding: var(--space-1);
+  border: var(--hairline) solid var(--border); border-radius: var(--radius-sm);
+  background: var(--bg-panel); color: var(--text-dim); font: inherit; font-size: var(--fs-2xs);
+}
+.team-folder-editor { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1); }
+.team-folder-editor label { width: 100%; min-width: 0; color: var(--text-dim); font-size: var(--fs-sm); word-break: keep-all; overflow-wrap: anywhere; }
+.team-folder-editor input { display: block; width: 100%; min-width: 0; }
+.team-folders :is(button, input, select):focus-visible { outline: 2px solid var(--text-strong); outline-offset: 2px; }

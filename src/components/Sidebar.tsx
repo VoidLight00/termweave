@@ -1,4 +1,5 @@
 import { AgentMark } from "./AgentMark.tsx";
+import { TeamFolders } from "./TeamFolders.tsx";
 import { paneNumber } from "../lib/paneNumber.ts";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { useWorkspaceReorder } from "../lib/workspaceReorder.ts";
@@ -363,7 +364,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
           ))}
         </div>
         <div className="workspace-terminals" id={terminalsId} hidden={!expanded}>
-          {visiblePanes.map(pane => <div className="workspace-terminal-row" key={pane.terminal_id || pane.pane_id}
+          {<TeamFolders key={collapseId} machineId={machineId} workspaceId={workspace.workspace_id} panes={visiblePanes} paneTitle={displayPaneTitle} renderPane={pane => <div className="workspace-terminal-row" key={pane.terminal_id || pane.pane_id}
             draggable={!!pane.terminal_id && !pane.restore_error} title={t("Drag to another folder or terminal to move it")}
             onDragStart={event => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", paneNumber(pane)); setPaneDrag({ source: pane, over: null }); }}
             onDragEnd={() => setPaneDrag(null)}><button type="button"
@@ -375,7 +376,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
             <StatusBadge status={pane.agent_status} />
           </button><TerminalMenu pane={pane} machineId={machineId} onRefresh={() => actions.refresh()} onMove={() => setMoveSource(pane)}
             onMoveUp={neighborInTab(pane, -1) ? () => void swapPanes(pane, neighborInTab(pane, -1)!).catch(moveFailed) : undefined}
-            onMoveDown={neighborInTab(pane, 1) ? () => void swapPanes(pane, neighborInTab(pane, 1)!).catch(moveFailed) : undefined} /></div>)}
+            onMoveDown={neighborInTab(pane, 1) ? () => void swapPanes(pane, neighborInTab(pane, 1)!).catch(moveFailed) : undefined} /></div>} />}
         </div>
       </div>
     </section>;
