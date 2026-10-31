@@ -1112,6 +1112,7 @@ export const JA: Record<string, string> = {
   "Task recorded, but agent notification failed. Check the task list without resubmitting.": "タスクは記録しましたが、エージェントへの通知に失敗しました。再登録せずタスク一覧を確認してください。",
   "{seat} → P{number} · verified when opened": "{seat} → P{number}・開いた時点で確認済み",
   "Terminal inbox": "ターミナル通知",
+  "More tools": "その他のツール",
   "Messages from terminal programs. Messages do not confirm task completion.": "ターミナルのプログラムからのメッセージです。作業の完了を保証するものではありません。",
   "Could not refresh the inbox. Previously loaded messages may be out of date.": "通知を更新できませんでした。表示中のメッセージは最新ではない可能性があります。",
   "The terminal could not be verified. Refresh the inbox before trying again.": "現在のターミナルを確認できませんでした。通知を更新して確認してください。",

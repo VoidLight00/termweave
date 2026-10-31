@@ -1,7 +1,7 @@
 import { initialPaneView, readPaneView, writePaneView } from "./lib/paneView.ts";
 import { adjacentWorkspacePane } from "./lib/workspaceNavigation.ts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Bell, BellOff, FolderOpen, Lock, Menu, MessageSquare, PanelLeft, Search, SquareTerminal, Users, X } from "lucide-react";
+import { Bell, BellOff, FolderOpen, Lock, Menu, MessageSquare, MoreHorizontal, PanelLeft, Search, SquareTerminal, Users, X } from "lucide-react";
 
 import type { AgentStatus, ClientRole, ServerMessage, AccessRefusal, HealthAuth, HerdrPane } from "../shared/protocol.ts";
 import { ApiError, authenticate, fetchHealth, fetchBridgeHealth, fetchMachines, fetchSession, movePane as movePaneRequest, pairDevice, swapPanes as swapPanesRequest, sendTestPush, signOut, type HealthInfo } from "./lib/api.ts";
@@ -180,6 +180,16 @@ export function App() {
   // phone's keyboard (over the drawer the close was tapped in) until the user picks a pane or lens
   const [autoSelected, setAutoSelected] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // phones fold the header tools behind one button so the header stays one row
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const away = (event: PointerEvent) => { if (!moreRef.current?.contains(event.target as Node)) setMoreOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape" && !document.querySelector("dialog[open]")) setMoreOpen(false); };
+    document.addEventListener("pointerdown", away); document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", away); document.removeEventListener("keydown", escape); };
+  }, [moreOpen]);
   const drawerOpenRef = useRef(drawerOpen); drawerOpenRef.current = drawerOpen;
   const selectionRef = useRef({ machineId: selectedMachineId, paneId: selectedPaneId });
   selectionRef.current = { machineId: selectedMachineId, paneId: selectedPaneId };
@@ -765,7 +775,11 @@ export function App() {
             </button>
           </div>
         )}
-        <div className="header-meta">
+        <div className="header-more-wrap" ref={moreRef}>
+        <button type="button" className="icon-button header-more" aria-label={t("More tools")} aria-expanded={moreOpen} aria-controls="header-meta" onClick={() => setMoreOpen(open => !open)}>
+          <MoreHorizontal aria-hidden="true" /><span className={`header-more-dot ${connected ? "conn-live" : "conn-reconnecting"}`} aria-hidden="true"><span className="conn-dot" /></span>
+        </button>
+        <div className="header-meta" id="header-meta" data-open={moreOpen || undefined}>
           <FrontendControls />
           <span
             className={`conn ${connected ? "conn-live" : "conn-reconnecting"}`}
@@ -801,6 +815,7 @@ export function App() {
               <Lock />
             </button>
           )}
+        </div>
         </div>
       </header>
 

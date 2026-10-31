@@ -1114,6 +1114,7 @@ export const ZH: Record<string, string> = {
   "Task recorded, but agent notification failed. Check the task list without resubmitting.": "任务已记录，但代理通知失败。请检查任务列表，不要重复提交。",
   "{seat} → P{number} · verified when opened": "{seat} → P{number} · 打开时已验证",
   "Terminal inbox": "终端通知",
+  "More tools": "更多工具",
   "Messages from terminal programs. Messages do not confirm task completion.": "以下消息由终端程序发出，不代表任务已完成。",
   "Could not refresh the inbox. Previously loaded messages may be out of date.": "无法刷新通知。已显示的消息可能不是最新状态。",
   "The terminal could not be verified. Refresh the inbox before trying again.": "无法确认当前终端。请刷新通知后查看。",

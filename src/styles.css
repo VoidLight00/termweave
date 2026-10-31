@@ -1201,3 +1201,52 @@ button {
 button, a, [role="button"] {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* phones: the terminal gets the height. Each bar around it is one compact row; buttons with an
+   aria-label drop their visible word. :root lifts these over the component sheets loaded later. */
+@media (max-width: 640px) {
+  :root .split-workspace { display: grid; grid-template: auto auto auto auto minmax(0, 1fr) / minmax(0, 1fr) auto; }
+  :root .split-workspace > * { grid-column: 1 / -1; }
+  :root .split-workspace > .dock-existing { grid-column: 1; grid-row: 1; padding: 3px 6px; font-size: 0; }
+  :root .dock-existing select { font-size: 12px; padding: 4px 6px; }
+  :root .split-workspace > .browser-preview { grid-column: 2; grid-row: 1; padding: 3px 6px 3px 0; }
+  :root .split-workspace > .browser-preview:has(.browser-preview-body) { grid-column: 1 / -1; grid-row: 2; padding: 6px; }
+  :root .browser-preview > button { padding: 4px 8px; font-size: 12px; }
+  :root .split-workspace > .dock-phone-nav { grid-row: 3; }
+  :root .split-workspace > .split-empty { grid-row: 4; }
+  :root .split-workspace > .dock-root { grid-row: 5; }
+
+  :root .dock-tabs { flex-direction: row; align-items: center; gap: 4px; padding: 2px 4px; }
+  :root .dock-tab-strip { flex: 1 1 auto; height: 36px; }
+  :root .dock-tab-strip button { height: 30px; min-height: 30px; }
+  :root .dock-tab-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+  :root .dock-tab-actions button { min-height: 34px; min-width: 34px; padding-inline: 6px; }
+  :root .dock-tab-actions .dock-add, :root .dock-tab-actions .dock-delete { font-size: 0; gap: 0; padding-inline: 8px; }
+
+  :root .header-meta { gap: 2px; }
+  :root .frontend-controls .frontend-refresh > span { display: none; }
+  :root .header-meta .icon-button, :root .header-meta .btn, :root .frontend-controls .frontend-refresh { height: 32px; min-height: 32px; }
+
+  :root .terminal-input { gap: 6px; padding: 4px 6px 0; }
+  :root .terminal-input-text { min-height: 36px; padding: 6px 10px; }
+  :root .terminal-input-send, :root .terminal-input-mic .voice-mic { width: 36px; height: 36px; }
+  :root .key-bar { height: calc(40px + env(safe-area-inset-bottom, 0px)); }
+  :root .key { height: 34px; min-width: 36px; }
+}
+
+/* the header's "more" button: desktop keeps the row, phones fold the tools into a dropdown */
+.header-more-wrap { display: contents; }
+.header-more { display: none; position: relative; margin-left: auto; }
+.header-more-dot { position: absolute; top: 4px; right: 4px; display: flex; }
+@media (max-width: 640px) {
+  .header-more-wrap { display: block; margin-left: auto; }
+  .header-more { display: inline-flex; }
+  :root .app-header:has(.frontend-controls) { flex-wrap: nowrap; }
+  :root .app-header:has(#header-meta[data-open]) { z-index: 45; } /* the open dropdown sits over the app body */
+  :root #header-meta:not([data-open]) { display: none; }
+  :root #header-meta[data-open] {
+    position: absolute; top: 100%; right: 8px; z-index: 40; display: flex; flex-wrap: wrap; justify-content: flex-end;
+    gap: 4px; max-width: calc(100vw - 16px); padding: 6px; margin: 0; background: var(--bg-panel);
+    border: var(--hairline) solid var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-pop);
+  }
+}

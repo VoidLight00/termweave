@@ -1115,6 +1115,7 @@ export const KO: Record<string, string> = {
   "Task recorded, but agent notification failed. Check the task list without resubmitting.": "작업은 기록했지만 에이전트 알림에 실패했습니다. 중복 등록하지 말고 작업 목록을 확인해 주십시오.",
   "{seat} → P{number} · verified when opened": "{seat} → P{number} · 열 때 확인됨",
   "Terminal inbox": "터미널 알림함",
+  "More tools": "도구 더보기",
   "Messages from terminal programs. Messages do not confirm task completion.": "터미널 프로그램이 보낸 메시지입니다. 메시지만으로 작업 완료를 확인할 수는 없습니다.",
   "Could not refresh the inbox. Previously loaded messages may be out of date.": "알림함을 새로 불러오지 못했습니다. 기존 메시지는 최신 상태가 아닐 수 있습니다.",
   "The terminal could not be verified. Refresh the inbox before trying again.": "현재 터미널을 확인하지 못했습니다. 알림함을 새로 불러온 후 확인하십시오.",
