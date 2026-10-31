@@ -3,7 +3,7 @@
 .terminal-input {
   position: relative; /* the dictation pill floats above it */
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   gap: var(--space-2);
   align-items: end;
   padding: var(--space-2) var(--space-2) 0;
@@ -12,7 +12,7 @@
 }
 
 .terminal-input.has-voice {
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
 }
 
 /* the same round target as the send button beside it */
@@ -72,4 +72,28 @@
   margin: 0;
   color: var(--danger-text);
   font-size: var(--fs-xs);
+}
+
+/* a phone picks photos here: same round target as Send, quiet like the idle mic */
+.terminal-input-attach {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: var(--hairline) solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.terminal-input-attach:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.terminal-input-attach svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
 }

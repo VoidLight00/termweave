@@ -445,6 +445,8 @@ export const JA: Record<string, string> = {
   "Remove {file}": "{file} を削除",
   "Message": "メッセージ",
   "Attach files": "ファイルを添付",
+  "Attach image": "画像を添付",
+  "Could not attach the image. Try again.": "画像を添付できませんでした。もう一度お試しください。",
   "Queue message": "メッセージをキューに追加",
   "Send now": "今すぐ送信",
   "Queue as the next message": "次のメッセージとしてキューに追加",

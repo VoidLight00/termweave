@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
-import { CornerDownLeft, SendHorizontal } from "lucide-react";
+import { CornerDownLeft, ImagePlus, SendHorizontal } from "lucide-react";
 
 import "./TerminalInput.css";
 import { readTerminalDraft, writeTerminalDraft, TERMINAL_LINE_LIMIT, subscribeTerminalDraft, terminalDraftSending, setTerminalDraftSending, acknowledgeTerminalDraft } from "../lib/terminalDraft.ts";
 
 import { useT } from "../lib/i18n.ts";
 import { useSettings } from "../lib/settings.ts";
+import { useMachineApi } from "../lib/machineContext.tsx";
 import { MicButton, VoiceRecordingPill, useDictation } from "./VoiceInput.tsx";
 
 export interface TerminalInputProps {
   owner: string;
+  /** the pane an attached image is saved beside */
+  paneId: string;
   onComposing?: (active: boolean) => void;
   connected: boolean;
   /** true: sent, clear the line; a string: keep the text and say why; false: not sent (offline) */
@@ -27,7 +30,7 @@ const MAX_ROWS = 4;
  * cannot take back keys it already sent: every revision arrived as more text. Here the line
  * is written with the keyboard's own editing and goes to the pane whole, then Enter.
  */
-export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }: TerminalInputProps) {
+export function TerminalInput({ owner, paneId, connected, onSend, onEnter, onComposing }: TerminalInputProps) {
   const t = useT();
   const text = useSyncExternalStore(subscribeTerminalDraft, () => readTerminalDraft(owner));
   const setText = useCallback((value: string | ((previous: string) => string)) => {
@@ -67,6 +70,24 @@ export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }
     },
     onNote: setNote,
   });
+
+  // a phone has no drop or file paste: pick photos, save them beside the pane, and put their
+  // quoted paths in the line so a message can go with them (the agent reads a path as an image)
+  const { uploadPaneImage } = useMachineApi();
+  const picker = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const attach = async (files: File[]): Promise<void> => {
+    if (files.length === 0) return;
+    setUploading(true); setNote(null);
+    try {
+      const paths: string[] = [];
+      for (const file of files) paths.push(await uploadPaneImage(paneId, file));
+      const quoted = paths.map((path) => `'${path.replaceAll("'", "'\\''")}'`).join(" ");
+      setText((previous) => `${previous}${previous && !/\s$/.test(previous) ? " " : ""}${quoted} `);
+    } catch {
+      setNote(t("Could not attach the image. Try again."));
+    } finally { setUploading(false); }
+  };
 
   const send = useCallback(() => {
     if (!connected || terminalDraftSending(owner) || composing.current) return;
@@ -153,6 +174,15 @@ export function TerminalInput({ owner, connected, onSend, onEnter, onComposing }
         onChange={(event) => { setText(event.target.value); setNote(null); }}
         onKeyDown={onKeyDown}
       />
+      <input ref={picker} type="file" accept="image/*" multiple hidden onChange={(event) => {
+        const picked = Array.from(event.currentTarget.files ?? []);
+        event.currentTarget.value = "";
+        void attach(picked);
+      }} />
+      <button type="button" className="terminal-input-attach" aria-label={t(uploading ? "Uploading file…" : "Attach image")} title={t("Attach image")}
+        disabled={!connected || uploading || sending} onPointerDown={(event) => event.preventDefault()} onClick={() => picker.current?.click()}>
+        <ImagePlus aria-hidden="true" />
+      </button>
       {dictation.shown && <MicButton dictation={dictation} className="terminal-input-mic" />}
       <button
         type="button"

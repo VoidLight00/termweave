@@ -1227,11 +1227,11 @@ button, a, [role="button"] {
   :root .frontend-controls .frontend-refresh > span { display: none; }
   :root .header-meta .icon-button, :root .header-meta .btn, :root .frontend-controls .frontend-refresh { height: 32px; min-height: 32px; }
 
-  :root .terminal-input { gap: 6px; padding: 4px 6px 0; }
-  :root .terminal-input-text { min-height: 36px; padding: 6px 10px; }
-  :root .terminal-input-send, :root .terminal-input-mic .voice-mic { width: 36px; height: 36px; }
-  :root .key-bar { height: calc(40px + env(safe-area-inset-bottom, 0px)); }
-  :root .key { height: 34px; min-width: 36px; }
+  :root .terminal-input { gap: 4px; padding: 3px 4px 0; }
+  :root .terminal-input-text { min-height: 34px; padding: 5px 10px; }
+  :root .terminal-input-send, :root .terminal-input-attach, :root .terminal-input-mic .voice-mic { width: 34px; height: 34px; }
+  :root .key-bar { gap: 2px; height: calc(34px + env(safe-area-inset-bottom, 0px)); }
+  :root .key { height: 30px; min-width: 34px; }
 }
 
 /* the header's "more" button: desktop keeps the row, phones fold the tools into a dropdown */

@@ -448,6 +448,8 @@ export const KO: Record<string, string> = {
   "Remove {file}": "{file} 제거",
   "Message": "메시지",
   "Attach files": "파일 첨부",
+  "Attach image": "이미지 첨부",
+  "Could not attach the image. Try again.": "이미지를 첨부하지 못했습니다. 다시 시도해 주세요.",
   "Queue message": "메시지 대기열에 넣기",
   "Send now": "지금 보내기",
   "Queue as the next message": "다음 메시지로 대기",

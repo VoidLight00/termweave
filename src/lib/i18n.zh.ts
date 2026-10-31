@@ -447,6 +447,8 @@ export const ZH: Record<string, string> = {
   "Remove {file}": "移除 {file}",
   "Message": "消息",
   "Attach files": "附加文件",
+  "Attach image": "附加图片",
+  "Could not attach the image. Try again.": "无法附加图片，请重试。",
   "Queue message": "将消息加入队列",
   "Send now": "立即发送",
   "Queue as the next message": "作为下一条消息排队",
