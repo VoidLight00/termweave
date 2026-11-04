@@ -32,7 +32,7 @@ try {
     if (message.type === "input" || message.type === "submit") inputs.push(message);
   }));
   await page.goto(`http://127.0.0.1:${server.port}/?pane=${ids[0]}`);
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   for (const [label, count] of [["좌우 2분할", 2], ["상하 2분할", 2], ["4분할", 4]] as const) {
     await page.getByRole("button", { name: label, exact: true }).click();
     assert.equal(await page.locator(".split-pane").count(), count);

@@ -4,6 +4,7 @@ import { createServer, type Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { InteractivePrompt } from "../shared/protocol.ts";
+import { socketAddress } from "./herdr/client.ts";
 
 import { answerKeys, codexQuestionsCollapsed, codexQueuedPrompt, handlePromptRequest, parseClaudeSuggestion, parseFallbackPrompt, parseInteractivePrompt, pendingOmoAsk } from "./prompt.ts";
 
@@ -1436,7 +1437,7 @@ describe("Claude's suggestion on a prompt poll", () => {
         if (request.params.format === "text") answer({ read: { text: "Done.\n\n────────\n❯ \n────────\n" } });
       });
     });
-    await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(path, resolve); });
+    await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socketAddress(path), resolve); }); // a named pipe of the marker's name on Windows
     const previous = process.env["HERDR_SOCKET"];
     process.env["HERDR_SOCKET"] = path;
     try { await run(reads); } finally {

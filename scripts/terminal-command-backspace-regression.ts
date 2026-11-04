@@ -21,7 +21,7 @@ export async function checkCommandBackspace(browser: Browser, origin: string, pa
       if (message.type === "input") inputs.push(message);
     }));
     await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     const input = page.locator(".xterm-helper-textarea");
     await input.waitFor();
     for (const [shortcut, expected] of [
@@ -124,7 +124,7 @@ process.stdin.on("data", (data) => {
       if (message.type === "input") inputs.push(message.text);
     }));
     await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     await page.locator(".xterm-helper-textarea").press("Meta+Backspace");
     await page.waitForTimeout(300);
     assert.deepEqual(inputs, ["\x7f"], "non-macOS Meta+Backspace keeps its native sequence");

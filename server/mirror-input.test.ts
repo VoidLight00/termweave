@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mirrorInput } from "./mirror-input.ts";
+import { mirrorInput, mirrorKeys } from "./mirror-input.ts";
 
 const agent = async () => "gjc";
 const noAgent = async () => null;
@@ -31,6 +31,13 @@ describe("typing into a mirrored pane", () => {
 
   test("a pasted block that holds an escape byte, as coloured output does, is still one paste", async () => {
     expect(await mirrorInput("\x1b[31mline one\x1b[0m\rline two", agent)).toBe("\x1b[200~\x1b[31mline one\x1b[0m\rline two\x1b[201~");
+  });
+
+  test("the Esc key goes as herdr's own key on Windows and as its byte elsewhere", () => {
+    expect(mirrorKeys("\x1b", "win32")).toEqual(["esc"]);
+    for (const platform of ["linux", "darwin"] as const) expect(mirrorKeys("\x1b", platform)).toBeNull();
+    // only the lone key: Alt+x, the arrows and anything longer stay text
+    for (const typed of ["\x1bx", "\x1b[A", "\x1bOA", "\x1b\x1b", "a", "\x03", "\t", "\r"]) expect(mirrorKeys(typed, "win32")).toBeNull();
   });
 
   test("a paste the terminal already bracketed is not wrapped again", async () => {

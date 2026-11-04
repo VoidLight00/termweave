@@ -1,11 +1,15 @@
 import { expect, test, spyOn } from "bun:test";
 import { PaneDirectory, terminalKey, type TerminalTarget } from "../server/pane-directory.ts";
 import { terminalMesh, reference } from "./terminal-mesh.ts";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+/** An absolute socket spelling the directory accepts: a Unix socket file, or on Windows herdr's drive-path marker. */
+const fixtureSocket = (name: string) => process.platform === "win32" ? `C:\\fixture\\${name}` : `/fixture/${name}`;
+
 test("CLI has no automatic socket discovery and rejects unexpected/duplicate flags", async () => {
-  const root = await mkdtemp("/tmp/tw-cli-contract-");
+  const root = await mkdtemp(join(tmpdir(), "tw-cli-contract-"));
   const file = join(root, "allowlist.json");
   await writeFile(file, JSON.stringify({ tmuxSockets: [], herdrSockets: [] }));
   const run = async (args: string[]) => {
@@ -28,12 +32,12 @@ test("CLI has no automatic socket discovery and rejects unexpected/duplicate fla
 });
 
 test("CLI immutable reference refuses completed pane-address replacement and follows native moves", async () => {
-  const root = await mkdtemp("/tmp/tw-cli-ref-");
+  const root = await mkdtemp(join(tmpdir(), "tw-cli-ref-"));
   const file = join(root, "allow.json");
-  const config = { tmuxSockets: [], herdrSockets: ["/fixture/herdr.sock"] };
+  const config = { tmuxSockets: [], herdrSockets: [fixtureSocket("herdr.sock")] };
   await writeFile(file, JSON.stringify(config));
   const generation = "a".repeat(64);
-  const old: TerminalTarget = { backend: "herdr", socket: "/fixture/herdr.sock", generation, terminalId: "terminal-A", address: { paneId: "w1:p1", workspaceId: "w1", tabId: "w1:t1" } };
+  const old: TerminalTarget = { backend: "herdr", socket: fixtureSocket("herdr.sock"), generation, terminalId: "terminal-A", address: { paneId: "w1:p1", workspaceId: "w1", tabId: "w1:t1" } };
   const replacement = { ...old, terminalId: "terminal-B" };
   const moved = { ...old, address: { paneId: "w2:p9", workspaceId: "w2", tabId: "w2:t1" } };
   const stableRef = `${reference(old, config)}@${generation}`;
@@ -62,11 +66,11 @@ test("CLI immutable reference refuses completed pane-address replacement and fol
 });
 
 test("CLI private handles preserve original recipient and reject aliases/malformed refs", async () => {
-  const root = await mkdtemp("/tmp/tw-cli-handles-");
+  const root = await mkdtemp(join(tmpdir(), "tw-cli-handles-"));
   const file = join(root, "allow.json"), handles = join(root, "handles.json");
-  const config = { tmuxSockets: [], herdrSockets: ["/fixture/herdr.sock"], aliases: { "/fixture/herdr.sock": "local" } };
+  const config = { tmuxSockets: [], herdrSockets: [fixtureSocket("herdr.sock")], aliases: { [fixtureSocket("herdr.sock")]: "local" } };
   await writeFile(file, JSON.stringify(config));
-  const old: TerminalTarget = { backend: "herdr", socket: "/fixture/herdr.sock", generation: "a".repeat(64), terminalId: "terminal-A", address: { paneId: "w1:p1" } };
+  const old: TerminalTarget = { backend: "herdr", socket: fixtureSocket("herdr.sock"), generation: "a".repeat(64), terminalId: "terminal-A", address: { paneId: "w1:p1" } };
   const ref = reference(old, config);
   const listing = spyOn(PaneDirectory.prototype, "list").mockResolvedValue([old]);
   const sending = spyOn(PaneDirectory.prototype, "send").mockResolvedValue();
@@ -81,10 +85,14 @@ test("CLI private handles preserve original recipient and reject aliases/malform
     expect(sending.mock.calls[0]![0].terminalId).toBe("terminal-A");
     await terminalMesh(["read", "--allowlist", file, "--handle", handles, "--ref", ref]);
     expect(reading.mock.calls[0]![0].terminalId).toBe("terminal-A");
+    // a handle file reached through a link is refused (O_NOFOLLOW on POSIX, the lstat identity check on Windows)
+    await symlink(handles, join(root, "linked.json"));
+    await expect(terminalMesh(["read", "--allowlist", file, "--handle", join(root, "linked.json"), "--ref", ref])).rejects.toThrow();
+    expect(reading.mock.calls).toHaveLength(1);
     for (const bad of ["pane 1", "herdr/local/w1%3Ap1", ref, `${ref}@bad`, "herdr/other/terminal-A@" + old.generation]) {
       await expect(terminalMesh(["send", "--allowlist", file, "--ref", bad, "--text", "message"])).rejects.toThrow("recipient_missing_or_ambiguous");
     }
-    await writeFile(file, JSON.stringify({ tmuxSockets: [], herdrSockets: ["/fixture/a.sock", "/fixture/b.sock"], aliases: { "/fixture/a.sock": "same", "/fixture/b.sock": "same" } }));
+    await writeFile(file, JSON.stringify({ tmuxSockets: [], herdrSockets: [fixtureSocket("a.sock"), fixtureSocket("b.sock")], aliases: { [fixtureSocket("a.sock")]: "same", [fixtureSocket("b.sock")]: "same" } }));
     await expect(terminalMesh(["send", "--allowlist", file, "--ref", ref, "--text", "message"])).rejects.toThrow("ambiguous_server_alias");
     expect(sending.mock.calls).toHaveLength(1);
   } finally { listing.mockRestore(); sending.mockRestore(); reading.mockRestore(); stdout.mockRestore(); await rm(root, { recursive: true, force: true }); }

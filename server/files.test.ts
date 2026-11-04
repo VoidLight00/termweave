@@ -50,7 +50,13 @@ describe("paneFiles", () => {
   it("preserves Unicode and newline filenames returned by git", async () => {
     const root = fixture();
     expect(Bun.spawnSync(["git", "init", "-q", root]).exitCode).toBe(0);
-    for (const name of ["설계 문서.md", "line\nbreak.txt"]) writeFileSync(join(root, name), "fixture");
+    writeFileSync(join(root, "설계 문서.md"), "fixture");
+    // NTFS cannot hold a newline in a filename: on Windows the name exists only in git's index, which ls-files reports just the same
+    if (process.platform === "win32") {
+      const blob = Bun.spawnSync(["git", "-C", root, "hash-object", "-w", "--stdin"], { stdin: Buffer.from("fixture") });
+      expect(blob.exitCode).toBe(0);
+      expect(Bun.spawnSync(["git", "-C", root, "-c", "core.protectNTFS=false", "update-index", "--add", "--cacheinfo", `100644,${blob.stdout.toString().trim()},line\nbreak.txt`]).exitCode).toBe(0);
+    } else writeFileSync(join(root, "line\nbreak.txt"), "fixture");
     const files = await paneFiles(root, "", 100);
     expect(files).toContain("설계 문서.md");
     expect(files).toContain("line\nbreak.txt");

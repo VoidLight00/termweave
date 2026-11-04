@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { matchShortcut, type ShortcutEventLike, keepsArrowsForText, shortcutConflict, shortcutKeys } from "./shortcuts.ts";
+import { matchShortcut, type ShortcutEventLike, keepsArrowsForText, shortcutConflict, shortcutHint, shortcutKeys } from "./shortcuts.ts";
 
 function keyEvent(key: string, patch: Partial<ShortcutEventLike> = {}): ShortcutEventLike {
   return { key, ctrlKey: false, metaKey: false, shiftKey: true, altKey: false, ...patch };
@@ -77,5 +77,23 @@ describe("matchShortcut on a non-Latin layout", () => {
     expect(matchShortcut(keyEvent("ㅏ", { code: "KeyK", metaKey: true }), true)).toBe("palette");
     // a Latin layout keeps its own letter (Dvorak's K is not on KeyK)
     expect(matchShortcut(keyEvent("k", { code: "KeyV", metaKey: true }), true)).toBe("palette");
+  });
+});
+
+describe("shortcutHint", () => {
+  it("names Command on a Mac and Ctrl+Shift elsewhere", () => {
+    expect(shortcutHint("palette", {}, true)).toBe("⌘⇧K");
+    expect(shortcutHint("palette", {}, false)).toBe("Ctrl+Shift+K");
+    expect(shortcutHint("toggle-sidebar", {}, false)).toBe("Ctrl+Shift+B");
+    expect(shortcutHint("toggle-view", {}, true)).toBe("⌘⇧J");
+    expect(shortcutHint("settings", {}, false)).toBe("Ctrl+Shift+,");
+    expect(shortcutHint("settings", {}, true)).toBe("⌘⇧,");
+  });
+
+  it("shows the key the user bound, and nothing once the shortcut is turned off", () => {
+    expect(shortcutHint("palette", { palette: "p" }, false)).toBe("Ctrl+Shift+P");
+    expect(shortcutHint("palette", { palette: "p" }, true)).toBe("⌘⇧P");
+    expect(shortcutHint("palette", { palette: null }, false)).toBe("");
+    expect(shortcutHint("palette", { palette: null }, true)).toBe("");
   });
 });

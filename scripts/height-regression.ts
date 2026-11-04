@@ -17,7 +17,7 @@ try {
   await page.addInitScript(() => localStorage.setItem("termweave:settings", JSON.stringify({ language: "en", terminalInputMode: "direct" })));
   const geometries: { rows: number; cols: number }[] = [], inputs: { pane_id: string }[] = [];
   page.on("websocket", socket => socket.on("framesent", ({ payload }) => { const m = JSON.parse(String(payload)); if (m.type === "resize" || m.type === "attach") geometries.push(m); if (m.type === "input") inputs.push(m); }));
-  await page.goto(`http://127.0.0.1:${server.port}/?pane=${created.root_pane.pane_id}`); await page.locator(".conn-live").waitFor();
+  await page.goto(`http://127.0.0.1:${server.port}/?pane=${created.root_pane.pane_id}`); await page.locator(".conn-live:visible").waitFor();
   const measure = async (label: string, minimumRows: number) => {
     await page.waitForTimeout(350);
     const size = await page.locator(".terminal-host").evaluate(node => {

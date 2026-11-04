@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 import { describeProgress } from "../src/lib/bridgeProgress.ts";
 import type { SetupJob } from "../shared/machines.ts";
 import { paneNotificationTag } from "../shared/notify-policy.ts";
@@ -18,6 +18,13 @@ import { attachableIdentity, isRealNode, sidecarAvailable } from "./pty/sidecar.
 import { CompletionTracker } from "./completion.ts";
 import type { PushService } from "./push.ts";
 import { recentSshOutput } from "./ssh.ts";
+
+/** A stand-in executable at `path` on Unix (Windows runs no shebang script). */
+function shScript(path: string, body: string): string {
+  writeFileSync(path, `#!/bin/sh\n${body}\n`);
+  chmodSync(path, 0o755);
+  return path;
+}
 
 describe("machine boundaries", () => {
   it("separates equal pane IDs while preserving historical local storage", () => {
@@ -42,7 +49,7 @@ describe("machine boundaries", () => {
   });
   it("proxies only pane/workspace data and never remote management credentials", () => {
     for (const path of ["auth", "push", "updates/install", "machines/setup", "bridge", "../auth", "pane/../../auth", "pane/prompt/answer/extra"]) expect(MACHINE_PROXY_PATH.test(path)).toBe(false);
-    for (const path of ["session", "agents", "pane/files", "pane/image", "pane/prompt/answer", "workspace/create"]) expect(MACHINE_PROXY_PATH.test(path)).toBe(true);
+    for (const path of ["session", "agents", "pane/files", "pane/image", "pane/prompt/answer", "workspace/create", "worktree/create", "worktree/remove", "worktree/source", "worktree/list", "worktree/open"]) expect(MACHINE_PROXY_PATH.test(path)).toBe(true);
   });
 });
 
@@ -120,14 +127,16 @@ describe("SSH output during setup", () => {
   afterEach(() => { while (cleanups.length) cleanups.pop()!(); });
 
   /** A PC whose ssh prints a line and then waits for the user, like Tailscale SSH's browser check. */
-  function waitingSsh(script: string): MachineManager {
+  function waitingSsh(line: string): MachineManager {
     const root = mkdtempSync(join(tmpdir(), "herdr-ssh-output-"));
     const bin = join(root, "bin");
-    Bun.spawnSync(["mkdir", bin]);
-    writeFileSync(join(bin, "ssh"), `#!/bin/sh\n${script}\n`);
-    chmodSync(join(bin, "ssh"), 0o755);
+    mkdirSync(bin);
+    // on Windows a batch file stands in, waiting in one endless `for /L`: killing its cmd.exe leaves no child behind,
+    // and cmd opens the file only to read its next line, so the cleanup can delete it at once (a `goto` loop keeps it busy)
+    if (process.platform === "win32") writeFileSync(join(bin, "ssh.cmd"), `@echo off\r\n>&2 echo ${line}\r\nfor /L %%i in (0,0,1) do rem\r\n`);
+    else shScript(join(bin, "ssh"), `echo "${line}" >&2\nexec sleep 30`);
     const path = process.env["PATH"];
-    process.env["PATH"] = `${bin}:${path}`;
+    process.env["PATH"] = `${bin}${delimiter}${path}`;
     const manager = new MachineManager(join(root, "state"), {} as PushService, new CompletionTracker(null));
     // stop() cancels the job, which kills the fake ssh (it `exec`s sleep, so there is no orphan)
     cleanups.push(() => { manager.stop(); process.env["PATH"] = path; rmSync(root, { recursive: true, force: true }); });
@@ -139,7 +148,7 @@ describe("SSH output during setup", () => {
   }
 
   it("shows what ssh printed while it is still waiting, and drops it once the setup is cancelled", async () => {
-    const manager = waitingSsh(`echo "To authenticate, visit: https://login.tailscale.com/a/check123" >&2\nexec sleep 30`);
+    const manager = waitingSsh("To authenticate, visit: https://login.tailscale.com/a/check123");
     const started = manager.setup({ destination: "check-pc" });
     expect(started.ssh_output).toBeNull();
     const job = await until(() => manager.job(started.id)?.ssh_output ? manager.job(started.id) : null);
@@ -187,19 +196,20 @@ describe("terminal attach capability", () => {
 
   it("takes a node for Node only when it answers in time and is not Bun", () => {
     const dir = mkdtempSync(join(tmpdir(), "herdr-sidecar-probe-"));
-    const stand = (name: string, body: string) => {
-      const path = join(dir, name);
-      writeFileSync(path, `#!/bin/sh\n${body}\n`);
-      chmodSync(path, 0o755);
-      return path;
+    // Windows runs no shebang script and Bun refuses the probe's `||` argument to a .cmd: there Bun itself stands in,
+    // a preload (BUN_OPTIONS splits on spaces outside double quotes, where `\` escapes) answering for it
+    const stand = (name: string, sh: string, preload: string): [string, Record<string, string | undefined>] => {
+      if (process.platform !== "win32") return [shScript(join(dir, name), sh), process.env];
+      writeFileSync(join(dir, `${name}.ts`), preload);
+      return [process.execPath, { ...process.env, BUN_OPTIONS: JSON.stringify(`--preload=${join(dir, `${name}.ts`).replaceAll("\\", "/")}`) }];
     };
     try {
-      expect(isRealNode(stand("node", "echo"))).toBe(true);
-      expect(isRealNode(stand("bun-as-node", "echo 1.4.2"))).toBe(false);
-      expect(isRealNode(stand("broken", "exit 1"))).toBe(false);
+      expect(isRealNode(...stand("node", "echo", "process.exit(0);"))).toBe(true);
+      expect(isRealNode(...stand("bun-as-node", "echo 1.4.2", ""))).toBe(false);
+      expect(isRealNode(...stand("broken", "exit 1", "process.exit(1);"))).toBe(false);
       expect(isRealNode(join(dir, "absent"))).toBe(false);
       // a node that never answers is given up on, not waited for
-      expect(isRealNode(stand("hung", "exec sleep 30"), process.env, 200)).toBe(false);
+      expect(isRealNode(...stand("hung", "exec sleep 30", "Bun.sleepSync(30_000);"), 200)).toBe(false);
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 });

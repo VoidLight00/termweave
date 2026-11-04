@@ -1,20 +1,23 @@
-import { mkdtempSync, mkdirSync, realpathSync, writeFileSync, existsSync, readFileSync, openSync, closeSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync, openSync, closeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { chromiumExecutable } from './browser.ts';
+import { canonicalPath } from './lifecycle-path.ts';
+import { assertIsolatedSocket, isolatedLocations, validateIsolatedEnvironment } from './test-isolation.ts';
 
 const repo = resolve(import.meta.dir, '..');
 if (process.env.HERDR_TEST_LIVE === '1' || process.env.HERDR_SOCKET) throw new Error('Live or inherited runtime socket overrides are forbidden');
-const root = realpathSync(mkdtempSync(join(process.platform === 'win32' ? tmpdir() : '/tmp', 'tw-')));
-const evidence = resolve(repo, 'evidence/p3', root.split('/').at(-1)!); mkdirSync(evidence, { recursive: true });
-const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('HERDR_'))) as Record<string, string>;
-env.TERMWEAVE_TEST_ROOT = root; env.HERDR_TEST_SESSION = 'qa';
-env.TMPDIR = root; env.TMP = root; env.TEMP = root;
-for (const [name, directory] of [['HOME', 'h'], ['XDG_CONFIG_HOME', 'c'], ['XDG_STATE_HOME', 's'], ['XDG_DATA_HOME', 'd'], ['XDG_CACHE_HOME', 'k']]) {
-  const path = join(root, directory!); mkdirSync(path); env[name!] = path;
-}
+const root = canonicalPath(mkdtempSync(join(process.platform === 'win32' ? tmpdir() : '/tmp', 'tw-')));
+const evidence = resolve(repo, 'evidence/p3', basename(root)); mkdirSync(evidence, { recursive: true });
+// HOME/XDG and the Windows profile (USERPROFILE/APPDATA/LOCALAPPDATA) live in the root; required OS variables (SystemRoot, PATH, ...) pass through.
+// Windows names are case-insensitive: drop every inherited spelling of an isolated name so no duplicate can win in the child.
+const isolated: Record<string, string> = { TERMWEAVE_TEST_ROOT: root, HERDR_TEST_SESSION: 'qa', TMPDIR: root, TMP: root, TEMP: root, ...isolatedLocations(root) };
+const nameKey = (name: string) => process.platform === 'win32' ? name.toUpperCase() : name;
+const replaced = new Set(Object.keys(isolated).map(nameKey));
+const env = { ...Object.fromEntries(Object.entries(process.env).filter(([name]) => !nameKey(name).startsWith('HERDR_') && !replaced.has(nameKey(name)))), ...isolated } as Record<string, string>;
 env.HERDR_STAGING_DIST = join(root, 'dist'); env.DOCK_EVIDENCE = evidence;
+validateIsolatedEnvironment(env);
 // only browser lanes need Chromium: type, build and unit run on a machine without it, and a browser
 // lane without it fails with the same install hint from chromiumExecutable()
 try { env.CHROME_PATH = chromiumExecutable(); } catch { delete env.CHROME_PATH; }
@@ -38,10 +41,16 @@ const lanes: [string, string[], Record<string, string>?][] = [
   ['product-start', ['bun', 'scripts/product-start-regression.ts']],
   ['product-browser', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/product-browser-regression.ts']],
   ['render', ['bun', 'scripts/terminal-render-regression.ts'], { RENDER_LABEL: 'p3' }],
+  // the production PaneTerminal assertions of the mirror input/IME guard (3F) and the composition hold (3G-1) belong to the render lane;
+  // their --negative-control runs prove the harness's detection power and stay separate direct checks
+  ['render.input-policy', ['bun', 'scripts/terminal-render-regression.ts', '--input-policy']],
+  ['render.mirror-flow', ['bun', 'scripts/terminal-render-regression.ts', '--input-policy', '--mirror-flow']],
   ['color-picker', ['bun', 'scripts/color-picker-regression.ts']],
   ['pane-move', ['bun', 'scripts/pane-move-regression.ts']],
   ['dock', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/dock-regression.ts']],
   ['title-drag', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/dock-title-drag-regression.ts']],
+  ['dock-header', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/dock-header-regression.ts']],
+  ['send-composing', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/terminal-send-composing-regression.ts']],
   ['workspace', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/session-isolation-regression.ts']],
   ['move', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/pane-move-browser.ts']],
   ['preview', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/preview-app-regression.ts']],
@@ -49,10 +58,12 @@ const lanes: [string, string[], Record<string, string>?][] = [
   ['ui', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/ui-regression.ts']],
   ['file-uri', ['bun', 'scripts/file-links-browser.ts']],
   ['file-links', ['bun', '--preload', './scripts/staging-static.ts', 'scripts/terminal-file-links-regression.ts']],
-  ['source-style', ['node', 'scripts/source-style-gate.mjs']],
+  ['source-style', ['bun', 'scripts/source-style-gate.mjs']],
 ];
 const selected = process.argv.slice(2);
 for (const name of selected) if (!lanes.some(lane => lane[0] === name)) throw new Error(`Unknown required lane: ${name}`);
+// a lane `name` also runs its `name.part` lanes
+const runs = (lane: string) => !selected.length || selected.some(name => lane === name || lane.startsWith(name + '.'));
 const { trackedHashes } = await import('./tracked-source-hashes.ts');
 const trackedSourceHashes = trackedHashes(repo);
 const sourceHashes = Object.fromEntries([...new Bun.Glob('{src,shared,server,scripts,gates}/**/*.{ts,tsx,css,sh,mjs,py}').scanSync({ cwd: repo }),
@@ -70,7 +81,7 @@ function countsFor(log: string): Record<string, number> {
 let cleanupFailed = false;
 try {
   for (const [name, command, extra] of lanes) {
-    if (selected.length && !selected.includes(name)) continue;
+    if (!runs(name)) continue;
     const log = join(evidence, name + '.txt');
     // One descriptor for both streams: separately opening the same log loses evidence
     // when stdout/stderr seek and overwrite each other (including the suite banner).
@@ -89,11 +100,14 @@ try {
     }
   }
 } finally {
-  const socket = join(env.XDG_CONFIG_HOME!, 'herdr/sessions/qa/herdr.sock');
+  // the session marker (Unix socket file; on Windows the marker of herdr's named pipe) this run owns, and nothing else
+  const socket = join(env.XDG_CONFIG_HOME!, 'herdr', 'sessions', 'qa', 'herdr.sock');
   let cleanup = 0;
-  const pidFile = join(env.XDG_CONFIG_HOME!, "herdr/sessions/qa/test-owned.pid");
+  const pidFile = join(env.XDG_CONFIG_HOME!, 'herdr', 'sessions', 'qa', 'test-owned.pid');
   const ownedPid = existsSync(pidFile) ? Number(readFileSync(pidFile, "utf8").trim()) : null;
-  if (existsSync(socket)) {
+  let owned = true;
+  try { assertIsolatedSocket(socket, env); } catch (error) { owned = false; console.log(`FAIL[cleanup] ${(error as Error).message}`); }
+  if (owned && existsSync(socket)) {
     const child = Bun.spawn(['herdr', '--session', 'qa', 'server', 'stop'], { cwd: repo, env, stdout: Bun.file(join(evidence, 'cleanup.txt')), stderr: Bun.file(join(evidence, 'cleanup.txt')) });
     cleanup = await child.exited;
   }
@@ -102,7 +116,7 @@ try {
   let ownedPidGone = true;
   if (ownedPid && Number.isSafeInteger(ownedPid)) { try { process.kill(ownedPid, 0); ownedPidGone = false; } catch {} }
   const trackedSourcesUnchanged = JSON.stringify(trackedSourceHashes) === JSON.stringify(trackedHashes(repo));
-  cleanupFailed = cleanup !== 0 || !socketRemoved || !ownedPidGone || !trackedSourcesUnchanged;
+  cleanupFailed = !owned || cleanup !== 0 || !socketRemoved || !ownedPidGone || !trackedSourcesUnchanged;
   writeFileSync(join(evidence, 'result.json'), JSON.stringify({ root, evidence, tracked_hashes: trackedSourceHashes, tracked_sources_unchanged: trackedSourcesUnchanged, source_hashes: sourceHashes, results, failures: results.filter(result => result.exit_code !== 0), cleanup_exit: cleanup, socket_removed: socketRemoved, owned_pid: ownedPid, owned_pid_gone: ownedPidGone, production_access: false,
       limits: ['Native agent receiver tests prove transport ACK only, not real Claude/Codex semantic processing.', 'Workflow status frames use the production reducer but synthetic events.', 'Task ownership is advisory, not enforcement of arbitrary shell writes.', 'Native metadata check-to-send is not atomic; uncertain sends must not be retried.', 'Production deployment readiness is a separate blocked gate; no deployment was attempted.'] }, null, 2));
   console.log(`EVIDENCE ${evidence}`);

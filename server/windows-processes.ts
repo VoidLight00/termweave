@@ -18,9 +18,9 @@ export function windowsArgv(commandLine: string): string[] {
   return words;
 }
 
-/** argv of every process below `pid`, nearest first; the executable's full path stands for argv[0]. */
-export function descendantArgv(rows: readonly ProcessRow[], pid: number): string[][] {
-  const found: string[][] = [];
+/** Every process below `pid`, nearest first, by its number and its argv; the executable's full path stands for argv[0]. */
+export function descendantProcesses(rows: readonly ProcessRow[], pid: number): { pid: number; argv: string[] }[] {
+  const found: { pid: number; argv: string[] }[] = [];
   const seen = new Set<number>([pid]);
   let level = [pid];
   while (level.length > 0) {
@@ -30,11 +30,16 @@ export function descendantArgv(rows: readonly ProcessRow[], pid: number): string
       seen.add(row.pid);
       next.push(row.pid);
       const argv = windowsArgv(row.commandLine ?? "");
-      found.push(row.path ? [row.path, ...argv.slice(1)] : argv);
+      found.push({ pid: row.pid, argv: row.path ? [row.path, ...argv.slice(1)] : argv });
     }
     level = next;
   }
   return found;
+}
+
+/** argv of every process below `pid`, nearest first. */
+export function descendantArgv(rows: readonly ProcessRow[], pid: number): string[][] {
+  return descendantProcesses(rows, pid).map((entry) => entry.argv);
 }
 
 export function parseProcessTable(json: string): ProcessRow[] {

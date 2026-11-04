@@ -110,7 +110,7 @@ describe("atomic task ownership", () => {
   test("reject traversal, glob ambiguity, symlink escape and dangling links", () => {
     symlinkSync(root, join(project, "escape")); symlinkSync(join(root, "missing"), join(project, "dangling"));
     const db = store();
-    for (const path of ["../outside", "src/../a.ts", "src/*.ts", "src/a?.ts", "src/[ab].ts", "src/{a,b}.ts", "escape/new.ts", "dangling/new.ts"]) {
+    for (const path of ["../outside", "src/../a.ts", "src\\..\\a.ts", "src/*.ts", "src/a?.ts", "src/[ab].ts", "src/{a,b}.ts", "escape/new.ts", "dangling/new.ts"]) {
       expect(() => claim(db, "bad", [file(path)])).toThrow();
     }
     expect(db.list(project)).toHaveLength(0);
@@ -130,9 +130,12 @@ describe("atomic task ownership", () => {
     expect(() => db.list(project)).toThrow("malformed_state");
     expect(() => new PaneMeshOwnership({ stateDir })).toThrow("malformed_state");
     mkdirSync(join(project, ".git")); expect(() => new PaneMeshOwnership({ stateDir: join(project, "state") })).toThrow("state_in_git");
+    symlinkSync(stateDir, join(root, "link-state")); expect(() => new PaneMeshOwnership({ stateDir: join(root, "link-state") })).toThrow("unsafe_state");
+  });
+  // POSIX mode bits: Windows has no group/other bits (its profile ACLs guard the state); covered by CI ubuntu/macos
+  test.skipIf(process.platform === "win32")("reject a group or world readable state directory", () => {
     const shared = join(root, "shared"); mkdirSync(shared); chmodSync(shared, 0o755);
     expect(() => new PaneMeshOwnership({ stateDir: shared })).toThrow("unsafe_state");
-    symlinkSync(stateDir, join(root, "link-state")); expect(() => new PaneMeshOwnership({ stateDir: join(root, "link-state") })).toThrow("unsafe_state");
   });
 });
 
@@ -198,10 +201,17 @@ test("a malformed schema and inconsistent active overlaps are rejected", () => {
   corrupt.exec("DROP TABLE tasks; CREATE TABLE tasks(project TEXT)"); corrupt.close();
   expect(() => new PaneMeshOwnership({ stateDir })).toThrow("malformed_state");
 });
-test("deleting active state requires recovery in existing and new processes", () => {
+// POSIX unlink of a file SQLite holds open (Windows refuses with EBUSY, so the live state cannot vanish); covered by CI ubuntu/macos
+test.skipIf(process.platform === "win32")("deleting active state requires recovery in existing and new processes", () => {
   const db = store(); const held = claim(db, "one", [file("src/a.ts")]);
   rmSync(stateDir, { recursive: true });
   expect(() => mutate(db, "heartbeat", "one", held.token)).toThrow("state_recovery_required");
+  expect(() => new PaneMeshOwnership({ stateDir })).toThrow("state_recovery_required");
+});
+test("deleting closed active state requires recovery in a new process", () => {
+  const db = store(); claim(db, "one", [file("src/a.ts")]);
+  db.close(); stores = stores.filter((candidate) => candidate !== db);
+  rmSync(stateDir, { recursive: true });
   expect(() => new PaneMeshOwnership({ stateDir })).toThrow("state_recovery_required");
 });
 
@@ -232,6 +242,16 @@ test("separate processes claim disjoint scopes", async () => {
   // the child's error code, not just its exit status, names a failure
   expect(outcomes.map((r) => `${r.code}:${r.out}`)).toEqual(["0:claimed", "0:claimed"]);
 });
+test("simultaneous first starts on a fresh state directory all open it", async () => {
+  // the barrier releases every start at once, so two of them publish the sentinel together; a plain Windows rename
+  // refused to replace the sentinel the other start had open (EPERM on about one start in ten; with the plain rename
+  // this test failed in 7 of 11 local runs, so it catches a regression most of the time, not always)
+  const barrier = join(root, "go"); const ids = Array.from({ length: 10 }, (_, i) => `s${i}`);
+  const starts = ids.map((id) => child(id, file(`src/${id}.ts`), barrier));
+  while (!ids.every((id) => existsSync(`${barrier}.${id}.ready`))) await Bun.sleep(5);
+  writeFileSync(barrier, "go");
+  expect((await results(starts)).map((r) => `${r.code}:${r.out}:${r.err}`)).toEqual(ids.map(() => "0:claimed:"));
+}, 30_000);
 test("database contention fails closed then recovers without partial writes", async () => {
   store(); const lock = new Database(join(stateDir, "ownership.sqlite"));
   // COMMIT can briefly overlap the contender's schema read. Let this fixture

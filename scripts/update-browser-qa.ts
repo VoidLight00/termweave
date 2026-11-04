@@ -99,7 +99,7 @@ try {
   await installButton.click();
   await page.getByText(/Previous version restored/).waitFor();
   assert.equal((await status())?.current_revision, next);
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("heading", { name: "Updates", exact: true }).scrollIntoViewIfNeeded();
   await page.screenshot({ path: join(evidence, "rollback-mobile.png"), fullPage: true });

@@ -3,7 +3,10 @@ import { constants, fstatSync, closeSync, openSync, readdirSync, readFileSync, r
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { HerdrPane } from "../shared/protocol.ts";
 import { herdrRpc } from "./herdr/client.ts";
+import { recentProcessTable } from "./gjc-runtime.ts";
 import { processStartedAt } from "./process-start.ts";
+import { userHome } from "./user-home.ts";
+import { descendantProcesses, type ProcessRow } from "./windows-processes.ts";
 
 const OMO_PROCESS = /(^|\/)omo(\.js)?$|\/omo-ai\//;
 /** node and bun run a script: the program is then the script, the first word that is not a flag */
@@ -232,8 +235,30 @@ function resumedIds(argv: string[]): string[] {
   return result;
 }
 
-export type ProcessInfo = { process_info?: { foreground_processes?: { pid: number; argv?: string[] }[] } } | null;
-const processInfo = (paneId: string): Promise<ProcessInfo> => herdrRpc<NonNullable<ProcessInfo>>("pane.process_info", { pane_id: paneId }).catch(() => null);
+export type ProcessInfo = { process_info?: { shell_pid?: number; foreground_processes?: { pid: number; argv?: string[] }[] } } | null;
+
+/**
+ * herdr on Windows names only the pane's launcher in foreground_processes, not what the launcher
+ * starts (windows-processes.ts). The OmO below the pane's shell joins the list, so the pane is
+ * seen as OmO and its session arguments are read. Only processes below this pane's own shell
+ * count, and one herdr already named is not added twice.
+ */
+export function withOmoDescendants(info: ProcessInfo, rows: readonly ProcessRow[]): ProcessInfo {
+  const shell = info?.process_info?.shell_pid;
+  if (shell === undefined) return info;
+  const foreground = info?.process_info?.foreground_processes ?? [];
+  const omo = descendantProcesses(rows, shell).filter((entry) =>
+    isOmoProcess(entry.argv) && !foreground.some((existing) => existing.pid === entry.pid));
+  return omo.length === 0 ? info : { ...info, process_info: { ...info?.process_info, foreground_processes: [...foreground, ...omo] } };
+}
+
+const processInfo = async (paneId: string): Promise<ProcessInfo> => {
+  const [info, rows] = await Promise.all([
+    herdrRpc<NonNullable<ProcessInfo>>("pane.process_info", { pane_id: paneId }).catch(() => null),
+    process.platform === "win32" ? recentProcessTable() : Promise.resolve([]),
+  ]);
+  return withOmoDescendants(info, rows);
+};
 
 /**
  * The session each OmO pane of one folder holds, from the processes herdr named for its panes.
@@ -311,14 +336,14 @@ export function omoTranscriptsOfCwd(cwd: string, panes: HerdrPane[], infos: Read
  * The session an OmO pane holds: its file, or `pending`, the id of a session the pane holds
  * but omo has not written yet (before its first message, or right after /new).
  */
-export async function omoSessionForPane(paneId: string, cwd: string, panes: HerdrPane[], home = process.env["HOME"] ?? ""): Promise<{ path: string | null; pending: string | null }> {
+export async function omoSessionForPane(paneId: string, cwd: string, panes: HerdrPane[], home = userHome()): Promise<{ path: string | null; pending: string | null }> {
   const peers = panes.filter((pane) => pane.cwd === cwd);
   const infos = new Map(await Promise.all(peers.map(async (pane) => [pane.pane_id, await processInfo(pane.pane_id)] as const)));
   const session = omoTranscriptsOfCwd(cwd, peers, infos, home).get(paneId);
   return { path: session?.path ?? null, pending: session?.pending ?? null };
 }
 
-export async function omoTranscriptForPane(paneId: string, cwd: string, panes: HerdrPane[], home = process.env["HOME"] ?? ""): Promise<string | null> {
+export async function omoTranscriptForPane(paneId: string, cwd: string, panes: HerdrPane[], home = userHome()): Promise<string | null> {
   return (await omoSessionForPane(paneId, cwd, panes, home)).path;
 }
 
@@ -327,7 +352,7 @@ export async function omoTranscriptForPane(paneId: string, cwd: string, panes: H
  * (null when that cannot be told) and when its OmO process started. One process lookup per
  * pane herdr has no other agent for, shared by all the panes of a folder.
  */
-export async function omoPanes(panes: HerdrPane[], home = process.env["HOME"] ?? ""): Promise<Map<string, { path: string | null; startedAt: number | null }>> {
+export async function omoPanes(panes: HerdrPane[], home = userHome()): Promise<Map<string, { path: string | null; startedAt: number | null }>> {
   const candidates = panes.filter((pane) => !pane.agent || pane.agent === "pi" || pane.agent === "claude" || pane.agent === "omo");
   const infos = new Map(await Promise.all(candidates.map(async (pane) => [pane.pane_id, await processInfo(pane.pane_id)] as const)));
   const runs = (paneId: string) => (infos.get(paneId)?.process_info?.foreground_processes ?? []).some((process) => isOmoProcess(process.argv ?? []));

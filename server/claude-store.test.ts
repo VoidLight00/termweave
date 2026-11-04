@@ -1,10 +1,25 @@
 import { afterEach, describe, expect, it } from "bun:test";
+import { spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { currentUserSid } from "../scripts/owned-install.ts";
 import { claudeProjectDir, claudeTranscriptFile, forgetClaudeSessions } from "./claude-store.ts";
+import { withoutBackupPrivilege } from "./private-file-fixture.ts";
 
 const SESSION = "0b8e6f0e-8d3f-4c1a-9a53-6c2b7a1d9e42";
+
+// Windows ignores a directory's mode bits: a deny ACE for this user, inherited by what is inside, makes it unreadable there
+const onWindows = process.platform === "win32";
+function icacls(...args: string[]): void {
+  expect(spawnSync(join(process.env["SystemRoot"]!, "System32", "icacls.exe"), args, { windowsHide: true, stdio: "ignore" }).status).toBe(0);
+}
+const lock = (path: string) => onWindows ? icacls(path, "/deny", `*${currentUserSid()}:(OI)(CI)(F)`) : chmodSync(path, 0o000);
+const unlock = (path: string) => onWindows ? icacls(path, "/remove:d", `*${currentUserSid()}`, "/t") : chmodSync(path, 0o700);
+// an elevated Windows administrator (GitHub's runner) may hold SeBackupPrivilege enabled, which lists a directory through the deny ACE:
+// the lookup runs without it, and a failure shows whether it had been enabled
+const lookup = (dir: string) => withoutBackupPrivilege(() => claudeTranscriptFile(dir, SESSION, []).catch((error: unknown) => error));
+const unreadable = { backupPrivilegeWasEnabled: expect.any(Boolean), answer: expect.any(Error) };
 
 describe("claudeProjectDir", () => {
   it("encodes a cwd the way Claude Code names its project", () => {
@@ -71,21 +86,24 @@ describe("claudeTranscriptFile", () => {
   it("reports a store it cannot read instead of calling the transcript missing", async () => {
     if (process.getuid?.() === 0) return; // root reads anything
     const { home: dir, projects } = home();
-    chmodSync(projects, 0o000);
-    try { await expect(claudeTranscriptFile(dir, SESSION, [])).rejects.toThrow(); }
-    finally { chmodSync(projects, 0o700); }
+    lock(projects);
+    try { expect(await lookup(dir)).toEqual(unreadable); }
+    finally { unlock(projects); }
     // an unreadable project beside the one holding the session: the session is still found
     const hit = transcript(projects, "-readable");
     mkdirSync(join(projects, "-locked"));
-    chmodSync(join(projects, "-locked"), 0o000);
-    try { expect(await claudeTranscriptFile(dir, SESSION, [])).toBe(hit); }
-    finally { chmodSync(join(projects, "-locked"), 0o700); }
+    lock(join(projects, "-locked"));
+    try { expect(await lookup(dir)).toEqual({ backupPrivilegeWasEnabled: expect.any(Boolean), answer: hit }); }
+    finally { unlock(join(projects, "-locked")); }
     // and without a hit, the unreadable project is reported, not called missing
     forgetClaudeSessions();
     rmSync(hit);
-    chmodSync(join(projects, "-locked"), 0o000);
-    try { await expect(claudeTranscriptFile(dir, SESSION, [])).rejects.toThrow(); }
-    finally { chmodSync(join(projects, "-locked"), 0o700); }
+    // Windows looks a name up without reading its directory (bypass traverse checking): a session file that is
+    // not there is truly absent, so the unreadable project there is one whose session file this user may not read
+    if (onWindows) writeFileSync(join(projects, "-locked", `${SESSION}.jsonl`), "{}\n");
+    lock(join(projects, "-locked"));
+    try { expect(await lookup(dir)).toEqual(unreadable); }
+    finally { unlock(join(projects, "-locked")); }
   });
 
   it("answers null without a projects store or a file for the session", async () => {

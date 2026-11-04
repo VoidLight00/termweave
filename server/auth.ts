@@ -17,7 +17,7 @@ import { timingSafeEqual } from "node:crypto";
 
 import { badRequest, jsonResponse } from "./http.ts";
 
-const COOKIE_NAME = "termweave_token";
+export const TOKEN_COOKIE = "termweave_token";
 /** a paired device's own credential; the same flags as the token cookie */
 export const DEVICE_COOKIE = "termweave_device";
 const COOKIE_MAX_AGE_SECONDS = 31536000;
@@ -51,7 +51,7 @@ function matches(candidate: string, token: string): boolean {
 
 export function isAuthenticated(request: Request, token: string): boolean {
   if (token === "") return true;
-  const cookie = parseCookies(request.headers.get("cookie")).get(COOKIE_NAME);
+  const cookie = parseCookies(request.headers.get("cookie")).get(TOKEN_COOKIE);
   if (cookie !== undefined && matches(cookie, token)) return true;
   const authorization = request.headers.get("authorization") ?? "";
   if (authorization.slice(0, BEARER_PREFIX.length).toLowerCase() !== BEARER_PREFIX) return false;
@@ -77,7 +77,7 @@ export function isSecureRequest(request: Request): boolean {
 
 function sessionCookie(token: string, secure: boolean): string {
   const attributes = `Path=/; HttpOnly; SameSite=Strict; Max-Age=${COOKIE_MAX_AGE_SECONDS}`;
-  return `${COOKIE_NAME}=${encodeURIComponent(token)}; ${attributes}${secure ? "; Secure" : ""}`;
+  return `${TOKEN_COOKIE}=${encodeURIComponent(token)}; ${attributes}${secure ? "; Secure" : ""}`;
 }
 
 export function deviceCookie(token: string, secure: boolean): string {
@@ -93,7 +93,7 @@ export function noContent(...setCookies: string[]): Response {
 export async function handleAuthRequest(request: Request, token: string): Promise<Response> {
   if (request.method === "DELETE") {
     // signing out drops both credentials this browser may hold
-    return noContent(`${COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`, `${DEVICE_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+    return noContent(`${TOKEN_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`, `${DEVICE_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
   }
   if (request.method !== "POST") return badRequest("method_not_allowed", "use POST or DELETE");
   // Gate off: answering 204 without a cookie lets one client flow work either way.

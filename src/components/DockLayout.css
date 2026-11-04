@@ -8,7 +8,7 @@
 .dock-rows { grid-template-columns: minmax(0, 1fr); }
 .dock-split > * { min-width: 0; min-height: 0; }
 .dock-tabs { display: flex; flex: 0 0 auto; flex-direction: column; gap: 3px; padding: 4px; background: var(--bg-panel); border-bottom: 1px solid var(--border); }
-.dock-tab-strip { display: flex; align-items: center; gap: 3px; min-width: 0; height: 36px; overflow-x: scroll; scrollbar-width: thin; }
+.dock-tab-strip { display: flex; align-items: center; gap: 3px; min-width: 0; height: 36px; overflow-x: scroll; overflow-y: hidden; scrollbar-width: thin; }
 .dock-tab-strip button { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; max-width: min(280px, calc(100% - 12px)); min-width: 0; height: 28px; white-space: nowrap; }
 .dock-tab-strip button > :not(.dock-tab-title) { flex-shrink: 0; }
 .dock-tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }

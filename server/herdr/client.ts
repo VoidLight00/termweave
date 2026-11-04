@@ -49,22 +49,41 @@ function nextId(): string {
   return `br-${Date.now().toString(36)}-${requestCounter}`;
 }
 
+export interface LineReader {
+  /** bytes as they arrived: a character cut at the end of a chunk waits for the rest of it in the next */
+  push(chunk: Uint8Array): void;
+  /**
+   * The connection ended. The bytes of a character it cut off become U+FFFD, and the text
+   * after the last newline is returned, never passed on as a line: a frame without its
+   * newline is one herdr did not finish.
+   */
+  end(): string;
+}
+
 /**
  * Splits a growing buffer into complete newline-terminated frames.
- * herdr frames arrive split across reads, so partial tails must be retained.
+ * herdr frames arrive split across reads, so partial tails must be retained. Bytes that are
+ * no UTF-8 become U+FFFD, as TextDecoder makes them; the line is still parsed.
  */
-function makeLineReader(onLine: (line: string) => void): (chunk: Uint8Array) => void {
+export function makeLineReader(onLine: (line: string) => void): LineReader {
   const decoder = new TextDecoder();
   let buffer = "";
-  return (chunk: Uint8Array) => {
-    buffer += decoder.decode(chunk, { stream: true });
-    let index = buffer.indexOf("\n");
-    while (index !== -1) {
-      const line = buffer.slice(0, index).trim();
-      buffer = buffer.slice(index + 1);
-      if (line.length > 0) onLine(line);
-      index = buffer.indexOf("\n");
-    }
+  return {
+    push(chunk) {
+      buffer += decoder.decode(chunk, { stream: true });
+      let index = buffer.indexOf("\n");
+      while (index !== -1) {
+        const line = buffer.slice(0, index).trim();
+        buffer = buffer.slice(index + 1);
+        if (line.length > 0) onLine(line);
+        index = buffer.indexOf("\n");
+      }
+    },
+    end() {
+      const tail = buffer + decoder.decode();
+      buffer = "";
+      return tail;
+    },
   };
 }
 
@@ -118,18 +137,20 @@ export async function herdrRpc<T = unknown>(
       finish(() => resolve(frame.result as T));
     };
 
-    const onData = makeLineReader(handleLine);
+    const reader = makeLineReader(handleLine);
 
     Bun.connect({
       unix: socketAddress(socketPath),
       socket: {
         data(_sock, chunk) {
-          onData(chunk);
+          reader.push(chunk);
         },
         error(_sock, err) {
           finish(() => reject(new HerdrError("socket_error", err?.message ?? "herdr socket error")));
         },
         close() {
+          // an unfinished frame is no answer: the tail is dropped and the request fails as closed
+          reader.end();
           finish(() => reject(new HerdrError("closed", `herdr closed the connection before answering ${method}`)));
         },
       },
@@ -157,7 +178,8 @@ export async function herdrRpc<T = unknown>(
 export async function ping(socketPath?: string): Promise<HerdrIdentity> {
   const result = await herdrRpc<{ version: string; protocol: number; capabilities?: Record<string, unknown> }>("ping", {}, socketPath);
   const attach = terminalAttachSupported(result.capabilities);
-  // without attach the web server repaints the pane's screen instead (server/mirror.ts)
+  // without attach the web server streams the pane through `herdr terminal session control`, or
+  // repaints its screen where that cannot start (server/herdr/terminal-session.ts, server/mirror.ts)
   return { version: result.version, protocol: result.protocol, terminal_attach: attach, ...(attach ? {} : { terminal_mirror: true }) };
 }
 
@@ -220,6 +242,84 @@ export async function workspaceMove(workspaceId: string, insertIndex: number, so
 
 export async function workspaceClose(workspaceId: string, socketPath?: string): Promise<void> {
   await herdrRpc("workspace.close", { workspace_id: workspaceId }, socketPath);
+}
+
+export interface WorktreeCreateResult {
+  workspace: WorkspaceInfo;
+  tab: TabInfo;
+  root_pane: PaneInfo;
+}
+
+// git checks out or deletes the whole tree before herdr answers: a large repo (or node_modules on Windows) outlasts the default
+const WORKTREE_TIMEOUT_MS = 120_000;
+
+/** A git worktree of the repo `cwd` is in, opened as a new workspace whose root pane is a shell in the checkout. */
+export async function worktreeCreate(
+  options: { cwd: string; branch: string; base?: string; label?: string },
+  socketPath?: string,
+): Promise<WorktreeCreateResult> {
+  const created = await herdrRpc<WorktreeCreateResult & { type: "worktree_created" }>(
+    "worktree.create",
+    {
+      cwd: options.cwd,
+      branch: options.branch,
+      ...(options.base === undefined ? {} : { base: options.base }),
+      ...(options.label === undefined ? {} : { label: options.label }),
+      focus: false,
+    },
+    socketPath,
+    WORKTREE_TIMEOUT_MS,
+  );
+  return { workspace: created.workspace, tab: created.tab, root_pane: created.root_pane };
+}
+
+/** One checkout of a repo as `worktree.list` reports it; `open_workspace_id` is absent when no workspace has it open. */
+export interface HerdrWorktreeEntry {
+  branch?: string | null;
+  is_bare: boolean;
+  is_detached: boolean;
+  is_linked_worktree: boolean;
+  is_prunable: boolean;
+  label?: string | null;
+  /** forward slashes on Windows too */
+  path: string;
+  open_workspace_id?: string;
+}
+
+export interface WorktreeListResult {
+  source: { repo_key: string; repo_name: string; repo_root: string; source_checkout_path?: string | null; source_workspace_id?: string | null };
+  /** the main checkout as well as the linked worktrees */
+  worktrees: HerdrWorktreeEntry[];
+}
+
+/** Every checkout of the repo `cwd` is in, with the workspace that has it open. */
+export async function worktreeList(cwd: string, socketPath?: string): Promise<WorktreeListResult> {
+  const listed = await herdrRpc<WorktreeListResult & { type: "worktree_list" }>("worktree.list", { cwd }, socketPath);
+  return { source: listed.source, worktrees: listed.worktrees };
+}
+
+export interface WorktreeOpenResult {
+  /** the checkout already had a workspace: `root_pane` is its pane, nothing new was opened */
+  already_open: boolean;
+  root_pane: PaneInfo;
+  tab: TabInfo;
+  workspace?: WorkspaceInfo;
+}
+
+/** An existing checkout of the repo `cwd` is in, opened as a workspace (a new one unless it is open already). */
+export async function worktreeOpen(options: { cwd: string; path: string }, socketPath?: string): Promise<WorktreeOpenResult> {
+  const opened = await herdrRpc<WorktreeOpenResult>(
+    "worktree.open",
+    { cwd: options.cwd, path: options.path, focus: false },
+    socketPath,
+    WORKTREE_TIMEOUT_MS,
+  );
+  return { already_open: opened.already_open, root_pane: opened.root_pane, tab: opened.tab, ...(opened.workspace === undefined ? {} : { workspace: opened.workspace }) };
+}
+
+/** Closes a worktree workspace and deletes its checkout; the branch stays. A dirty checkout needs `force`. */
+export async function worktreeRemove(workspaceId: string, force: boolean, socketPath?: string): Promise<void> {
+  await herdrRpc("worktree.remove", { workspace_id: workspaceId, force }, socketPath, WORKTREE_TIMEOUT_MS);
 }
 
 export interface PaneReadOptions {
@@ -322,7 +422,7 @@ export function subscribeEvents(
   let socket: { end: () => void } | null = null;
   let started = false;
 
-  const onData = makeLineReader((line) => {
+  const reader = makeLineReader((line) => {
     // closed by the caller: frames still buffered belong to a subscription it replaced
     if (closed) return;
     let frame: { id?: string; result?: { type?: string }; error?: { code?: string; message?: string } } & EventFrame;
@@ -347,12 +447,14 @@ export function subscribeEvents(
     unix: socketAddress(socketPath),
     socket: {
       data(_sock, chunk) {
-        onData(chunk);
+        reader.push(chunk);
       },
       error(_sock, err) {
         if (!closed) handlers.onError?.(new HerdrError("socket_error", err?.message ?? "herdr socket error"));
       },
       close() {
+        // an event cut off by the close is not delivered
+        reader.end();
         if (!closed) {
           closed = true;
           handlers.onClose?.();

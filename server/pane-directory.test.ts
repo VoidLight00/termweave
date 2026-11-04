@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test";
 import { PaneDirectory, terminalKey, type DirectoryDeps, type TerminalTarget } from "./pane-directory.ts";
+import { resolve } from "node:path";
 import type { PaneInfo } from "../shared/herdr-api.generated.ts";
 const G = "a".repeat(64), H = "b".repeat(64);
+// a canonical absolute socket on this platform: /name on Unix, <drive>:\name (herdr's marker, not its pipe) on Windows
+const at = (name: string) => resolve("/", name), HERDR = at("herdr.sock");
 function fixture() {
   let generation = G;
   let panes = [pane("terminal-A", "w1:p1", "w1"), pane("terminal-B", "w2:p1", "w2")];
@@ -25,15 +28,15 @@ function fixture() {
       throw new Error("unexpected RPC");
     }) as DirectoryDeps["rpc"],
     read: async (options, socket) => {
-      reads++; expect(socket).toBe("/herdr.sock");
+      reads++; expect(socket).toBe(HERDR);
       const p = panes.find((p) => p.pane_id === options.paneId)!;
       const result = { pane_id: p.pane_id, workspace_id: p.workspace_id, tab_id: p.tab_id, source: "recent", format: "text", revision: 1, text: "owned output", truncated: false };
       afterRead(); return result;
     },
-    literal: async (id, _text, socket) => { expect(panes.some((p) => p.pane_id === id)).toBe(true); expect(socket).toBe("/herdr.sock"); sends++; afterSend(); },
+    literal: async (id, _text, socket) => { expect(panes.some((p) => p.pane_id === id)).toBe(true); expect(socket).toBe(HERDR); sends++; afterSend(); },
     prompt: async (id) => { expect(id).toBe(panes[0]!.pane_id); sends++; afterSend(); },
   };
-  const directory = new PaneDirectory({ tmuxSockets: ["/tmux-a.sock", "/tmux-b.sock"], herdrSockets: ["/herdr.sock"] }, deps);
+  const directory = new PaneDirectory({ tmuxSockets: [at("tmux-a.sock"), at("tmux-b.sock")], herdrSockets: [HERDR] }, deps);
   return { directory, deps, calls, setGeneration: (g: string) => { generation = g; }, setPanes: (p: PaneInfo[]) => { panes = p; }, setAgents: (a: unknown[]) => { agents = a; }, onRead: (fn: () => void) => { afterRead = fn; }, onSend: (fn: () => void) => { afterSend = fn; }, counts: () => ({ reads, sends }) };
 }
 function pane(terminal_id: string, pane_id: string, workspace_id: string): PaneInfo {
@@ -55,7 +58,16 @@ test("explicit allowlists; enumerate every workspace; duplicate IDs across socke
   expect(await new PaneDirectory({ tmuxSockets: [], herdrSockets: [] }, f.deps).list()).toEqual([]);
   expect(() => new PaneDirectory(undefined as never, f.deps)).toThrow("explicit_allowlist_required");
   expect(() => new PaneDirectory({ tmuxSockets: ["relative"], herdrSockets: [] }, f.deps)).toThrow("invalid_socket");
-  await expect(f.directory.read({ ...targets[0]!, socket: "/not-approved.sock" })).rejects.toThrow("socket_not_approved");
+  await expect(f.directory.read({ ...targets[0]!, socket: at("not-approved.sock") })).rejects.toThrow("socket_not_approved");
+});
+test("one canonical absolute socket spelling per platform; pipe, UNC, device and drive-less names refused", () => {
+  const deps = fixture().deps, accepts = (socket: string) => new PaneDirectory({ tmuxSockets: [], herdrSockets: [socket] }, deps);
+  const windows = process.platform === "win32";
+  for (const socket of windows ? ["C:\\Users\\u\\.config\\herdr\\herdr.sock", HERDR] : ["/tmp/herdr.sock", HERDR]) expect(() => accepts(socket)).not.toThrow();
+  const refused = windows
+    ? ["/herdr.sock", "\\\\.\\pipe\\C:\\Users\\u\\herdr.sock", "\\\\server\\share\\herdr.sock", "\\\\?\\C:\\herdr.sock", "C:herdr.sock", "C:/Users/u/herdr.sock", "C:\\a\\..\\herdr.sock", "C:\\Users\\u\\"]
+    : ["C:\\Users\\u\\herdr.sock", "/a/../herdr.sock", "/tmp//herdr.sock", "/tmp/"];
+  for (const socket of [...refused, "relative", ""]) expect(() => accepts(socket)).toThrow("invalid_socket");
 });
 test("resolve moved native terminal before each read/send; no fake herdr %ID", async () => {
   const f = fixture(), target = await herdrTarget(f), key = terminalKey(target);
@@ -95,7 +107,7 @@ test("uncertain send executes once; native failure never retries", async () => {
   f.onSend(() => f.setGeneration(H));
   await expect(f.directory.send(target, "message", { recipientKey: terminalKey(target), mode: "literal" })).rejects.toThrow("stale_generation");
   expect(f.counts().sends).toBe(1);
-  const failed = new PaneDirectory({ tmuxSockets: [], herdrSockets: ["/herdr.sock"] }, { ...f.deps, literal: async () => { throw new Error("native uncertain"); } });
+  const failed = new PaneDirectory({ tmuxSockets: [], herdrSockets: [HERDR] }, { ...f.deps, literal: async () => { throw new Error("native uncertain"); } });
   f.setGeneration(G);
   await expect(failed.send(target, "message", { recipientKey: terminalKey(target), mode: "literal" })).rejects.toThrow("native uncertain");
   expect(f.counts().sends).toBe(1);

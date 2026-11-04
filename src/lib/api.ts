@@ -8,6 +8,8 @@ import type {
   HealthAuth,
   InteractivePrompt,
   OmoActivity,
+  OpenUrlRequest,
+  OpenUrlTargets,
   PairedDevice,
   PairingCode,
   PaneReadResult,
@@ -18,6 +20,13 @@ import type {
   SlashCommand,
   UsageReport,
   WorkspaceCreated,
+  WorktreeCreated,
+  WorktreeCreateRequest,
+  WorktreeEntry,
+  WorktreeOpened,
+  WorktreeOpenRequest,
+  WorktreeRemoveRequest,
+  WorktreeSource,
 } from "../../shared/protocol.ts";
 import type { PaneScrollInfo } from "../../shared/herdr-api.generated.ts";
 import type { HerdrUpdateStatus, UpdateCommand, UpdateStatus } from "../../shared/update.ts";
@@ -210,6 +219,16 @@ export async function revokeDevice(id: string): Promise<void> {
   await sendJson(`/api/devices/${encodeURIComponent(id)}`, "DELETE", {});
 }
 
+/** GET /api/open-url: whether this PC can open a link in Aside for this browser (it must run on the PC itself). */
+export function fetchOpenUrlTargets(): Promise<OpenUrlTargets> {
+  return getJson<OpenUrlTargets>("/api/open-url");
+}
+
+/** POST /api/open-url: a web link opened in Aside on this PC; ApiError 404 aside_not_installed, 403 loopback_only. */
+export async function openUrlInAside(url: string): Promise<void> {
+  await sendJson("/api/open-url", "POST", { url, target: "aside" } satisfies OpenUrlRequest);
+}
+
 /** DELETE /api/auth: clears the session and device cookies, so the next health check reports the gate again. */
 export async function signOut(): Promise<void> {
   const response = await fetch("/api/auth", { method: "DELETE" });
@@ -377,6 +396,33 @@ export async function moveWorkspace(workspaceId: string, insertIndex: number, ma
 
 export async function closeWorkspace(workspaceId: string, machineId = "local"): Promise<void> {
   await sendJson(machinePath(machineId, "workspace/close"), "POST", { workspace_id: workspaceId });
+}
+
+/** GET /api/worktree/source: the checkout, repo and branch of the pane's folder; 409 not_a_git_repository outside a repo. */
+export function fetchWorktreeSource(paneId: string, machineId = "local"): Promise<WorktreeSource> {
+  return getJson<WorktreeSource>(machinePath(machineId, `worktree/source?pane_id=${encodeURIComponent(paneId)}`));
+}
+
+/** POST /api/worktree/create: a new workspace on a git worktree of the pane's repo, placed right after the pane's workspace. */
+export async function createWorktreePane(request: WorktreeCreateRequest, machineId = "local"): Promise<WorktreeCreated> {
+  const response = await sendJson(machinePath(machineId, "worktree/create"), "POST", request);
+  return (await response.json()) as WorktreeCreated;
+}
+
+/** GET /api/worktree/list: the linked worktrees of the pane's repo, open or closed; 409 not_a_git_repository outside a repo. */
+export async function fetchWorktrees(paneId: string, machineId = "local"): Promise<WorktreeEntry[]> {
+  return (await getJson<{ worktrees: WorktreeEntry[] }>(machinePath(machineId, `worktree/list?pane_id=${encodeURIComponent(paneId)}`))).worktrees;
+}
+
+/** POST /api/worktree/open: a worktree of the pane's repo opened again as a workspace at the same path. */
+export async function openWorktreePane(paneId: string, path: string, machineId = "local"): Promise<WorktreeOpened> {
+  const response = await sendJson(machinePath(machineId, "worktree/open"), "POST", { pane_id: paneId, path } satisfies WorktreeOpenRequest);
+  return (await response.json()) as WorktreeOpened;
+}
+
+/** POST /api/worktree/remove: closes the worktree workspace and deletes its checkout; 409 dirty_worktree_requires_force without `force`. */
+export async function removeWorktree(workspaceId: string, force: boolean, machineId = "local"): Promise<void> {
+  await sendJson(machinePath(machineId, "worktree/remove"), "POST", { workspace_id: workspaceId, force } satisfies WorktreeRemoveRequest);
 }
 
 /** GET /api/pane/commands: the slash commands the pane's agent understands (built-in + custom). */

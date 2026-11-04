@@ -245,6 +245,188 @@ it("ends as a terminal does when herdr says the pane is gone, and keeps trying a
   expect(exits).toEqual([null]);
 });
 
+/**
+ * A pane that counts what herdr is asked at once: its reads and size lookups, each waiting
+ * until the test answers it. A pane's mirror asks herdr one thing at a time.
+ */
+function counted(extra: Partial<ConstructorParameters<typeof MirrorSession>[0]> & { slowSize?: boolean } = {}) {
+  const reads: { resolve(screen: string): void; reject(error: unknown): void }[] = [];
+  const sizes: { resolve(size: { cols: number; rows: number } | null): void }[] = [];
+  let open = 0;
+  let most = 0;
+  const frames: string[] = [];
+  const exits: (number | null)[] = [];
+  const asking = <T>(executor: (resolve: (value: T) => void, reject: (error: unknown) => void) => void) => {
+    open++;
+    most = Math.max(most, open);
+    return new Promise<T>(executor).finally(() => { open--; });
+  };
+  const { slowSize, ...options } = extra;
+  const session = new MirrorSession({
+    read: () => asking<string>((resolve, reject) => { reads.push({ resolve, reject }); }),
+    ...(slowSize ? { sizeMs: 0, size: () => asking<{ cols: number; rows: number } | null>((resolve) => { sizes.push({ resolve }); }) } : {}),
+    write: async () => undefined,
+    onData: (frame) => frames.push(frame),
+    onExit: (code) => exits.push(code),
+    cols: 80,
+    rows: 24,
+    activeMs: 0,
+    idleMs: 0,
+    echoMs: 0,
+    wholeMs: 0,
+    quietMs: 0,
+    ...options,
+  });
+  return { session, reads, sizes, frames, exits, open: () => open, most: () => most };
+}
+
+const settle = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
+/** waits until `ready` holds, or fails the test */
+async function until(ready: () => boolean, what: string) {
+  const deadline = Date.now() + 2000;
+  while (!ready()) {
+    if (Date.now() > deadline) throw new Error(`${what} never happened`);
+    await settle(1);
+  }
+}
+
+it("asks for no second read while a slow one is on its way, however often keys are typed", async () => {
+  const { session, reads, frames, most } = counted();
+  await until(() => reads.length === 1, "the first read");
+  for (let key = 0; key < 20; key++) {
+    session.poke();
+    session.write("x");
+    await settle(2);
+  }
+  await settle();
+  expect(reads).toHaveLength(1);
+  reads[0]!.resolve("$ x");
+  // the keys typed meanwhile bring one read after it, and that one is on its way alone too
+  await until(() => reads.length === 2, "the echo read");
+  for (let key = 0; key < 20; key++) session.poke();
+  await settle();
+  expect(reads).toHaveLength(2);
+  reads[1]!.resolve("$ xx");
+  await until(() => reads.length === 3, "the next read");
+  expect(frames).toEqual([mirrorFrame("$ x"), mirrorFrame("$ xx")]);
+  expect(most()).toBe(1);
+  session.kill();
+});
+
+it("reads nothing while the pane's size is on its way, and then reads once", async () => {
+  const { session, reads, sizes, most, open } = counted({ slowSize: true });
+  await until(() => sizes.length === 1, "the size lookup");
+  for (let key = 0; key < 20; key++) {
+    session.poke();
+    await settle(2);
+  }
+  await settle();
+  expect(sizes).toHaveLength(1);
+  expect(reads).toHaveLength(0);
+  sizes[0]!.resolve({ cols: 80, rows: 24 });
+  await until(() => reads.length === 1, "the read after the size");
+  await settle();
+  expect(reads).toHaveLength(1);
+  expect(sizes).toHaveLength(1);
+  expect(open()).toBe(1);
+  expect(most()).toBe(1);
+  session.kill();
+});
+
+it("tries again after a read herdr did not answer, still one read at a time, and counts only failures in a row", async () => {
+  const { session, reads, frames, exits, most } = counted({ idleMs: 5 });
+  await until(() => reads.length === 1, "the first read");
+  // nine failures, keys typed while each was on its way, then an answer: the count starts over
+  for (let n = 1; n <= 9; n++) {
+    session.poke();
+    session.poke();
+    reads[n - 1]!.reject(new HerdrError("timeout", "no answer"));
+    await until(() => reads.length === n + 1, `read ${n + 1}`);
+  }
+  reads[9]!.resolve("back");
+  for (let n = 11; n <= 19; n++) {
+    await until(() => reads.length === n, `read ${n}`);
+    reads[n - 1]!.reject(new HerdrError("server_unavailable", "handoff"));
+  }
+  await until(() => reads.length === 20, "read 20");
+  await settle();
+  expect(reads).toHaveLength(20);
+  expect(exits).toEqual([]);
+  expect(frames).toEqual([mirrorFrame("back")]);
+  expect(most()).toBe(1);
+  // the tenth failure in a row ends it as a terminal would
+  reads[19]!.reject(new HerdrError("timeout", "no answer"));
+  await session.exited;
+  expect(exits).toEqual([null]);
+  await settle();
+  expect(reads).toHaveLength(20);
+});
+
+it("once killed, a read or size lookup that finishes later sends, resizes and ends nothing, and no read follows", async () => {
+  const resized: string[] = [];
+  // killed while the size lookup is on its way
+  {
+    const { session, reads, sizes, frames, exits } = counted({ slowSize: true, onResize: (cols, rows) => resized.push(`${cols}x${rows}`) });
+    await until(() => sizes.length === 1, "the size lookup");
+    session.kill();
+    session.poke();
+    sizes[0]!.resolve({ cols: 100, rows: 30 });
+    await session.exited;
+    await settle();
+    expect(reads).toHaveLength(0);
+    expect(frames).toEqual([]);
+    expect(exits).toEqual([]);
+  }
+  // killed while a read that will fail is on its way
+  {
+    const { session, reads, frames, exits } = counted();
+    await until(() => reads.length === 1, "the first read");
+    session.poke();
+    session.kill();
+    reads[0]!.reject(new HerdrError("pane_not_found", "pane gone"));
+    await settle();
+    expect(reads).toHaveLength(1);
+    expect(frames).toEqual([]);
+    expect(exits).toEqual([]);
+  }
+  // killed with the echo read on the timer
+  {
+    const { session, reads } = counted({ activeMs: 60_000, idleMs: 60_000, echoMs: 10 });
+    await until(() => reads.length === 1, "the first read");
+    reads[0]!.resolve("$ ");
+    await settle(5);
+    session.poke();
+    session.kill();
+    await settle();
+    expect(reads).toHaveLength(1);
+  }
+  expect(resized).toEqual([]);
+});
+
+it("mirrors each pane on its own: a pane whose read hangs holds up no other, and ending one ends no other", async () => {
+  const slow = counted();
+  const fast = counted();
+  await until(() => slow.reads.length === 1 && fast.reads.length === 1, "both first reads");
+  for (let n = 1; n <= 5; n++) {
+    slow.session.poke();
+    fast.reads[n - 1]!.resolve(`screen ${n}`);
+    await until(() => fast.reads.length === n + 1, `fast read ${n + 1}`);
+  }
+  expect(slow.reads).toHaveLength(1);
+  expect(slow.frames).toEqual([]);
+  slow.session.kill();
+  slow.reads[0]!.resolve("late");
+  fast.session.poke();
+  fast.reads[5]!.resolve("screen 6");
+  await until(() => fast.reads.length === 7, "fast read 7");
+  expect(fast.frames).toEqual([1, 2, 3, 4, 5, 6].map((n) => mirrorFrame(`screen ${n}`)));
+  expect(slow.frames).toEqual([]);
+  expect(slow.reads).toHaveLength(1);
+  expect(slow.most()).toBe(1);
+  expect(fast.most()).toBe(1);
+  fast.session.kill();
+});
+
 it("types into the pane through herdr", () => {
   const { session, written } = pane();
   session.write("ls\r");

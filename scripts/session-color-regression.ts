@@ -37,7 +37,7 @@ try {
     await context.addInitScript(theme => { if (!localStorage.getItem('termweave:settings')) localStorage.setItem('termweave:settings', JSON.stringify({ language: 'en', theme, terminalInputMode: 'direct', showUsage: false })); }, theme);
     const page = await context.newPage(); page.setDefaultTimeout(15000);
     const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-    await page.goto(origin + '/'); await page.locator('.conn-live').waitFor();
+    await page.goto(origin + '/'); await page.locator('.conn-live:visible').waitFor();
     const folder = page.locator(`.pane-select[data-workspace-id="${owned[0]}"] .agent-mark-holder`);
     if (width < 500 && !(await folder.isVisible())) await page.locator('.drawer-toggle').click();
     await page.getByRole('button', { name: `More for workspace ${label}`, exact: true }).click();
@@ -52,7 +52,7 @@ try {
     if (shots) await page.screenshot({ path: join(shots, `color-dialog-${tag}.png`) });
     await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
     await dialog.waitFor({ state: 'detached' });
-    await page.reload(); await page.locator('.conn-live').waitFor();
+    await page.reload(); await page.locator('.conn-live:visible').waitFor();
     if (width < 500 && !(await folder.isVisible())) await page.locator('.drawer-toggle').click();
     assert.equal(await folder.evaluate(n => getComputedStyle(n).color), 'rgb(255, 122, 0)', `${tag} folder keeps custom color after reload`);
     if (shots && tag === 'dark') await page.screenshot({ path: join(shots, 'color-sidebar-custom.png') });

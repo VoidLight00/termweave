@@ -3,17 +3,18 @@
  * instead of the shared token. The owner starts a pairing on the PC and gets a short code
  * that lives ten minutes; the device sends the code once and receives a token of its own
  * in an HttpOnly cookie. Only a hash of that token is stored, so devices.json in the state
- * dir (0600, written whole) reveals nothing if read. Revocation also closes that device's
+ * dir (owner-only, written whole) reveals nothing if read. Revocation also closes that device's
  * active streams. A device is either allowed to drive (type, answer, manage) or only to watch.
  */
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { DeviceRole, PairedDevice } from "../shared/protocol.ts";
 import type { Access } from "./access.ts";
 import { deviceCookie, isSecureRequest, noContent } from "./auth.ts";
 import { badRequest, isJsonObject, jsonResponse } from "./http.ts";
 import { sameOrigin } from "./machine-security.ts";
+import { writePrivateFile } from "./private-file.ts";
 
 const CODE_TTL_MS = 10 * 60_000;
 const CODE_ATTEMPTS = 5;
@@ -59,10 +60,7 @@ export function isDeviceRole(value: unknown): value is DeviceRole {
 
 /** Owner-only, and written whole: a crash mid-write must not leave half a device list. */
 function writeJsonPrivate(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
-  renameSync(temporary, path);
+  writePrivateFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 export class DeviceStore {

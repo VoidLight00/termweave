@@ -3,7 +3,7 @@ import { TeamFolders } from "./TeamFolders.tsx";
 import { paneNumber } from "../lib/paneNumber.ts";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { useWorkspaceReorder } from "../lib/workspaceReorder.ts";
-import { ChevronRight, Ellipsis, Folder, GripVertical, Layers, Palette, Pencil, Plus, X } from "lucide-react";
+import { ChevronRight, Ellipsis, Folder, GitBranch, GripVertical, Layers, Palette, Pencil, Plus, Trash2, X } from "lucide-react";
 import { readCollapsedWorkspaces, workspaceCollapseId, writeCollapsedWorkspaces } from "../lib/workspaceCollapse.ts";
 
 import "./Sidebar.css";
@@ -23,6 +23,8 @@ import { useT } from "../lib/i18n.ts";
 import { TerminalMenu } from "./TerminalMenu.tsx";
 import { MovePaneDialog } from "./MovePaneDialog.tsx";
 import { moveRequest, moveTargets } from "../../shared/paneMove.ts";
+import { ApiError } from "../lib/api.ts";
+import { worktreeParents } from "../lib/worktreeTree.ts";
 
 const ERROR_NOTE_MS = 5000;
 
@@ -84,7 +86,7 @@ interface InlineError {
 }
 
 type MenuState = { kind: "workspace"; anchor: HTMLElement; workspace: WorkspaceInfo; scope: string };
-interface ConfirmState { title: string; body: string; run: () => Promise<void> }
+interface ConfirmState { title: string; body: string; confirmLabel?: string; run: () => Promise<void> }
 
 export interface SidebarProps {
   snapshot: SessionSnapshot | null;
@@ -100,7 +102,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
   // cmux-style session color: per browser, per PC and workspace, shown on the folder mark
   const [colorTarget, setColorTarget] = useState<{ id: string; label: string } | null>(null);
   const colorKey = (workspaceId: string): string => sessionColorKey(window.location.origin, machineId, workspaceId);
-  const { closeWorkspace, moveWorkspace, renameWorkspace, fetchWorkspaceColors, setWorkspaceColor } = useMachineApi();
+  const { closeWorkspace, moveWorkspace, renameWorkspace, fetchWorkspaceColors, setWorkspaceColor, removeWorktree } = useMachineApi();
   // colors live on the server so the app and every browser match; null = an older server, keep this browser's own
   const [serverColors, setServerColors] = useState<Record<string, string> | null>(null);
   const [colorVersion, setColorVersion] = useState(0);
@@ -165,6 +167,18 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
     const byId = new Map(snapshot.workspaces.map((workspace) => [workspace.workspace_id, workspace]));
     return workspaceOrder.map((id) => byId.get(id)).filter((workspace): workspace is WorkspaceInfo => workspace !== undefined);
   }, [snapshot, workspaceOrder]);
+  // a worktree right below its main checkout, or below a sibling there, reads as its child; the
+  // server puts a new one there, and a worktree dragged elsewhere just stands on its own
+  const worktreeChildren = useMemo(() => {
+    const parents = worktreeParents(orderedWorkspaces);
+    const children = new Set<string>();
+    orderedWorkspaces.forEach((workspace, index) => {
+      const parent = parents.get(workspace.workspace_id);
+      const above = orderedWorkspaces[index - 1]?.workspace_id;
+      if (parent !== undefined && above !== undefined && (above === parent || (children.has(above) && parents.get(above) === parent))) children.add(workspace.workspace_id);
+    });
+    return children;
+  }, [orderedWorkspaces]);
   const workspacePaneCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const pane of snapshot?.panes ?? []) counts.set(pane.workspace_id, (counts.get(pane.workspace_id) ?? 0) + 1);
@@ -191,8 +205,21 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
     const paneCount = workspacePaneCounts.get(workspace.workspace_id) ?? 1;
     const renameWorkspaceItem: RowMenuItem = { id: "rename-workspace", label: t("Rename workspace"), icon: Pencil, run: () => beginWorkspaceRename(workspace, state.scope) };
     const colorItem: RowMenuItem = { id: "session-color", label: t("Session color"), icon: Palette, run: () => setColorTarget({ id: workspace.workspace_id, label: workspace.label }) };
-    return [renameWorkspaceItem, colorItem,
-      { id: "close", label: t("Close workspace"), icon: X, danger: true, divider: true, run: () => setConfirm({ title: t("Close workspace {name}?", { name: workspace.label }), body: t("{n} panes close with it, and the agents in them stop.", { n: paneCount }), run: () => leave(() => closeWorkspace(workspace.workspace_id)) }) },
+    const worktree = workspace.worktree?.is_linked_worktree ? workspace.worktree : null;
+    // herdr refuses a checkout with changes until asked again with force: the second question names what is lost
+    const remove = (path: string, force: boolean): Promise<void> => leave(() => removeWorktree(workspace.workspace_id, force)).catch((reason: unknown) => {
+      if (!force && reason instanceof ApiError && reason.code === "dirty_worktree_requires_force") {
+        setConfirm({ title: t("Worktree {name} has uncommitted changes", { name: workspace.label }), body: t("Uncommitted and untracked files in {path} are deleted for good.", { path }),
+          confirmLabel: t("Remove worktree"), run: () => remove(path, true) });
+        return;
+      }
+      throw new Error(t("Remove failed: {reason}", { reason: reason instanceof Error ? reason.message : String(reason) }));
+    });
+    const removeItems: RowMenuItem[] = worktree ? [{ id: "remove-worktree", label: t("Remove worktree"), icon: Trash2, danger: true, divider: true,
+      run: () => setConfirm({ title: t("Remove worktree {name}?", { name: workspace.label }), body: t("The folder {path} is deleted and its terminals close. The branch is kept.", { path: worktree.checkout_path }),
+        confirmLabel: t("Remove worktree"), run: () => remove(worktree.checkout_path, false) }) }] : [];
+    return [renameWorkspaceItem, colorItem, ...removeItems,
+      { id: "close", label: t("Close workspace"), icon: X, danger: true, divider: !worktree, run: () => setConfirm({ title: t("Close workspace {name}?", { name: workspace.label }), body: t("{n} panes close with it, and the agents in them stop.", { n: paneCount }), run: () => leave(() => closeWorkspace(workspace.workspace_id)) }) },
     ];
   };
 
@@ -321,7 +348,9 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
       { key: "running", status: "working", label: t("Running"), target: summary.running },
       { key: "done", status: "done", label: t("Done"), target: summary.done },
     ];
-    return <section className={`workspace${paneDrag?.over === workspace.workspace_id ? " is-pane-drop" : ""}`} data-reorder-workspace={workspace.workspace_id} key={workspace.workspace_id}
+    const worktree = workspace.worktree?.is_linked_worktree ? workspace.worktree : null;
+    const worktreeClass = worktree ? worktreeChildren.has(workspace.workspace_id) ? " is-worktree is-worktree-child" : " is-worktree" : "";
+    return <section className={`workspace${worktreeClass}${paneDrag?.over === workspace.workspace_id ? " is-pane-drop" : ""}`} data-reorder-workspace={workspace.workspace_id} key={workspace.workspace_id}
       onDragOver={event => { if (!dropTarget(workspace.workspace_id, hoveredPane(event))) return; event.preventDefault(); event.dataTransfer.dropEffect = "move";
         if (paneDrag?.over !== workspace.workspace_id) setPaneDrag(drag => drag && { ...drag, over: workspace.workspace_id }); }}
       onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPaneDrag(drag => drag && { ...drag, over: null }); }}
@@ -335,7 +364,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
           <ChevronRight aria-hidden="true" />
         </button>
         <div className="pane-select" role="button" tabIndex={0} data-workspace-id={workspace.workspace_id}
-          aria-current={selected ? "true" : undefined} title={workspace.label}
+          aria-current={selected ? "true" : undefined} title={worktree ? `${workspace.label}\n${t("Git worktree: {path}", { path: worktree.checkout_path })}` : workspace.label}
           onClick={() => onSelectWorkspace?.(workspace.workspace_id)}
           onKeyDown={event => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); onSelectWorkspace?.(workspace.workspace_id); } }}>
           <span className="agent-mark-holder is-shell" style={{ color: resolveSessionColor(colorOf(workspace.workspace_id)) }}><Folder aria-hidden="true" /></span>
@@ -343,7 +372,8 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
             {editing ? <input className="input workspace-rename-input" aria-label={t("Workspace name")} autoFocus value={workspaceLabel}
               onClick={event => event.stopPropagation()} onChange={event => setWorkspaceLabel(event.target.value)} onBlur={() => saveWorkspaceRename(workspace.workspace_id)}
               onKeyDown={event => { event.stopPropagation(); if (event.key === "Enter") saveWorkspaceRename(workspace.workspace_id); if (event.key === "Escape") { event.preventDefault(); renameSettled.current = true; setEditingWorkspaceId(null); } }} />
-              : <span className="pane-title" onDoubleClick={() => beginWorkspaceRename(workspace, scope)}>{workspace.label}</span>}
+              : <>{worktree && <GitBranch className="workspace-worktree-mark" aria-hidden="true" />}
+                <span className="pane-title" onDoubleClick={() => beginWorkspaceRename(workspace, scope)}>{workspace.label}</span></>}
           </span><span className="pane-meta">
             <BackgroundBadge count={summary.backgroundTasks} />
             <span className="pane-subtitle">{t("{n} terminals", { n: visiblePanes.length })}</span>
@@ -375,6 +405,7 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
             <AgentMark agent={pane.agent || "shell"} size={16} /><span className="workspace-terminal-title">{displayPaneTitle(pane)}</span>
             <StatusBadge status={pane.agent_status} />
           </button><TerminalMenu pane={pane} machineId={machineId} onRefresh={() => actions.refresh()} onMove={() => setMoveSource(pane)}
+            onWorktreeCreated={created => { actions.refresh(); actions.selectPane(created.pane_id); }}
             onMoveUp={neighborInTab(pane, -1) ? () => void swapPanes(pane, neighborInTab(pane, -1)!).catch(moveFailed) : undefined}
             onMoveDown={neighborInTab(pane, 1) ? () => void swapPanes(pane, neighborInTab(pane, 1)!).catch(moveFailed) : undefined} /></div>} />}
         </div>
@@ -409,7 +440,8 @@ export function Sidebar({ snapshot, selectedPaneId, selectedWorkspaceId, onSelec
           setWorkspaceColor(id, color).catch(() => setColorVersion(v => v + 1));
         }}
         onClose={() => setColorTarget(null)} />}
-      {confirm && <ConfirmDialog title={confirm.title} body={confirm.body} confirmLabel={t("Close")} onConfirm={confirm.run} onClose={() => setConfirm(null)} />}
+      {/* keyed: a follow-up question replaces the answered one with a fresh dialog, not a pending one */}
+      {confirm && <ConfirmDialog key={confirm.title} title={confirm.title} body={confirm.body} confirmLabel={confirm.confirmLabel ?? t("Close")} onConfirm={confirm.run} onClose={() => setConfirm(null)} />}
     </div>
   );
 }

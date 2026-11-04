@@ -25,6 +25,8 @@ import { checkDroplet } from "./droplet-regression.ts";
 import { checkChatKeepsTerminalSize } from "./chat-size-regression.ts";
 import { checkCommandBackspace } from "./terminal-command-backspace-regression.ts";
 import { UsageService } from "../server/usage.ts";
+// the shortcut the app shows: shortcutHint() spells it per platform
+const VIEW_KEY = process.platform === "darwin" ? "⌘⇧J" : "Ctrl+Shift+J";
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "herdr-web-ui-browser-")));
 const workspaces: string[] = [];
@@ -102,7 +104,7 @@ try {
     });
   });
   await page.goto(`${origin}/?pane=${encodeURIComponent(paneA)}`);
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   await until(() => painted.has(paneA), "owned pane paint");
   const composer = page.getByRole("textbox", { name: "Message", exact: true });
   await composer.waitFor();
@@ -147,7 +149,7 @@ try {
   // Use a real browser paste: keydown must not send Ctrl+V (0x16) to the agent,
   // where it can trigger image paste against the server's unrelated clipboard.
   await context.grantPermissions(["clipboard-read", "clipboard-write"], { origin });
-  await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+  await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
   await checkTerminalFileInput(page, sockets[0]!);
   const terminalInput = page.locator(".xterm-helper-textarea");
   for (const [shortcut, text] of [
@@ -238,10 +240,10 @@ try {
     await page.waitForTimeout(NO_SEND_WAIT_MS);
     assert.deepEqual(inputs.slice(beforeSwitch), [], `${key} must not reach a pane`);
     await page.goto(`${origin}/?pane=${encodeURIComponent(paneA)}`);
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
     await page.locator(".xterm-helper-textarea").waitFor();
   }
-  await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+  await page.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
   await composer.waitFor();
   console.log("PASS terminal clipboard paste sends text once and preserves Ctrl+C");
 
@@ -308,7 +310,7 @@ try {
   if (process.env.UI_EVIDENCE_DIR) await page.screenshot({ path: join(process.env.UI_EVIDENCE_DIR, "multiple-queue.png") });
   await page.locator(".composer-queue-text").nth(1).fill("# edited second message");
   await page.reload();
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   await until(async () => await page.locator(".composer-queue-text").count() === 3, "queue restored");
   assert.equal(await page.locator(".composer-queue-text").nth(1).inputValue(), "# edited second message");
   // the queue belongs to the chat lens: the terminal lens hides it and keeps it for the return
@@ -435,10 +437,10 @@ try {
   await page.locator('.pane-select[data-workspace-id]').first().waitFor();
   const workspaceRows = await page.locator('.pane-select[data-workspace-id]').count();
   assert.equal(workspaceRows, (await sessionSnapshot()).workspaces.length);
-  await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+  await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
   await page.getByLabel('Existing terminals', { exact: true }).selectOption(paneB);
   await page.waitForFunction(id => document.querySelector('.dock-group')?.getAttribute('data-pane-id') === id, paneB);
-  await page.reload(); await page.locator('.conn-live').waitFor();
+  await page.reload(); await page.locator('.conn-live:visible').waitFor();
   await page.waitForFunction(id => Array.from(document.querySelectorAll('.dock-group')).some(node => node.getAttribute('data-pane-id') === id), paneB);
   await herdrRpc("pane.report_agent", { pane_id: paneA, source: "manual", agent: "claude", state: "blocked" });
   await inputIndicator.waitFor();
@@ -482,11 +484,11 @@ try {
     await createGate;
     await route.continue();
   });
-  await page.getByRole("button", { name: /^New session on / }).click();
-  const dialog = page.getByRole("dialog", { name: /^New session/ });
+  await page.getByRole("button", { name: /^New folder session on / }).click();
+  const dialog = page.getByRole("dialog", { name: /^New folder session/ });
   await dialog.getByLabel(/^Directory/).fill(root);
   await dialog.getByLabel(/^Name/).fill("herdr-web-ui-test-browser-created");
-  await dialog.getByRole("button", { name: "Start session", exact: true }).click();
+  await dialog.getByRole("button", { name: "Create folder session", exact: true }).click();
   await until(() => createRequests === 1, "creation started");
   await page.keyboard.press("Escape");
   assert.equal(await dialog.isVisible(), true, "in-flight creation cannot be dismissed");
@@ -631,10 +633,10 @@ try {
   const mobilePage = await mobile.newPage();
   mobilePage.on("pageerror", (error) => errors.push(error.message));
   await mobilePage.goto(`${origin}/?pane=${encodeURIComponent(paneB)}`);
-  await mobilePage.locator(".conn-live").waitFor();
+  await mobilePage.locator(".conn-live:visible").waitFor();
   const tapHighlight = await mobilePage.locator(".view-switch button").first().evaluate((node) => getComputedStyle(node).webkitTapHighlightColor);
   assert.equal(tapHighlight, "rgba(0, 0, 0, 0)", "native tap overlays do not obscure selection");
-  await mobilePage.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+  await mobilePage.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).fill("mobile draft");
   await mobilePage.locator(".chat-terminal-fallback").waitFor();
   assert.equal(await mobilePage.locator(".chat-terminal-fallback").getAttribute("open"), null, "missing native history is labeled, not presented as broken chat");
@@ -653,14 +655,15 @@ try {
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).blur();
   await mobilePage.locator('button[aria-controls="workspace-drawer"]').click();
   await mobilePage.locator(`.pane-select[data-workspace-id="${workspaces[0]}"]`).click();
-  await mobilePage.getByRole("textbox", { name: "Message", exact: true }).waitFor();
+  // terminal first on every screen (App.tsx storedView): a pane with no chat choice opens in its terminal lens
+  await mobilePage.locator(`.view-switch button[aria-pressed="true"][title="Live terminal (${VIEW_KEY})"]`).waitFor();
   await mobilePage.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await mobilePage.waitForTimeout(NO_SEND_WAIT_MS);
   assert.equal(await typing(mobilePage), false, "a pane picked on a phone does not take the keyboard");
-  await mobilePage.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+  await mobilePage.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
+  await mobilePage.getByRole("textbox", { name: "Message", exact: true }).waitFor();
   await mobilePage.waitForTimeout(NO_SEND_WAIT_MS);
   assert.equal(await typing(mobilePage), false, "nor does switching its lens");
-  await mobilePage.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).tap();
   await until(() => typing(mobilePage), "a tap on the message box takes the keyboard");
   await mobilePage.getByRole("textbox", { name: "Message", exact: true }).blur();
@@ -684,8 +687,8 @@ try {
   chipPage.on("pageerror", (error) => errors.push(error.message));
   await chipPage.route(promptRoute, (route) => route.fulfill(suggest));
   await chipPage.goto(`${origin}/?pane=${encodeURIComponent(paneB)}`);
-  await chipPage.locator(".conn-live").waitFor();
-  await chipPage.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+  await chipPage.locator(".conn-live:visible").waitFor();
+  await chipPage.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
   await chipPage.getByTitle("Use the suggestion", { exact: true }).click();
   assert.equal(await chipPage.getByRole("textbox", { name: "Message", exact: true }).inputValue(), "run the tests", "the chip puts the suggestion in the box");
   await chipPhone.close();
@@ -704,8 +707,8 @@ try {
     if (message.type === "input" || message.type === "submit") touchSent.push(message);
   }));
   await touchPage.goto(`${origin}/?pane=${encodeURIComponent(paneB)}`);
-  await touchPage.locator(".conn-live").waitFor();
-  await touchPage.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+  await touchPage.locator(".conn-live:visible").waitFor();
+  await touchPage.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
   const line = touchPage.getByRole("textbox", { name: "Terminal input line", exact: true });
   await line.waitFor();
   assert.equal(await touchPage.locator(".xterm-helper-textarea").getAttribute("inputmode"), "none");
@@ -724,12 +727,15 @@ try {
   await touchPage.waitForTimeout(NO_SEND_WAIT_MS);
   assert.equal(touchSent.length, imeSent);
   assert.equal(await line.inputValue(), "echo 한글");
+  // Send during an unfinished composition commits it and sends the line once, and the line clears
   await line.dispatchEvent("compositionstart", { data: "" });
   const beforeComposeSend = touchSent.length;
   await touchPage.getByRole("button", { name: "Send to the terminal", exact: true }).click();
-  await touchPage.waitForTimeout(NO_SEND_WAIT_MS);
-  assert.equal(touchSent.length, beforeComposeSend, "button cannot submit an unfinished composition");
+  await until(async () => (await line.inputValue()) === "", "the line sent during composition cleared");
   await line.dispatchEvent("compositionend", { data: "한글" });
+  await touchPage.waitForTimeout(NO_SEND_WAIT_MS);
+  assert.deepEqual(touchSent.slice(beforeComposeSend).map(({ type, pane_id, text }) => ({ type, pane_id, text })),
+    [{ type: "submit", pane_id: paneB, text: "echo 한글" }], "Send during composition sends the committed line once");
   await line.fill("");
   // an empty line's button is Enter alone
   const enters = touchSent.length;

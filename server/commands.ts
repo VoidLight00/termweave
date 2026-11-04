@@ -1,9 +1,9 @@
-import { homedir } from "node:os";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { piAgentDir } from "./pi-models.ts";
 import { join, relative, sep } from "node:path";
 
 import type { SlashCommand } from "../shared/protocol.ts";
+import { userHome } from "./user-home.ts";
 
 const BUILTINS: Record<string, readonly string[]> = {
   claude: ["clear", "compact", "config", "cost", "help", "init", "memory", "model", "permissions", "review", "status", "doctor", "login", "logout", "pr-comments", "release-notes", "terminal-setup", "vim"],
@@ -141,7 +141,7 @@ function piTemplates(root: string, source: SlashCommand["source"]): SlashCommand
   return result;
 }
 
-export function paneCommands(agent: string | null | undefined, cwd: string | null | undefined, home = process.env.HOME || homedir()): SlashCommand[] {
+export function paneCommands(agent: string | null | undefined, cwd: string | null | undefined, home = userHome()): SlashCommand[] {
   if (!agent || !(agent in BUILTINS)) return [];
   const commands: SlashCommand[] = (BUILTINS[agent] ?? []).map((name) => ({ name, description: (agent === "pi" ? PI_DESCRIPTIONS[name] : undefined) ?? DESCRIPTIONS[name] ?? `Run /${name}`, source: "builtin" }));
   if (agent === "claude") {

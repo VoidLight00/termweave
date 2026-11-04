@@ -23,6 +23,12 @@ interface AttachState {
   rows: number;
   /** the chat lens covers the grid: attaches (a reconnect's too) leave the shared pty's size alone */
   keepSize: boolean;
+  /**
+   * The furthest output acknowledged on this subscription. A mirror frame held while the IME composes
+   * is acknowledged as it is taken in (PaneTerminal), ahead of a write still in xterm: that write's
+   * smaller offset is not sent after it.
+   */
+  acked?: { stream: string; offset: number };
 }
 
 function defaultUrl(): string {
@@ -206,7 +212,10 @@ export class HerdrSocket {
     }
   }
 
-  /** Capture connection AND subscription before xterm's asynchronous write. Never queue ACKs. */
+  /**
+   * Capture connection AND subscription before xterm's asynchronous write. Never queue ACKs. An
+   * offset at or below the one already acknowledged on the same stream is not sent again.
+   */
   outputAcknowledgement(message: Extract<ServerMessage, { type: "pty-data" }>): (() => void) | undefined {
     const flow = message.flow;
     if (!flow) return undefined;
@@ -215,6 +224,8 @@ export class HerdrSocket {
     return () => {
       if (!connection || this.socket !== connection || !this.connected || !subscription
         || this.attached.get(message.pane_id) !== subscription) return;
+      if (subscription.acked?.stream === flow.stream_id && subscription.acked.offset >= flow.offset) return;
+      subscription.acked = { stream: flow.stream_id, offset: flow.offset };
       this.rawSend({ type: "pty-ack", pane_id: message.pane_id, stream_id: flow.stream_id, offset: flow.offset });
     };
   }
@@ -258,6 +269,12 @@ export class HerdrSocket {
   sendInput(paneId: string, text: string): boolean {
     if (!this.canInput(paneId)) return false;
     try { this.rawSend({ type: "input", pane_id: paneId, text }); return true; } catch { return false; }
+  }
+
+  /** The wheel on a pane herdr's session control streams (its input-ready said `session`): `lines` lines at a 1-based cell. */
+  sendScroll(paneId: string, direction: "up" | "down", lines: number, column: number, row: number): boolean {
+    if (!this.canInput(paneId)) return false;
+    try { this.rawSend({ type: "scroll", pane_id: paneId, direction, lines, column, row }); return true; } catch { return false; }
   }
 
   /**

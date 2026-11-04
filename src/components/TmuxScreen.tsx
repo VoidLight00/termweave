@@ -20,7 +20,7 @@ export function TmuxScreen({ target }: { target: TmuxPaneState }) {
     if (!host.current) return;
     setConnected(false);
     let disposed = false;
-    const term = new Terminal({ allowProposedApi: true, cursorBlink: true, fontSize: settings.terminalFontSize,
+    const term = new Terminal({ allowProposedApi: true, cursorBlink: true, fontSize: settings.terminalFontSize, lineHeight: settings.terminalLineHeight,
       fontFamily: terminalFontStack(settings.terminalFontFamily), theme: terminalTheme(resolvedTheme, settings.palette, settings), minimumContrastRatio: terminalContrast(resolvedTheme), scrollback: 10000 });
     terminal.current = term;
     const fit = new FitAddon(); term.loadAddon(fit);
@@ -52,7 +52,7 @@ export function TmuxScreen({ target }: { target: TmuxPaneState }) {
     const input = term.onData(data => { if (ready && !readOnly) send({type:"input",data}); });
     // Detach only. tmux owns shell lifetime and redraws on the next connection.
     return () => { disposed = true; observer.disconnect(); input.dispose(); socket.close(); term.dispose(); terminal.current = null; };
-  }, [target.socket, target.generation, target.sessionId, retry, settings.terminalFontSize, settings.terminalFontFamily, settings.palette, resolvedTheme]);
+  }, [target.socket, target.generation, target.sessionId, retry, settings.terminalFontSize, settings.terminalLineHeight, settings.terminalFontFamily, settings.palette, resolvedTheme]);
   useEffect(() => {
     if (!terminal.current) return;
     terminal.current.options.theme = terminalTheme(resolvedTheme, settings.palette, settings);

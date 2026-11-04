@@ -209,6 +209,8 @@ export async function checkUsageMeters(browser: Browser, origin: string): Promis
     await page.locator(".sidebar-footer-row .sidebar-footer-action").click();
     await page.getByRole("button", { name: "Beside Settings", exact: true }).click();
     await page.keyboard.press("Escape");
+    // opening Settings closed the drawer the strip lives in: open the list again to see it
+    await page.getByRole("button", { name: "Open workspace list", exact: true }).click();
     await page.locator(".usage-strip").waitFor();
     assert.equal(await page.locator(".usage-panel").count(), 0);
     assert.deepEqual(errors, []);

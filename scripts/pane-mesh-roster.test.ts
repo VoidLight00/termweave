@@ -5,6 +5,8 @@ import { dirname, join } from "node:path";
 
 const script = join(import.meta.dir, "hooks", "pane-mesh-roster.sh");
 const jq = Bun.which("jq");
+// the hook is a /bin/bash script driving python3, jq and #!/bin/sh herdr shims: needs a POSIX host, not just jq (a Windows runner has jq but no /bin/bash); covered by CI ubuntu/macos
+const posixHost = process.platform !== "win32";
 let shim: string;
 beforeAll(() => { shim = mkdtempSync(join(tmpdir(), "pane-mesh-roster-")); });
 afterAll(() => rmSync(shim, { recursive: true, force: true }));
@@ -33,7 +35,7 @@ async function runContext(url: string, helper = join(import.meta.dir, "pane-cont
 }
 
 describe("P-number hook context", () => {
-  it("uses the configured helper and teaches lookup for a lone pane", async () => {
+  it.skipIf(!posixHost)("uses the configured helper and teaches lookup for a lone pane", async () => {
     const requests: string[] = [];
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: req => {
       requests[requests.length] = new URL(req.url).pathname;
@@ -55,14 +57,14 @@ describe("P-number hook context", () => {
       expect(sibling.out).toContain("You are P34");
     } finally { server.stop(true); }
   });
-  it("refuses a relative configured helper and preserves native fallback", async () => {
+  it.skipIf(!posixHost)("refuses a relative configured helper and preserves native fallback", async () => {
     fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));
     const result = await runContext("http://127.0.0.1:1", "relative.ts");
     expect(result.code).toBe(0);
     expect(result.out).toContain("herdr pane read");
     expect(result.err).toBe("");
   });
-  it("falls back when the local server fails", async () => {
+  it.skipIf(!posixHost)("falls back when the local server fails", async () => {
     fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));
     const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(null, { status: 401 }) });
     try {
@@ -72,7 +74,7 @@ describe("P-number hook context", () => {
       expect(result.err).toBe("");
     } finally { server.stop(true); }
   });
-  it("kills a stalled helper and finishes within five seconds", async () => {
+  it.skipIf(!posixHost)("kills a stalled helper and finishes within five seconds", async () => {
     const helper = join(shim, "slow.ts");
     writeFileSync(helper, "await Bun.sleep(10000); process.stdout.write('late');");
     fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));
@@ -85,7 +87,7 @@ describe("P-number hook context", () => {
   });
 });
 
-describe.skipIf(!jq)("pane-mesh-roster.sh", () => {
+describe.skipIf(!posixHost || !jq)("pane-mesh-roster.sh", () => {
   it("lists the panes beside the agent, by label when there is one", () => {
     fakeHerdr(list([
       pane("w1:p1", { label: "pane 1", agent: "claude", agent_status: "idle", cwd: "/work/api" }),

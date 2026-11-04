@@ -1,7 +1,7 @@
-import { expect, it } from "bun:test";
+import { expect, it, spyOn } from "bun:test";
 import { isGjcProcess } from "./gjc-runtime.ts";
 import { paneShell, shellAgentExecutable, shellCommandLine } from "./shell-agent.ts";
-import { descendantArgv, parseProcessTable, windowsArgv, windowsProcessTable } from "./windows-processes.ts";
+import { descendantArgv, descendantProcesses, parseProcessTable, windowsArgv, windowsProcessTable } from "./windows-processes.ts";
 
 const SYNTHETIC_GJC_PATH = String.raw`C:\Users\fixture\AppData\Local\gjc\gjc.exe`;
 
@@ -52,6 +52,8 @@ it("finds what runs under a pane's shell in the process table", () => {
     ["C:\\Program Files\\nodejs\\node.exe", "C:\\x y\\tool.js", "--flag"],
   ]);
   expect(under.some(isGjcProcess)).toBe(true);
+  // the same walk, with each process's number
+  expect(descendantProcesses(table, 41948).map((entry) => entry.pid)).toEqual([12156, 700]);
   // another pane's shell has no gjc under it, though one runs elsewhere on the PC
   expect(descendantArgv(table, 26540).length).toBe(3);
   expect(descendantArgv(table, 4242)).toEqual([]);
@@ -69,6 +71,14 @@ it("gives up on a process-table query that stalls, and kills it", async () => {
   expect(await windowsProcessTable(5000, ["printf", '[{"ProcessId":2,"ParentProcessId":1,"ExecutablePath":null,"CommandLine":"x"}]'])).toEqual([{ pid: 2, parent: 1, path: null, commandLine: "x" }]);
 });
 
-it("offers on Windows only the shell-started agents known to start there", () => {
-  expect(shellAgentExecutable("omo", "win32")).toBeNull();
+it("offers OmO on Windows when its launcher is on PATH", () => {
+  const which = spyOn(Bun, "which").mockReturnValue("C:\\tools\\omo.exe");
+  try {
+    expect(shellAgentExecutable("omo", "win32")).toBe("C:\\tools\\omo.exe");
+    expect(which).toHaveBeenCalledWith("omo", { PATH: process.env["PATH"] ?? "" });
+    which.mockReturnValue(null);
+    expect(shellAgentExecutable("omo", "win32")).toBeNull();
+  } finally {
+    which.mockRestore();
+  }
 });

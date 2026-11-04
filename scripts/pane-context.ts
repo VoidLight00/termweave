@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /** Read-only local context. Display numbers are selectors, not terminal identities. */
-import { resolve } from "node:path";
+import { isAbsolute, resolve } from "node:path";
 
 type Env = Record<string, string | undefined>;
 type Row = Record<string, unknown>;
@@ -137,7 +137,7 @@ export async function paneContext(args: readonly string[], env: Env = process.en
   if (self.length !== 1) fail("Current pane was not found. Use list to select a P-number.");
   const peers = panes.filter(row => row.workspace_id === self[0]!.workspace_id && row.pane_id !== self[0]!.pane_id);
   const helper = env.TERMWEAVE_PANE_CONTEXT || resolve(import.meta.dir, "pane-context.ts");
-  if (!helper.startsWith("/") || /[\x00-\x1f\x7f]/.test(helper)) fail("TERMWEAVE_PANE_CONTEXT must be an absolute path.");
+  if (!isAbsolute(helper) || /[\x00-\x1f\x7f]/.test(helper)) fail("TERMWEAVE_PANE_CONTEXT must be an absolute path.");
   // the commands carry the origin: an agent that copies one into its own shell reaches this server
   const prefix = `TERMWEAVE_URL=${quote(origin)} bun ${quote(helper)}`;
   return redact([

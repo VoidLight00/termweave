@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { PaneMeshOwnership } from "../server/pane-mesh-ownership.ts";
 import { resolveHerdrTaskOwner, taskOwnerGone } from "./pane-mesh-task.ts";
 
+// server identity = Unix socket lstat; Windows fails closed by design (native_server_identity_unavailable, pinned below); covered by CI ubuntu/macos
+const noServerIdentity = process.platform === "win32";
+
 let root: string; let socketPath: string; let stateDir: string;
 let listener: ReturnType<typeof Bun.listen>; let methods: string[];
 let session = "session-1";
@@ -35,7 +38,7 @@ async function cli(action: string, more: string[] = [], identityFile?: string) {
   });
   return { code: await process.exited, out: await new Response(process.stdout).text(), err: await new Response(process.stderr).text() };
 }
-test("CLI resolves native identity, keeps token private, heartbeats and completes", async () => {
+test.skipIf(noServerIdentity)("CLI resolves native identity, keeps token private, heartbeats and completes", async () => {
   const claimed = await cli("claim", ["--file", "new.ts"]); expect(claimed.code).toBe(0);
   const receipt = readdirSync(stateDir).find((name) => name.endsWith(".claim.json"))!;
   const token = JSON.parse(readFileSync(join(stateDir, receipt), "utf8")).token as string;
@@ -47,14 +50,14 @@ test("CLI resolves native identity, keeps token private, heartbeats and complete
   expect(JSON.parse(listing.out)[0].status).toBe("completed");
   expect(methods.every((method) => method === "session.snapshot")).toBe(true);
 });
-test("CLI finds moved terminal from existing private receipt despite stale environment", async () => {
+test.skipIf(noServerIdentity)("CLI finds moved terminal from existing private receipt despite stale environment", async () => {
   expect((await cli("claim", ["--file", "new.ts"])).code).toBe(0);
   moved = true;
   const heartbeat = await cli("heartbeat"); expect(heartbeat.code).toBe(0);
   expect(JSON.parse(heartbeat.out).owner.paneId).toBe("w2:p9");
   expect((await cli("release")).code).toBe(0);
 });
-test("replacement session can reclaim released task despite historical receipts", async () => {
+test.skipIf(noServerIdentity)("replacement session can reclaim released task despite historical receipts", async () => {
   expect((await cli("claim", ["--file", "new.ts"])).code).toBe(0);
   expect((await cli("release")).code).toBe(0);
   session = "session-2";
@@ -65,13 +68,13 @@ test("replacement session can reclaim released task despite historical receipts"
   session = "session-2";
   expect((await cli("release")).code).toBe(0);
 });
-test("CLI rejects a changed agent session instead of borrowing the prior token", async () => {
+test.skipIf(noServerIdentity)("CLI rejects a changed agent session instead of borrowing the prior token", async () => {
   expect((await cli("claim", ["--file", "new.ts"])).code).toBe(0);
   session = "session-2";
   expect((await cli("release")).code).toBe(1);
   const db = new PaneMeshOwnership({ stateDir }); try { expect(db.list(join(root, "project"))[0]?.status).toBe("active"); } finally { db.close(); }
 });
-test("explicit future-adapter identity must match live metadata", async () => {
+test.skipIf(noServerIdentity)("explicit future-adapter identity must match live metadata", async () => {
   const old = { ...process.env };
   process.env.HERDR_SOCKET = socketPath; process.env.HERDR_PANE_ID = "w1:p1"; process.env.HERDR_WORKSPACE_ID = "w1";
   try {
@@ -90,6 +93,13 @@ test("explicit future-adapter identity must match live metadata", async () => {
       if (old[key] === undefined) delete process.env[key]; else process.env[key] = old[key];
     }
   }
+});
+
+test.if(process.platform === "win32")("Windows refuses task ownership without a native server identity and records nothing", async () => {
+  const claimed = await cli("claim", ["--file", "new.ts"]);
+  expect(claimed.code).toBe(1); expect(claimed.err).toBe("pane-mesh-task: native_server_identity_unavailable\n"); expect(claimed.out).toBe("");
+  expect(readdirSync(stateDir)).toEqual([]); expect(methods).toEqual([]);
+  await expect(resolveHerdrTaskOwner()).rejects.toThrow("native_server_identity_unavailable");
 });
 
 test("expired claim owner counts as gone only with live evidence", () => {

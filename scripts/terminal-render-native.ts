@@ -1,14 +1,17 @@
 import { OwnedCleanup } from './cleanup.ts';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
-import { existsSync, realpathSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { createServer as createVite } from 'vite';
 import { chromium } from 'playwright-core';
+import { canonicalPath, isWithin } from './lifecycle-path.ts';
 
 const root = resolve(import.meta.dir, '..');
 const owned = resolve(root, 'evidence/p2b/n');
-for (const name of ['HOME', 'XDG_CONFIG_HOME', 'XDG_STATE_HOME', 'XDG_DATA_HOME']) assert.ok(process.env[name] && realpathSync(process.env[name]!).startsWith(realpathSync(owned) + '/'), `${name} must be isolated`);
+// Strictly inside the owned root (the root itself is refused), compared by canonical identity on the platform separator.
+const insideOwned = (path: string) => { const parent = canonicalPath(owned), child = canonicalPath(path); return child !== parent && isWithin(parent, child); };
+for (const name of ['HOME', 'XDG_CONFIG_HOME', 'XDG_STATE_HOME', 'XDG_DATA_HOME']) assert.ok(process.env[name] && insideOwned(process.env[name]!), `${name} must be isolated`);
 assert.equal(process.env.HERDR_TEST_SESSION, 'tw');
 assert.notEqual(process.env.HERDR_TEST_LIVE, '1');
 const cleanup = new OwnedCleanup();
@@ -28,7 +31,7 @@ cleanup.add('native-owned-session', async () => {
   assert.equal(exit, 0); assert.equal(postconditions.socketRemoved, true); assert.equal(postconditions.ownedPidGone, true);
 });
 assert.equal(process.env.HERDR_SOCKET, test.testSocketPath());
-assert.ok(realpathSync(dirname(process.env.HERDR_SOCKET!)).startsWith(realpathSync(owned) + '/'));
+assert.ok(insideOwned(dirname(process.env.HERDR_SOCKET!)));
 const { createServer } = await import('../server/index.ts');
 const { workspaceCreate, workspaceClose, paneSendText, sessionSnapshot } = await import('../server/herdr/client.ts');
 const { UsageService } = await import('../server/usage.ts');

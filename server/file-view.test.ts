@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import { fileInfo, fileResponse, resolveFilePath } from "./file-view.ts";
 
@@ -11,9 +11,10 @@ describe("file view", () => {
   const temp = () => { const root = mkdtempSync(join(tmpdir(), "herdr-file-view-")); roots.push(root); return root; };
 
   it("resolves absolute, ~ and pane-relative paths", () => {
-    expect(resolveFilePath("/a/b.txt", "/work")).toBe("/a/b.txt");
+    // native spellings: on Windows a rooted "/a/b.txt" is absolute on the current drive (F:\a\b.txt), never pane-relative
+    expect(resolveFilePath("/a/b.txt", "/work")).toBe(resolve("/a/b.txt"));
     expect(resolveFilePath("~/x.png", null)).toBe(join(homedir(), "x.png"));
-    expect(resolveFilePath("docs/demo.mp4", "/work/app")).toBe("/work/app/docs/demo.mp4");
+    expect(resolveFilePath("docs/demo.mp4", "/work/app")).toBe(join(resolve("/work/app"), "docs", "demo.mp4"));
     expect(resolveFilePath("docs/demo.mp4", null)).toBeNull();
     expect(resolveFilePath("  ", "/work")).toBeNull();
   });

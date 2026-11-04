@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser, BrowserContext, Page } from "playwright-core";
 import { herdrRpc, paneRead, paneSendKeys, paneSendText, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+// the shortcut the app shows: shortcutHint() spells it per platform
+const VIEW_KEY = process.platform === "darwin" ? "⌘⇧J" : "Ctrl+Shift+J";
 
 /**
  * The chat lens leaves the shared terminal's size alone (#361): a desktop tab drives a pane's grid
@@ -55,7 +57,7 @@ export async function checkChatKeepsTerminalSize(browser: Browser, origin: strin
       }, settings);
       const page = await context.newPage();
       await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
-      await page.locator(".conn-live").waitFor();
+      await page.locator(".conn-live:visible").waitFor();
       return page;
     };
     // the server answers an attach with input-ready, and resizes in the same step: once it is in,
@@ -93,7 +95,7 @@ export async function checkChatKeepsTerminalSize(browser: Browser, origin: strin
     const hiddenRows = () => desktop.locator(".pane-terminal .xterm-rows > div").count();
     const phoneRows = Number(phoneSize.split(" ")[0]);
     assert.notEqual(await hiddenRows(), phoneRows, "the desktop's terminal lens kept its own grid");
-    await desktop.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await desktop.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
     await desktop.locator(".terminal-stack.is-chat").waitFor({ state: "attached" });
     const adopted = Date.now() + 10_000;
     while (await hiddenRows() !== phoneRows && Date.now() < adopted) await Bun.sleep(100);

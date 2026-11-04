@@ -27,5 +27,10 @@ export function useMachineApi() {
     fetchFileInfo: (path: string, pane: string | null) => api.fetchFileInfo(path, pane, id),
     fileUrl: (path: string, pane: string | null, download = false) => api.fileUrl(path, pane, id, download),
     createWorkspace: (request: api.CreateWorkspaceRequest) => api.createWorkspace(request, id),
+    fetchWorktreeSource: (pane: string) => api.fetchWorktreeSource(pane, id),
+    createWorktreePane: (request: Parameters<typeof api.createWorktreePane>[0]) => api.createWorktreePane(request, id),
+    fetchWorktrees: (pane: string) => api.fetchWorktrees(pane, id),
+    openWorktreePane: (pane: string, path: string) => api.openWorktreePane(pane, path, id),
+    removeWorktree: (workspace: string, force: boolean) => api.removeWorktree(workspace, force, id),
   }), [id]);
 }

@@ -20,7 +20,7 @@ function Fixture() {
   const [fontSize, setFontSize] = useState(14);
   const leaf = (id: string) => <section className="split-pane dock-group" data-fixture-pane={id}>
     <div className="dock-drop-body"><PaneTerminal paneId={(window as any).nativeRenderPane ?? id} view="terminal" terminalFontSize={fontSize}
-      terminalWheelSpeed={1} terminalFontFamily="" theme="dark" palette="amber" role={role} autoSelected /></div>
+      terminalWheelSpeed={1} terminalLineHeight={1} terminalFontFamily="" theme="dark" palette="amber" role={role} autoSelected /></div>
   </section>;
   return <><nav><button onClick={() => setMode('single')}>Single</button><button onClick={() => setMode('columns')}>Columns</button>
     <button onClick={() => setMode('rows')}>Rows</button><button onClick={() => setMode(mode === 'zoom' ? 'columns' : 'zoom')}>Zoom</button>

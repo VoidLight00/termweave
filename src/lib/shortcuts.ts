@@ -120,6 +120,14 @@ export function formatKeys(keys: readonly string[]): string[] {
   return keys.map((key) => (key === "Mod" ? mod : key));
 }
 
+/** A tooltip's hint for the key actually bound: "⌘⇧K" on a Mac, "Ctrl+Shift+K" elsewhere, "" when turned off. */
+export function shortcutHint(id: ShortcutId, overrides: ShortcutOverrides, mac = isMacPlatform()): string {
+  const key = shortcutKeys(id, overrides)[0];
+  if (key === undefined) return "";
+  const shown = key.length === 1 ? key.toUpperCase() : key;
+  return mac ? `⌘⇧${shown}` : `Ctrl+Shift+${shown}`;
+}
+
 export function useShortcuts(actions: AppActions, enabled: boolean): void {
   const { settings } = useSettings();
   useEffect(() => {

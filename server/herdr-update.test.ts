@@ -9,6 +9,8 @@ import { handleHerdrUpdateRequest, HerdrUpdater, parseHerdrStatus, plainOutput }
  * herdr on PATH and hands its server off, which no test may do.
  */
 const root = mkdtempSync(join(tmpdir(), "herdr-update-"));
+// POSIX-only: the stand-in is a #!/bin/sh script and the update/live-handoff path runs off Windows only (covered by CI ubuntu/macos; Windows' answer by "offers nothing on Windows")
+const posixOnly = it.skipIf(process.platform === "win32");
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 
 interface StandIn {
@@ -93,7 +95,7 @@ describe("updating herdr from the app", () => {
     }
   });
 
-  it("runs `herdr update --handoff` outside the pane it was started from, for its own herdr, with no terminal", async () => {
+  posixOnly("runs `herdr update --handoff` outside the pane it was started from, for its own herdr, with no terminal", async () => {
     const herdr = standIn("checking stable channel for updates...\nalready up to date (0.9.3)");
     const updater = new HerdrUpdater({ bin: herdr.path, socketPath: "/srv/herdr.sock" });
     expect(updater.start()).toBe("started");
@@ -109,7 +111,7 @@ describe("updating herdr from the app", () => {
     expect(herdr.calls().filter((call) => call.startsWith("server live-handoff"))).toEqual([]);
   });
 
-  it("moves the panes onto a binary that is newer than the running server", async () => {
+  posixOnly("moves the panes onto a binary that is newer than the running server", async () => {
     const herdr = standIn("already up to date (0.9.3)");
     herdr.status({ server: "0.9.0", binary: "0.9.3", stale: true });
     const updater = new HerdrUpdater({ bin: herdr.path, socketPath: "/srv/herdr.sock" });
@@ -121,7 +123,7 @@ describe("updating herdr from the app", () => {
     expect(status.output).toBe("already up to date (0.9.3)\nlive handoff complete; server log: /tmp/herdr-server.log");
   });
 
-  it("leaves a server that cannot hand off alone", async () => {
+  posixOnly("leaves a server that cannot hand off alone", async () => {
     const herdr = standIn("already up to date (0.9.3)");
     herdr.status({ server: "0.8.0", binary: "0.9.3", stale: true, handoff: false });
     const updater = new HerdrUpdater({ bin: herdr.path });
@@ -131,7 +133,7 @@ describe("updating herdr from the app", () => {
     expect(status).toMatchObject({ phase: "idle", stale: true });
   });
 
-  it("reports what herdr said when the update fails, and hands nothing off", async () => {
+  posixOnly("reports what herdr said when the update fails, and hands nothing off", async () => {
     const herdr = standIn("update failed: self-update is disabled for Homebrew installs; run `brew update && brew upgrade herdr`", 1);
     herdr.status({ server: "0.9.0", binary: "0.9.3", stale: true });
     const updater = new HerdrUpdater({ bin: herdr.path });
@@ -142,7 +144,7 @@ describe("updating herdr from the app", () => {
     expect(herdr.calls().filter((call) => call.startsWith("server live-handoff"))).toEqual([]);
   });
 
-  it("reports a handoff that failed", async () => {
+  posixOnly("reports a handoff that failed", async () => {
     const herdr = standIn("already up to date (0.9.3)", 0, { handoffCode: 1 });
     herdr.status({ server: "0.9.0", binary: "0.9.3", stale: true });
     const updater = new HerdrUpdater({ bin: herdr.path });
@@ -150,7 +152,7 @@ describe("updating herdr from the app", () => {
     expect((await finished(updater)).phase).toBe("error");
   });
 
-  it("runs one update at a time", async () => {
+  posixOnly("runs one update at a time", async () => {
     const herdr = standIn("already up to date (0.9.3)", 0, { sleep: 1 });
     const updater = new HerdrUpdater({ bin: herdr.path });
     expect(updater.start()).toBe("started");
@@ -162,7 +164,7 @@ describe("updating herdr from the app", () => {
     await finished(updater);
   });
 
-  it("stops a herdr that does not finish", async () => {
+  posixOnly("stops a herdr that does not finish", async () => {
     const herdr = standIn("never printed", 0, { sleep: 30 });
     const updater = new HerdrUpdater({ bin: herdr.path, timeoutMs: 200 });
     updater.start();
@@ -171,7 +173,7 @@ describe("updating herdr from the app", () => {
     expect(status.output).toContain("did not finish");
   });
 
-  it("does not call an update done when herdr's status cannot be read after it", async () => {
+  posixOnly("does not call an update done when herdr's status cannot be read after it", async () => {
     const herdr = standIn("installed 0.9.4", 0, { statusGoesAfterUpdate: true });
     const updater = new HerdrUpdater({ bin: herdr.path, statusRetryMs: 10 });
     updater.start();
@@ -185,7 +187,7 @@ describe("updating herdr from the app", () => {
     expect(status).toMatchObject({ supported: true, server_version: null });
   });
 
-  it("keeps the controls while an update runs although the status does not answer", async () => {
+  posixOnly("keeps the controls while an update runs although the status does not answer", async () => {
     const herdr = standIn("update failed: no network", 1, { statusGoesAfterUpdate: true, sleep: 1 });
     const updater = new HerdrUpdater({ bin: herdr.path, statusRetryMs: 10 });
     updater.start();
@@ -194,7 +196,7 @@ describe("updating herdr from the app", () => {
     expect(await finished(updater)).toMatchObject({ supported: true, phase: "error", output: "update failed: no network" });
   });
 
-  it("kills a herdr that ignores being stopped, and is free for the next update", async () => {
+  posixOnly("kills a herdr that ignores being stopped, and is free for the next update", async () => {
     const herdr = standIn("never printed", 0, { sleep: 30, ignoreTerm: true });
     const updater = new HerdrUpdater({ bin: herdr.path, timeoutMs: 200, killGraceMs: 200 });
     const startedAt = Date.now();
@@ -232,7 +234,7 @@ describe("the herdr update endpoint", () => {
     expect((await handleHerdrUpdateRequest(post(own))).status).toBe(409);
   });
 
-  it("starts an update only for this app's own controls", async () => {
+  it("refuses an update from anything but this app's own controls", async () => {
     const herdr = standIn("already up to date (0.9.3)", 0, { sleep: 1 });
     const updater = new HerdrUpdater({ bin: herdr.path });
     // an HTML form cannot send the header; another site's page is cross-site
@@ -243,7 +245,11 @@ describe("the herdr update endpoint", () => {
     }
     expect((await handleHerdrUpdateRequest(post(own, "http://127.0.0.1:7317/api/herdr/update?x=1"), updater)).status).toBe(403);
     expect(herdr.calls().filter((call) => call === "update --handoff")).toEqual([]);
+  });
 
+  posixOnly("starts an update only for this app's own controls", async () => {
+    const herdr = standIn("already up to date (0.9.3)", 0, { sleep: 1 });
+    const updater = new HerdrUpdater({ bin: herdr.path });
     const accepted = await handleHerdrUpdateRequest(post(own), updater);
     expect(accepted.status).toBe(202);
     const busy = await handleHerdrUpdateRequest(post(own), updater);

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { spawn } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { platform, tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, join } from "node:path";
 
 /**
  * The plugin's settings files, read by hand the way a headless PC runs `status` or `pair`:
@@ -19,7 +19,10 @@ async function status(): Promise<{ out: string; err: string; exitCode: number }>
 
 async function run(command: string): Promise<{ out: string; err: string; exitCode: number }> {
   const bin = join(scratch, "bin");
-  const env: Record<string, string | undefined> = { ...process.env, PATH: `${bin}:${process.env["PATH"] ?? ""}`, HOME: scratch, HERDR_PLUGIN_STATE_DIR: join(scratch, "state") };
+  // Windows spells it Path and names are case-insensitive: prepend to the inherited key, never add a second one
+  const pathKey = process.platform === "win32" ? Object.keys(process.env).find((key) => key.toUpperCase() === "PATH") ?? "PATH" : "PATH";
+  // os.homedir() reads HOME on Unix and USERPROFILE on Windows
+  const env: Record<string, string | undefined> = { ...process.env, [pathKey]: `${bin}${delimiter}${process.env[pathKey] ?? ""}`, HOME: scratch, USERPROFILE: scratch, HERDR_PLUGIN_STATE_DIR: join(scratch, "state") };
   for (const key of ["HERDR_PLUGIN_CONFIG_DIR", "PORT", "HOST", "HERDR_WEB_TOKEN"]) delete env[key];
   const child = Bun.spawn(["bun", "scripts/plugin.ts", command], { cwd: ROOT, env, stdout: "pipe", stderr: "pipe" });
   const [out, err, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
@@ -31,9 +34,15 @@ beforeEach(() => {
   configDir = join(scratch, "config");
   mkdirSync(configDir);
   mkdirSync(join(scratch, "bin"));
-  const herdr = join(scratch, "bin", "herdr");
-  writeFileSync(herdr, `#!/bin/sh\n[ "$1 $2" = "plugin config-dir" ] && echo "${configDir}"\n`);
-  chmodSync(herdr, 0o755);
+  if (process.platform === "win32") {
+    // Bun.which finds herdr.cmd through PATHEXT; `type` prints the dir verbatim, whatever characters the temp path holds
+    writeFileSync(join(scratch, "bin", "config-dir.txt"), `${configDir}\r\n`);
+    writeFileSync(join(scratch, "bin", "herdr.cmd"), `@echo off\r\nif "%~1 %~2"=="plugin config-dir" type "%~dp0config-dir.txt"\r\n`);
+  } else {
+    const herdr = join(scratch, "bin", "herdr");
+    writeFileSync(herdr, `#!/bin/sh\n[ "$1 $2" = "plugin config-dir" ] && echo "${configDir}"\n`);
+    chmodSync(herdr, 0o755);
+  }
 });
 
 afterEach(() => rmSync(scratch, { recursive: true, force: true }));
@@ -71,7 +80,9 @@ describe("plugin settings files", () => {
 });
 
 describe("stop", () => {
-  it("returns only once the server's process group is gone", async () => {
+  // POSIX-only: a `sh` TERM trap and a Unix process group; Windows stop verifies a managed.ts owner and taskkills its tree
+  // (covered by CI ubuntu/macos; owned Windows stop by scripts/owned-stop.test.ts and scripts/windows-lifecycle.test.ts)
+  it.skipIf(process.platform === "win32")("returns only once the server's process group is gone", async () => {
     // a server that takes a second to exit, as the supervisor does while its bridge shuts down
     const server = spawn("sh", ["-c", "trap 'sleep 1; exit 0' TERM; while :; do sleep 0.1; done"], { detached: true, stdio: "ignore" });
     const pid = server.pid!;

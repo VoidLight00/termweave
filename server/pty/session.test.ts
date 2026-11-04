@@ -1,5 +1,36 @@
-import { describe, expect, it } from "bun:test";
-import { PtySession } from "./session.ts";
+import { describe, expect, it, spyOn } from "bun:test";
+import { join } from "node:path";
+import { PtySession, writeLine } from "./session.ts";
+
+/** Prints only whether the bridge token is present, plus the socket and TERM the attach would use. */
+const REPORT_ENV = ["-e", `process.stdout.write("TOKEN_PRESENT=" + Object.prototype.hasOwnProperty.call(process.env, "HERDR_WEB_TOKEN")
+  + " SOCKET=[" + process.env.HERDR_SOCKET_PATH + "] TERM=[" + process.env.TERM + "]")`];
+const fixtureToken = () => `herdr-web-token-fixture-${crypto.randomUUID()}`;
+
+/** Runs REPORT_ENV through a PtySession with a fixture bridge token in this process's env, capturing the sidecar's spawn options. */
+async function reportThroughSession(env: Record<string, string>) {
+  const parentToken = fixtureToken();
+  const previous = process.env["HERDR_WEB_TOKEN"];
+  process.env["HERDR_WEB_TOKEN"] = parentToken;
+  const spawn = spyOn(Bun, "spawn");
+  let output = "";
+  let session: PtySession | undefined;
+  try {
+    const code = await new Promise<number | null>((resolve) => {
+      session = new PtySession({
+        command: "node", args: REPORT_ENV, cols: 80, rows: 5, env,
+        onData: (data) => { output += data; }, onExit: resolve,
+      });
+    });
+    const options = spawn.mock.calls[0]?.[1] as { env?: Record<string, string | undefined> } | undefined;
+    return { code, output, sidecarEnv: options?.env ?? {}, parentToken, parentKept: process.env["HERDR_WEB_TOKEN"] === parentToken };
+  } finally {
+    session?.kill();
+    spawn.mockRestore();
+    if (previous === undefined) delete process.env["HERDR_WEB_TOKEN"];
+    else process.env["HERDR_WEB_TOKEN"] = previous;
+  }
+}
 
 /**
  * The attach command is `herdr terminal attach`, and herdr's CLI picks its socket from
@@ -25,6 +56,47 @@ describe("PtySession", () => {
       });
     });
     expect(await printed).toContain("[" + sentinel + "]");
+  }, 10000);
+
+  // The bridge's bearer token is for browsers: neither the Node sidecar nor the attach command needs it.
+  it("omits bridge token from the sidecar after merging overrides", async () => {
+    const overrideToken = fixtureToken();
+    const run = await reportThroughSession({ HERDR_WEB_TOKEN: overrideToken });
+    expect(run.code).toBe(0);
+    expect(Object.prototype.hasOwnProperty.call(run.sidecarEnv, "HERDR_WEB_TOKEN")).toBe(false);
+    expect(run.output).toContain("TOKEN_PRESENT=false");
+    expect(run.parentKept).toBe(true);
+    // compared as booleans so a failure never prints a token
+    expect(run.output.includes(run.parentToken) || run.output.includes(overrideToken)).toBe(false);
+  }, 10000);
+
+  it("host omits bridge token from attach environment", async () => {
+    // Launched outside PtySession: the host defends the attach child on its own.
+    const token = fixtureToken();
+    const socket = "/tmp/herdr-web-ui-host-test.sock";
+    const host = Bun.spawn(
+      ["node", join(import.meta.dir, "pty-host.mjs"), "80", "5", "node", ...REPORT_ENV],
+      { stdin: "pipe", stdout: "pipe", stderr: "pipe", env: { ...process.env, HERDR_WEB_TOKEN: token, HERDR_SOCKET_PATH: socket } },
+    );
+    try {
+      const [code, output, errors] = await Promise.all([host.exited, new Response(host.stdout).text(), new Response(host.stderr).text()]);
+      expect(code).toBe(0);
+      expect(output).toContain("TOKEN_PRESENT=false");
+      expect(output).toContain(`SOCKET=[${socket}]`);
+      expect(output.includes(token) || errors.includes(token)).toBe(false);
+    } finally { host.kill(); }
+  }, 10000);
+
+  it("preserves socket and terminal configuration", async () => {
+    const socket = "/tmp/herdr-web-ui-session-config.sock";
+    const run = await reportThroughSession({ HERDR_SOCKET_PATH: socket });
+    expect(run.code).toBe(0);
+    expect(run.sidecarEnv["HERDR_SOCKET_PATH"]).toBe(socket);
+    expect(run.sidecarEnv["PATH"]).toBe(process.env["PATH"]);
+    expect(run.sidecarEnv["HOME"]).toBe(process.env["HOME"]);
+    expect(run.output).toContain(`SOCKET=[${socket}]`);
+    expect(run.output).toContain("TERM=[xterm-256color]");
+    expect(run.output).toContain("TOKEN_PRESENT=false");
   }, 10000);
 
   it("delivers split UTF-8 and the entire final burst before reporting the exit code", async () => {
@@ -115,4 +187,43 @@ describe("PtySession", () => {
       expect(Bun.spawnSync(["pgrep", "-f", tag]).stdout.length).toBe(0);
     } finally { session.kill(); }
   }, 12000);
+});
+
+describe("writeLine", () => {
+  // Only a child that really closes its stdin handle reaches EPIPE on Windows: Python's os.close(0) does;
+  // Bun's and Node's closeSync(0) / stdin.destroy() and an exited child do not, so skip where Python is absent.
+  // Windows' Microsoft Store alias (WindowsApps\python.exe) is on PATH with no Python behind it: it exits non-zero.
+  const python = Bun.which(process.platform === "win32" ? "python" : "python3");
+  const runs = python !== null && Bun.spawnSync([python, "-c", ""], { stdout: "ignore", stderr: "ignore" }).exitCode === 0;
+  it.skipIf(!runs)("survives a child that already closed its stdin", async () => {
+    // on Windows the write settles later and an EPIPE rejects the returned promise instead of throwing
+    const rejections: unknown[] = []; const track = (error: unknown) => rejections.push(error);
+    process.on("unhandledRejection", track);
+    let proc: ReturnType<typeof Bun.spawn> | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const child = Bun.spawn([
+        python!, "-c",
+        "import os,threading; os.close(0); os.write(1,b'closed\\n'); os.close(1); threading.Event().wait()",
+      ], { stdin: "pipe", stdout: "pipe", stderr: "inherit" });
+      proc = child;
+      const ready = await Promise.race([
+        new Response(child.stdout).text(),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Child did not close stdin within 2 seconds")), 2000);
+        }),
+      ]);
+      clearTimeout(timer);
+      expect(ready).toBe("closed\n");
+      expect(child.exitCode).toBeNull();
+      writeLine(child.stdin, "{}\n");
+      await Bun.sleep(300); // fixed wait: observe delayed unhandled rejections after the pipe write
+      expect(rejections).toEqual([]);
+    } finally {
+      clearTimeout(timer);
+      proc?.kill();
+      await proc?.exited;
+      process.off("unhandledRejection", track);
+    }
+  });
 });

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import { createServer } from '../server/index.ts';
 import { herdrRpc, paneSendText, sessionSnapshot, workspaceCreate, workspaceClose } from '../server/herdr/client.ts';
+import { cwdSpelling, shellProcesses, submitted, writeShellPid } from './pane-shell.ts';
 
 if (!process.env.HERDR_TEST_SESSION || process.env.HERDR_TEST_LIVE === '1' || !process.env.HERDR_STAGING_DIST) throw new Error('isolated staging required');
 const root = mkdtempSync(join(tmpdir(), 'session-isolation-owned-'));
@@ -38,7 +39,7 @@ try {
     localStorage.setItem(`termweave:dock:v1:local:${workspace}`,JSON.stringify(g('stale-v1')));
   },{a,existing,workspace:own.workspace.workspace_id});
   await page.goto(`${origin}/?pane=${a}`);
-  await page.locator('.conn-live').waitFor();
+  await page.locator('.conn-live:visible').waitFor();
   const rows = async() => { const snapshot=await sessionSnapshot(); assert.equal(await page.locator('.pane-select[data-workspace-id]').count(),snapshot.workspaces.length); };
   await rows();
   const originalRoster=(await sessionSnapshot()).panes.filter(p=>p.workspace_id===own.workspace.workspace_id);
@@ -62,8 +63,10 @@ try {
   const click = async(id:string) => { await page.locator(`.pane-select[data-workspace-id="${id===a?own.workspace.workspace_id:other.workspace.workspace_id}"]`).click(); };
   const count = async(n:number) => { await page.waitForFunction(n=>document.querySelectorAll('.dock-group').length===n,n); };
   const saved = async(id:string) => page.evaluate(id=>JSON.parse(localStorage.getItem(`termweave:dock:workspace:v3:local:${encodeURIComponent(id)}`)!),id===a?own.workspace.workspace_id:other.workspace.workspace_id);
-  await page.getByRole('button',{name:'Split terminal right',exact:true}).first().click(); await count(2);
-  await page.getByRole('button',{name:'Split terminal below',exact:true}).first().click(); await count(3);
+  // A group's split actions live in its tools panel, closed by default.
+  const tools = async() => { const group=page.locator('.dock-group').first(); await group.getByRole('button',{name:'Terminal tools',exact:true}).click(); return group.getByRole('region',{name:'Terminal tools',exact:true}); };
+  await (await tools()).getByRole('button',{name:'Split terminal right',exact:true}).click(); await count(2);
+  await (await tools()).getByRole('button',{name:'Split terminal below',exact:true}).click(); await count(3);
   await page.waitForFunction(()=>Array.from(document.querySelectorAll('.dock-group')).every(g=>!!g.querySelector('.xterm-helper-textarea')));
   await page.getByRole('button',{name:'New terminal tab',exact:true}).first().waitFor();
   await page.waitForFunction(()=>Array.from(document.querySelectorAll<HTMLButtonElement>('.dock-tab-actions button')).filter(b=>b.textContent==='+').every(b=>!b.disabled));
@@ -72,12 +75,12 @@ try {
   const before = (await sessionSnapshot()).panes.filter(p=>p.workspace_id===own.workspace.workspace_id);
   // Only this test's fresh shells receive PID probes; never type into user terminals.
   for (const [i,p] of before.entries()) {
-    await paneSendText(p.pane_id, `printf '%s' $$ > '${root}/pid-${i}'\n`);
+    await paneSendText(p.pane_id, submitted(writeShellPid(`${root}/pid-${i}`), '\n'));
     const deadline=Date.now()+10000;
     while(!existsSync(join(root,`pid-${i}`))) { assert.ok(Date.now()<deadline); await Bun.sleep(50); }
   }
   const pids=before.map((_,i)=>Number(readFileSync(join(root,`pid-${i}`),'utf8')));
-  const processes=async()=>{const result=await Bun.$`ps -o pid=,ppid=,lstart= -p ${pids.join(',')}`.quiet(); assert.equal(result.exitCode,0);return result.text();};
+  const processes=()=>shellProcesses(pids);
   const identity=await processes();
   const divider = page.locator('.dock-divider').first();
   const box = await divider.boundingBox(); assert.ok(box);
@@ -93,7 +96,7 @@ try {
   await click(a); await count(3); assert.deepEqual((await saved(a)).tree,a3.tree);
   await page.waitForFunction(id=>(document.activeElement as HTMLElement)?.closest<HTMLElement>('.dock-group')?.dataset.paneId===id,focused);
   await click(b); await count(1);
-  await page.getByRole('button',{name:'Split terminal right',exact:true}).first().click(); await count(2);
+  await (await tools()).getByRole('button',{name:'Split terminal right',exact:true}).click(); await count(2);
   await page.waitForFunction(()=>Array.from(document.querySelectorAll<HTMLButtonElement>('.dock-tab-actions button')).filter(b=>b.textContent==='+').every(b=>!b.disabled));
   const bDivider=page.locator('.dock-divider').first(); await bDivider.focus(); await bDivider.press('ArrowLeft');
   await page.waitForTimeout(100);
@@ -121,7 +124,7 @@ try {
   let observed!:()=>void;
   const received=new Promise<void>(resolve=>{observed=resolve;});
   await page.route('**/api/pane/split',async route=>{ const response=await route.fetch(); observed(); await blocked; await route.fulfill({response}); });
-  await page.getByRole('button',{name:'Split terminal right',exact:true}).first().click();
+  await (await tools()).getByRole('button',{name:'Split terminal right',exact:true}).click();
   await received; await click(b); await count(2);
   assert.deepEqual((await saved(b)).tree,b2.tree);
   // Return before the pending response too; its completion must update the current A.
@@ -135,7 +138,7 @@ try {
   const blockedAway=new Promise<void>(resolve=>{releaseAway=resolve;});
   const receivedAway=new Promise<void>(resolve=>{observedAway=resolve;});
   await page.route('**/api/pane/split',async route=>{const response=await route.fetch();observedAway();await blockedAway;await route.fulfill({response});});
-  await page.getByRole('button',{name:'Split terminal right',exact:true}).first().click();
+  await (await tools()).getByRole('button',{name:'Split terminal right',exact:true}).click();
   await receivedAway; await click(b); await count(2); releaseAway();
   await page.waitForFunction(workspace=>{
     const value=JSON.parse(localStorage.getItem(`termweave:dock:workspace:v3:local:${encodeURIComponent(workspace)}`)!);
@@ -146,12 +149,12 @@ try {
   assert.equal(await page.locator(`.pane-select[data-workspace-id="${other.workspace.workspace_id}"]`).getAttribute('aria-current'),'true');
   await click(a); await count(4); await page.unroute('**/api/pane/split');
   const after=await sessionSnapshot();
-  for(const p of before) {const current=after.panes.find(x=>x.pane_id===p.pane_id)!; for(const k of ['terminal_id','cwd','workspace_id','tab_id'] as const) assert.equal(current[k],p[k]);}
+  for(const p of before) {const current=after.panes.find(x=>x.pane_id===p.pane_id)!; for(const k of ['terminal_id','workspace_id','tab_id'] as const) assert.equal(current[k],p[k]); assert.equal(cwdSpelling(current.cwd),cwdSpelling(p.cwd));}
   assert.equal(await processes(),identity);
   await rows();
   assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.keys(localStorage).filter(k=>k.includes('dock:session:v2:')||k.includes('dock:v1:')).map(k=>[k,localStorage.getItem(k)]))),legacy);
   const countBefore=(await sessionSnapshot()).panes.length;
-  const deep = await context.newPage(); await deep.goto(`${origin}/?pane=${existing}`); await deep.locator('.conn-live').waitFor();
+  const deep = await context.newPage(); await deep.goto(`${origin}/?pane=${existing}`); await deep.locator('.conn-live:visible').waitFor();
   await deep.waitForFunction(id=>Array.from(document.querySelectorAll('.dock-group')).some(g=>g.getAttribute('data-pane-id')===id),existing);
   assert.equal(await deep.locator(`.pane-select[data-workspace-id="${own.workspace.workspace_id}"]`).getAttribute('aria-current'),'true');
   assert.equal((await sessionSnapshot()).panes.length,countBefore); await deep.screenshot({path:join(evidence,'deep-link.png')}); await deep.close();

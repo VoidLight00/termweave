@@ -22,8 +22,8 @@
  * unless the device asked for every finish (which then waits `short`).
  */
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import webpush from "web-push";
 
 import { paneStorageId } from "../shared/machines.ts";
@@ -39,6 +39,7 @@ import {
   statusNotificationBody,
 } from "../shared/notify-policy.ts";
 import { badRequest, jsonResponse } from "./http.ts";
+import { writePrivateFile } from "./private-file.ts";
 
 /** A blocked agent is still blocked when the phone gets signal back; a newer push for the pane replaces it anyway. */
 const PUSH_TTL_SECONDS = 12 * 60 * 60;
@@ -115,10 +116,7 @@ function readJson(path: string): unknown {
 
 /** Owner-only, and written whole: a crash mid-write must not leave half a key file. */
 function writeJsonPrivate(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
-  renameSync(temporary, path);
+  writePrivateFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function decodedLength(value: unknown): number {

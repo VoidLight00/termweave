@@ -8,7 +8,10 @@ import type { TmuxState } from "../../shared/tmux.ts";
 export class TmuxRuntime {
   readonly binary: string | null;
   private queue: Promise<unknown> = Promise.resolve();
-  constructor(readonly directory: string, binary: string | null = Bun.which("tmux")) { this.binary = binary; }
+  // The runtime is a Unix socket in a 0700 directory owned by this uid, started with -f /dev/null:
+  // a POSIX host. A Windows tmux.exe (psmux) found on Path is no such host, and offering it ended
+  // in runtime_directory_not_private, so Windows has no tmux here.
+  constructor(readonly directory: string, binary: string | null = process.platform === "win32" ? null : Bun.which("tmux")) { this.binary = binary; }
 
   private async location(create: boolean): Promise<string | null> {
     if (!this.binary) throw new TmuxError("tmux_missing");

@@ -28,7 +28,7 @@ export async function checkWakeLock(browser: Browser, origin: string, paneId: st
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+Comma" : "Control+Shift+Comma");
     const toggle = page.getByRole("switch", { name: "Keep screen on", exact: true });
     assert.equal(await toggle.getAttribute("aria-checked"), "false");
@@ -88,6 +88,8 @@ export async function checkWakeLock(browser: Browser, origin: string, paneId: st
       socket.onMessage(raw => upstream.send(raw));
     });
     await page.reload();
+    // the shortcut works once the app has loaded past its connecting shell
+    await page.getByRole("button", { name: "Open workspace list", exact: true }).waitFor();
     await page.waitForFunction(() => !document.querySelector('.view-switch'));
     await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+Comma" : "Control+Shift+Comma");
     await toggle.waitFor();

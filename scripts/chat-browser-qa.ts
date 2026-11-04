@@ -54,7 +54,7 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   page.setDefaultTimeout(10_000);
   await page.goto(`http://127.0.0.1:${server.port}/?pane=${encodeURIComponent(paneId)}`);
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   const log = page.getByRole("log", { name: `conversation of ${paneId}` });
   await log.getByText(answer, { exact: true }).waitFor();
   assert.equal(await log.locator(".chat-turn-user").count(), 1);

@@ -21,7 +21,7 @@ export const SHELL_AGENTS: Record<string, (argv: readonly string[]) => boolean> 
   gjc: isGjcProcess,
 };
 /** The shell-started agents known to start on Windows; the others are not offered there. */
-const WINDOWS_SHELL_AGENTS = new Set(["gjc"]);
+const WINDOWS_SHELL_AGENTS = new Set(["omo", "gjc"]);
 
 export function isShellAgentKind(kind: string): boolean { return Object.hasOwn(SHELL_AGENTS, kind); }
 

@@ -36,7 +36,7 @@ export async function checkDroplet(browser: Browser, origin: string): Promise<vo
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`${origin}/?pane=${encodeURIComponent(openPane)}`);
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     const droplet = page.locator(".droplet");
     const card = page.locator(".droplet-card");
     const selected = () => page.evaluate(() => new URLSearchParams(location.search).get("pane") ?? JSON.parse(sessionStorage.getItem("termweave:selection") ?? localStorage.getItem("termweave:selection") ?? "null")?.pane_id);
@@ -104,7 +104,7 @@ export async function checkDroplet(browser: Browser, origin: string): Promise<vo
       localStorage.setItem("termweave:settings", JSON.stringify({ ...settings, alertInApp: false }));
     });
     await page.reload();
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     await report(openPane, "idle");
     await block(openPane);
     await Bun.sleep(1_200);
