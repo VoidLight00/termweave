@@ -43,7 +43,7 @@ try {
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   page.setDefaultTimeout(15000);
   await page.goto(`${origin}/?pane=${beta.root_pane.pane_id}`);
-  await page.locator('.conn-live').waitFor();
+  await page.locator('.conn-live:visible').waitFor();
 
   // 1. menu: Alpha's pane goes below Beta's pane
   const row = () => page.locator(`.workspace-terminal-row:has([data-terminal-pane="${moving.pane_id}"])`);

@@ -7,15 +7,16 @@ import { OpenRigService, OpenRigServiceError } from "./openrig-service.ts";
 import { TerminalNotifications } from "./terminal-notifications/api.ts";
 import { boundedJson } from "./openrig/runtime.ts";
 import { MobileRelayGateway } from "./mobile-relay/gateway.ts";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { statSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve, isAbsolute } from "node:path";
 import type { ServerWebSocket } from "bun";
 
-import type { AgentKind, AgentStatus, ClientMessage, ClientRole, HealthAuth, HerdrPane, ServerFeature, ServerMessage, SessionSnapshot } from "../shared/protocol.ts";
+import type { AgentKind, AgentStatus, ClientMessage, ClientRole, HealthAuth, HerdrPane, OpenUrlRequest, OpenUrlTargets, ServerFeature, ServerMessage, SessionSnapshot } from "../shared/protocol.ts";
 import { paneTitle } from "../shared/notify-policy.ts";
 import { DEFAULT_PORT } from "../shared/protocol.ts";
+import { asideExecutable, openInAside, OpenUrlError, parseOpenUrl } from "./open-url.ts";
 import { DEVICE_COOKIE, handleAuthRequest, isAuthenticated, parseCookies, requiresAuth, unauthorizedJson } from "./auth.ts";
 import { cameThroughProxy, decideAccess, isLoopbackAddress } from "./access.ts";
 import { DeviceStore, handleDeviceRequest } from "./devices.ts";
@@ -54,15 +55,21 @@ import {
   workspaceClose,
   workspaceCreate,
   workspaceMove,
-  workspaceRename, PANE_GONE_CODES } from "./herdr/client.ts";
+  workspaceRename,
+  worktreeCreate,
+  worktreeList,
+  worktreeOpen,
+  worktreeRemove, PANE_GONE_CODES } from "./herdr/client.ts";
+import { findLinkedWorktree, linkedWorktrees, parseWorktreeCreate, parseWorktreeOpen, resolveWorktreeSource, worktreeFailure } from "./worktree.ts";
 import { type AlertTiming, createPushService, defaultStateDir, handlePushRequest } from "./push.ts";
 import { codexQuestionsCollapsed, handlePromptRequest } from "./prompt.ts";
 import { secretPrompt, validSecret } from "../shared/secret-prompt.ts";
 import { PasteImageError, savePaneImage } from "./paste.ts";
 import { PtySession } from "./pty/session.ts";
+import { TerminalSession } from "./herdr/terminal-session.ts";
 import { attachableIdentity, sidecarAvailable } from "./pty/sidecar.ts";
 import { MirrorSession } from "./mirror.ts";
-import { mirrorInput } from "./mirror-input.ts";
+import { mirrorInput, mirrorKeys, pastedBlock } from "./mirror-input.ts";
 import { OutputWindow, OUTPUT_HIGH_BYTES, OUTPUT_HARD_BYTES, OUTPUT_STALL_MS, ReplayBuffer } from "./output-window.ts";
 import { OUTPUT_STALLED_CLOSE_CODE } from "../shared/terminal-flow.ts";
 import { connectUpdater, handleUpdateRequest, type UpdateService } from "./update-api.ts";
@@ -70,7 +77,7 @@ import { handleHerdrUpdateRequest, HerdrUpdater } from "./herdr-update.ts";
 import { handleUsageRequest, UsageService } from "./usage.ts";
 import { handleVoiceRequest, VoiceService } from "./voice.ts";
 
-import { BRIDGE_PROTOCOL } from "../shared/machines.ts";
+import { BRIDGE_PROTOCOL, OWNED_STOP_HEADER, OWNED_STOP_PATH, type BridgeHealth } from "../shared/machines.ts";
 import { bridgeIdentity, registerBridge, socketPath } from "./bridge.ts";
 import { MachineManager } from "./machines.ts";
 import { handleMachineRequest } from "./machine-api.ts";
@@ -154,6 +161,9 @@ const SERVER_FEATURES: ServerFeature[] = ["submit", "secret-input", "input-ready
 
 /** Bind addresses only this machine can reach, so an unset token is nobody else's business. */
 const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1"]);
+/** how long a stop's 202 gets to reach the client before the server stops listening */
+const OWNED_STOP_FLUSH_MS = 100;
+const digest = (value: string) => createHash("sha256").update(value).digest();
 
 const AGENT_LABELS: Record<string, string> = {
   claude: "Claude Code",
@@ -213,9 +223,12 @@ type Client = ServerWebSocket<SocketData>;
  */
 interface PaneAttachment {
   ready: boolean;
-  pty: PtySession | MirrorSession;
-  /** set when herdr cannot attach here: `pty` repaints the pane's screen (server/mirror.ts), on the pane's own grid */
+  /** a TerminalSession where herdr cannot attach here: herdr's session control streams the pane (server/herdr/terminal-session.ts) */
+  pty: PtySession | TerminalSession | MirrorSession;
+  /** set when neither attach nor session control could start: `pty` repaints the pane's screen (server/mirror.ts), on the pane's own grid */
   mirror?: MirrorSession;
+  /** a mirror's viewport as a scroll through the API last left it, in lines above the bottom: typing returns it to 0 */
+  historyOffset?: number;
   clients: Set<Client>;
   /** the pty's current grid: interact clients set it, observe clients adopt it */
   cols: number;
@@ -287,12 +300,16 @@ export function createServer(
     terminalAttach?: boolean | (() => Promise<boolean>);
     /** whether this runtime can run the PTY sidecar; unset, server/pty/sidecar.ts says. Tests give a runtime without Node or node-pty, while herdr keeps its own answer. */
     sidecar?: boolean;
+    /** whether a pane herdr cannot attach streams through `herdr terminal session control` before it is mirrored; unset, it does unless a test forced the attach answer (those test the mirror) */
+    terminalSession?: boolean;
     /** Private tmux runtime; injectable for isolated tests. */
     tmux?: TmuxRuntime;
     android?: AndroidRuntime;
     openrig?: OpenRigRuntime;
     openrigService?: OpenRigService;
     mobileRelay?: MobileRelayGateway;
+    /** the owned launcher's stop token and what a verified stop request runs (OWNED_STOP_PATH); unset, the route does not exist */
+    ownedStop?: { token: string; stop: () => void };
   } = {},
 ): { port: number; hostname: string; stop: () => void } {
   const attachments = new Map<string, PaneAttachment>();
@@ -319,6 +336,7 @@ export function createServer(
     }
     return terminalAttachKnown;
   };
+  const sessionControl = options.terminalSession ?? options.terminalAttach === undefined;
   const retryFor = options.attachRetryForMs ?? ATTACH_RETRY_FOR_MS;
   const heldRetry = options.attachHeldRetryMs ?? ATTACH_HELD_RETRY_MS;
   const relookupFor = options.attachRelookupForMs ?? ATTACH_RELOOKUP_FOR_MS;
@@ -326,7 +344,7 @@ export function createServer(
   const pendingAttachments = new Map<string, Promise<PaneAttachment>>();
   // herdr releases its exclusive attach slot only after the old process exits.
   const retiringAttachments = new Map<string, Promise<void>>();
-  const retiringPtys = new Map<string, PtySession | MirrorSession>();
+  const retiringPtys = new Map<string, PtySession | TerminalSession | MirrorSession>();
   const clients = new Set<Client>();
   /** each pane's input while a composer message is in flight, one step after another */
   const paneQueues = new Map<string, Promise<unknown>>();
@@ -371,6 +389,22 @@ export function createServer(
   }
 
   /**
+   * Returns a mirrored pane scrolled into its history to the bottom, before input goes to it:
+   * herdr itself leaves its viewport where it was when the pane is typed into, so the typist
+   * would not see the echo. Called just before each send, in the send's own turn. A scroll
+   * herdr refused does not keep the input from going.
+   */
+  async function mirrorToBottom(paneId: string): Promise<void> {
+    const attachment = attachments.get(paneId);
+    if (!attachment?.mirror || !attachment.historyOffset) return;
+    try {
+      await paneScroll(paneId, 0);
+      attachment.historyOffset = 0;
+      attachment.mirror.poke();
+    } catch {}
+  }
+
+  /**
    * Types a composer message and submits it, with its own Enter after the text: arriving
    * in the same chunk as the paste, a TUI still busy with it (turning an image path into
    * an attachment, redrawing after the phone keyboard closed) could take it for a newline
@@ -394,6 +428,7 @@ export function createServer(
     const typed = Date.now() - (lastTyped.get(paneId) ?? 0);
     if (typed < TYPED_SETTLE_MS) await Bun.sleep(TYPED_SETTLE_MS - typed);
     lastTyped.delete(paneId);
+    await mirrorToBottom(paneId);
     inTime();
     // the terminal's input line stands in for the keyboard: it types what the user wrote, an
     // answer into an open menu included, where agent.prompt would refuse
@@ -406,10 +441,12 @@ export function createServer(
       if (error.code !== "agent_not_found" && error.code !== "agent_not_ready" && !queuedOnly) throw error;
     }
     inTime();
-    // a mirrored pane's browser never learned the program's paste mode, so `payload` came as bare
+    // a mirrored pane's browser never learned the program's paste mode, nor does one session
+    // control streams (where herdr cannot attach either), so `payload` came as bare
     // lines: several of them are shaped here as the same block typed into the mirror is. herdr is
     // asked only for such a block, so a one-line message never waits on it.
     const shaped = await mirrorInput(payload, async () => await terminalAttach() ? null : (await paneContext(paneId)).agent);
+    await mirrorToBottom(paneId);
     inTime();
     await paneSendText(paneId, shaped);
     await Bun.sleep(SUBMIT_DELAY_MS);
@@ -519,6 +556,28 @@ export function createServer(
   const terminalNotifications = new TerminalNotifications(options.stateDir ?? defaultStateDir(), clientSnapshot);
   const machines = options.machines === false ? null : new MachineManager(options.stateDir ?? defaultStateDir(), push, completions, clientSnapshot);
   const bridgeToken = randomBytes(32).toString("hex");
+  const ownedStop = options.ownedStop;
+  const ownedStopDigest = ownedStop ? digest(ownedStop.token) : null;
+  let ownedStopAccepted = false;
+  /** OWNED_STOP_PATH before every other gate: its own checks replace the session auth and origin rules, never widen them. */
+  const ownedStopResponse = (request: Request, peer: string | null, port: number | undefined): Response => {
+    const refuse = (status: number, code: string) => jsonResponse({ error: { code, message: "owned stop refused" } }, status);
+    if (request.method !== "POST") return refuse(405, "method_not_allowed");
+    if (peer === null || !isLoopbackAddress(peer) || cameThroughProxy(request.headers)) return refuse(403, "loopback_only");
+    const host = (request.headers.get("host") ?? "").toLowerCase();
+    if (port === undefined || ![`127.0.0.1:${port}`, `localhost:${port}`, `[::1]:${port}`].includes(host)) return refuse(403, "invalid_host");
+    if (request.headers.has("origin") || request.headers.has("sec-fetch-site")) return refuse(403, "browser_request");
+    const presented = request.headers.get(OWNED_STOP_HEADER);
+    if (presented === null || !timingSafeEqual(digest(presented), ownedStopDigest!)) return refuse(403, "invalid_stop_token");
+    // The answer goes out first; a repeated request while stopping is answered the same way and starts nothing new.
+    if (!ownedStopAccepted) { ownedStopAccepted = true; setTimeout(() => ownedStop!.stop(), OWNED_STOP_FLUSH_MS); }
+    return jsonResponse({ ok: true, stopping: true }, 202, { connection: "close" });
+  };
+
+  /** A ready attachment's input-ready; one streamed by session control says so: the wheel goes to it as `scroll` frames. */
+  function inputReady(attachment: PaneAttachment, paneId: string): ServerMessage {
+    return { type: "input-ready", pane_id: paneId, ...(attachment.pty instanceof TerminalSession ? { session: true as const } : {}) };
+  }
 
   function broadcast(paneId: string, message: ServerMessage): void {
     const attachment = attachments.get(paneId);
@@ -609,7 +668,10 @@ export function createServer(
       clearTimeout(timer);
       if (late) { const stuck = retiringPtys.get(paneId); if (stuck && "forceKill" in stuck) stuck.forceKill(); retiringPtys.delete(paneId); retiringAttachments.delete(paneId); }
     }
-    const mirrored = !(await terminalAttach());
+    // where herdr cannot attach, its session control streams the pane; the mirror is what is left
+    const attachable = await terminalAttach();
+    const streamed = !attachable && sessionControl;
+    const mirrored = !attachable && !sessionControl;
     const { terminalId, rect } = await terminalInfoFor(paneId);
     // an observer-first attachment spawns at the pane's own grid (fallback 80x24 when
     // the layout has no rect for it): the attach must not seed the shared pty with a
@@ -627,10 +689,10 @@ export function createServer(
     };
     attachments.set(paneId, attachment);
 
-    if (mirrored) {
-      const mirror = new MirrorSession({
-        cols: spawnCols,
-        rows: spawnRows,
+    const mirror = (): void => {
+      const session = new MirrorSession({
+        cols: attachment.cols,
+        rows: attachment.rows,
         size: async () => {
           const now = (await terminalInfoFor(paneId)).rect;
           return now ? { cols: now.width, rows: now.height } : null;
@@ -655,10 +717,26 @@ export function createServer(
           closeAttachment(paneId);
         },
       });
-      attachment.pty = mirror;
-      attachment.mirror = mirror;
+      attachment.pty = session;
+      attachment.mirror = session;
+    };
+    if (mirrored) {
+      mirror();
       return attachment;
     }
+    /**
+     * Session control did not start on this herdr (one without it, a CLI that would not run):
+     * the pane is mirrored instead, on its own grid. A client that joined meanwhile adopts it.
+     */
+    const fallBack = (why: string): void => {
+      console.error(`terminal session control for pane ${paneId} did not start, mirroring it instead: ${why}`);
+      attachment.cols = rect?.width ?? 80;
+      attachment.rows = rect?.height ?? 24;
+      mirror();
+      attachment.ready = true;
+      broadcast(paneId, { type: "pane-geometry", pane_id: paneId, cols: attachment.cols, rows: attachment.rows, fixed: true });
+      broadcast(paneId, { type: "input-ready", pane_id: paneId });
+    };
 
     // No --takeover: another web bridge may own the exclusive attach slot.
     // Report that conflict without displacing it or the user's own TUI.
@@ -667,9 +745,12 @@ export function createServer(
     // transcript matches): an attach that races one, typically a phone reconnecting just as
     // Codex finished an answer, is started again for the same clients, for as long as such
     // a read can last, instead of ending their terminal.
-    const forward = (data: string): void => {
+    // Session control (where herdr cannot attach) is refused the same ways, in a terminal.closed
+    // reason worded as an attach's, and takes the same retries.
+    /** `replay`: kept for late joiners in the attachment's tail (a session keeps its own frames) */
+    const forward = (data: string, replay = true): void => {
       if (attachments.get(paneId) !== attachment) return;
-      attachment.replay.append(data);
+      if (replay) attachment.replay.append(data);
       for (const client of attachment.clients) sendOutput(client, paneId, data);
       reconcileOutput(paneId);
     };
@@ -677,12 +758,14 @@ export function createServer(
     let refusedSince: number | null = null;
     /** the terminal attached to: a pane keeps its id across a server handoff, its terminal does not */
     let attachedTerminal = terminalId;
-    const start = (): PtySession => {
+    /** whether a stream was started on this attachment before: only the first one falls back to the mirror */
+    let restarted = false;
+    const start = (): PtySession | TerminalSession => {
       const collectNotifications = terminalNotifications.stream(attachedTerminal);
-      const forwardLive = (data: string): void => {
+      const forwardLive = (data: string, replay = true): void => {
         if (attachments.get(paneId) !== attachment) return;
         collectNotifications(data);
-        forward(data);
+        forward(data, replay);
       };
       let output = ""; // this attach's own last words: herdr's refusal is in them
       // its first bytes wait ATTACH_HOLD_MS: a refusal (herdr's setup, teardown and message)
@@ -699,6 +782,15 @@ export function createServer(
         const data = held;
         held = null;
         if (data) forwardLive(data);
+      };
+      /** the stream took: a pane that waited for another bridge is this bridge's again */
+      const taken = (): void => {
+        if (attachment.held) {
+          attachment.held = false;
+          broadcast(paneId, { type: "attach-resumed", pane_id: paneId });
+        }
+        attachment.ready = true;
+        broadcast(paneId, inputReady(attachment, paneId));
       };
       const took = (): void => {
         // a closed attachment's kill skips onExit, which would clear this timer: a newer
@@ -718,13 +810,7 @@ export function createServer(
           ended(null);
           return;
         }
-        // the attach took: a pane that waited for another bridge is this bridge's again
-        if (attachment.held) {
-          attachment.held = false;
-          broadcast(paneId, { type: "attach-resumed", pane_id: paneId });
-        }
-        attachment.ready = true;
-        broadcast(paneId, { type: "input-ready", pane_id: paneId });
+        taken();
         release();
       };
       const ended = (code: number | null): void => {
@@ -823,13 +909,42 @@ export function createServer(
         };
         relookup();
       };
+      // herdr's CLI reads HERDR_SOCKET_PATH, not HERDR_SOCKET: the stream must reach
+      // the same session the RPCs talk to, or a named session's terminals are
+      // looked up on the default socket and the attach dies.
+      const env = { HERDR_SOCKET_PATH: herdrSocketPath() };
+      if (streamed) {
+        const first = !restarted;
+        restarted = true;
+        // its frames are whole screens herdr drew: nothing is held back as a refusal could be
+        held = null;
+        const stream = new TerminalSession({
+          command: process.env["HERDR_WEB_HERDR_BIN"] || "herdr",
+          terminal: attachedTerminal,
+          env,
+          cols: attachment.cols,
+          rows: attachment.rows,
+          replayBytes: MAX_REPLAY_BYTES,
+          onData: (data) => {
+            if (attachments.get(paneId) !== attachment) return;
+            if (!attachment.ready) taken();
+            forwardLive(data, false);
+          },
+          onExit: (code, reason) => {
+            // a first stream herdr never answered falls back to the mirror (below)
+            if (first && !stream.answered) return;
+            if (reason === null && code !== 0 && stream.stderr) console.error(`terminal session control for pane ${paneId} ended: ${stream.stderr.trim()}`);
+            // herdr's refusal is its reason, and the CLI exits 0 after it: the reason ends the try as an attach's refusal would
+            output = reason ?? "";
+            ended(reason === null ? code : null);
+          },
+        });
+        return stream;
+      }
       const session = new PtySession({
         command: process.env["HERDR_WEB_HERDR_BIN"] || "herdr",
         args: ["terminal", "attach", attachedTerminal],
-        // herdr's CLI reads HERDR_SOCKET_PATH, not HERDR_SOCKET: the stream must reach
-        // the same session the RPCs talk to, or a named session's terminals are
-        // looked up on the default socket and the attach dies.
-        env: { HERDR_SOCKET_PATH: herdrSocketPath() },
+        env,
         cols: attachment.cols,
         rows: attachment.rows,
         onData: (data) => {
@@ -850,12 +965,23 @@ export function createServer(
     try {
       attachment.pty = start();
     } catch (error) {
+      if (streamed) {
+        fallBack(error instanceof Error ? error.message : String(error));
+        return attachment;
+      }
       // Bun.spawn throws synchronously (node missing from PATH, fd or process limits): the
       // placeholder must go with it, or the next attach joins a record with no pty and
       // its close dereferences one (#154). The waiting attaches get the error in-band.
       attachments.delete(paneId);
       spawnFailure(paneId, error);
       throw error;
+    }
+    if (streamed) {
+      const stream = attachment.pty as TerminalSession;
+      void stream.started.then((answered) => {
+        if (answered || attachments.get(paneId) !== attachment || attachment.pty !== stream) return;
+        fallBack(stream.stderr.trim() || "it ended before herdr answered");
+      });
     }
 
     return attachment;
@@ -957,8 +1083,9 @@ export function createServer(
       const url = new URL(request.url);
       let { pathname } = url;
       const bridgeAuthorized = isAuthenticated(request, bridgeToken);
-      const bridgePath = pathname === "/api/bridge" || pathname === "/api/session" || pathname === "/api/agents" || pathname.startsWith("/api/pane/") || pathname.startsWith("/api/workspace/") || pathname.startsWith("/api/fs/") || pathname === "/ws";
+      const bridgePath = pathname === "/api/bridge" || pathname === "/api/session" || pathname === "/api/agents" || pathname.startsWith("/api/pane/") || pathname.startsWith("/api/workspace/") || pathname.startsWith("/api/worktree/") || pathname.startsWith("/api/fs/") || pathname === "/ws";
       const ip = bunServer.requestIP(request);
+      if (ownedStop && pathname === OWNED_STOP_PATH) return ownedStopResponse(request, ip?.address ?? null, bunServer.port);
       const access = decideAccess({
         loopback: ip !== null && isLoopbackAddress(ip.address),
         forwarded: cameThroughProxy(request.headers),
@@ -1057,7 +1184,7 @@ export function createServer(
         if (pathname.startsWith("/api/machines/local/")) {
           if (!sameOrigin(request) || (request.method !== "GET" && request.headers.get("x-herdr-machine") !== "1")) return jsonResponse({ error: { code: "invalid_origin", message: "Use PC controls from this app" } }, 403);
           pathname = pathname.replace("/api/machines/local/", "/api/");
-          if (!/^\/api\/(session|agents|pane\/|workspace\/)/.test(pathname)) return badRequest("invalid_route", "Unknown PC endpoint");
+          if (!/^\/api\/(session|agents|pane\/|workspace\/|worktree\/)/.test(pathname)) return badRequest("invalid_route", "Unknown PC endpoint");
           url.pathname = pathname;
         } else {
           bunServer.timeout(request, pathname === "/api/machines/events" ? 0 : 80);
@@ -1127,7 +1254,8 @@ export function createServer(
         const auth: HealthAuth = access.level === "full"
           ? { required: false, authenticated: true, via: access.via, role: access.role }
           : { required: true, authenticated, ...(authenticated ? {} : { reason: access.reason }) };
-        if (url.searchParams.get("scope") === "bridge") return jsonResponse({ ok: true, auth, bridge_protocol: BRIDGE_PROTOCOL });
+        // liveness and launch identity only: the owned lifecycle's probe, which answers whether herdr runs or not
+        if (url.searchParams.get("scope") === "bridge") return jsonResponse({ ok: true, auth, bridge_protocol: BRIDGE_PROTOCOL, boot_id: process.env["HERDR_WEB_BOOT_ID"] ?? null } satisfies BridgeHealth);
         try {
           const info = await ping();
           // a forced answer (tests) and a runtime without the PTY sidecar are told the way a Windows herdr's own would be
@@ -1142,6 +1270,32 @@ export function createServer(
       if (pathname === "/api/access") {
         if (request.method !== "GET") return badRequest("method_not_allowed", "use GET");
         return jsonResponse(await remoteAccess(bunServer.port ?? DEFAULT_PORT), 200, { "cache-control": "no-store" });
+      }
+
+      // A link opens on the PC the person sits at: only a request from this PC itself, never one
+      // forwarded from another PC (not in machine-api.ts's allow-list) or through a proxy.
+      if (pathname === "/api/open-url") {
+        const local = ip !== null && isLoopbackAddress(ip.address) && !cameThroughProxy(request.headers);
+        if (request.method === "GET") return jsonResponse({ aside: local && asideExecutable() !== null } satisfies OpenUrlTargets, 200, { "cache-control": "no-store" });
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use GET or POST");
+        // the device routes' mutation guard: same origin (checked above) plus the app's own header
+        if (request.headers.get("x-herdr-machine") !== "1") return jsonResponse({ error: { code: "invalid_origin", message: "Open links from this app" } }, 403);
+        if (!local) return jsonResponse({ error: { code: "loopback_only", message: "links open only on this PC itself" } }, 403);
+        let payload: Partial<Record<keyof OpenUrlRequest, unknown>>;
+        try { payload = (await boundedJson(request, 16 * 1024)) as typeof payload; } catch { return badRequest("invalid_json", "request body must be JSON of at most 16 KB"); }
+        if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
+        if (payload.target !== "aside") return badRequest("invalid_target", "target must be aside");
+        let target: string;
+        try { target = parseOpenUrl(payload.url); } catch (error) {
+          if (error instanceof OpenUrlError) return badRequest(error.code, error.message);
+          throw error;
+        }
+        const exe = asideExecutable();
+        if (exe === null) return jsonResponse({ error: { code: "aside_not_installed", message: "Aside is not installed on this PC" } }, 404);
+        try { await openInAside(exe, target); } catch (error) {
+          return jsonResponse({ error: { code: "open_failed", message: error instanceof Error ? error.message : "Aside did not start" } }, 500);
+        }
+        return new Response(null, { status: 204 });
       }
 
       if (pathname.startsWith("/api/panes/by-number/")) {
@@ -1296,6 +1450,138 @@ export function createServer(
         }
       }
 
+      if (pathname === "/api/worktree/source") {
+        if (request.method !== "GET") return badRequest("method_not_allowed", "use GET");
+        const paneId = url.searchParams.get("pane_id")?.trim();
+        if (!paneId) return badRequest("missing_pane_id", "pane_id query parameter is required");
+        try {
+          const pane = (await sessionSnapshot()).panes.find((candidate) => candidate.pane_id === paneId);
+          if (!pane) return badRequest("pane_not_found", `pane ${paneId} not found`);
+          const cwd = pane.foreground_cwd ?? pane.cwd;
+          if (!cwd) return badRequest("cwd_not_found", `pane ${paneId} has no working directory`);
+          return jsonResponse(await resolveWorktreeSource(paneId, cwd));
+        } catch (error) {
+          return worktreeFailure(error);
+        }
+      }
+
+      if (pathname === "/api/worktree/create") {
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        let payload: unknown;
+        try {
+          payload = await request.json();
+        } catch {
+          return badRequest("invalid_json", "request body must be JSON");
+        }
+        const parsed = parseWorktreeCreate(payload);
+        if (!parsed.ok) return badRequest(parsed.code, parsed.message);
+        const { pane_id: paneId, branch, base } = parsed.value;
+        try {
+          const snapshot = await sessionSnapshot();
+          const pane = snapshot.panes.find((candidate) => candidate.pane_id === paneId);
+          if (!pane) return badRequest("pane_not_found", `pane ${paneId} not found`);
+          const cwd = pane.foreground_cwd ?? pane.cwd;
+          if (!cwd) return badRequest("cwd_not_found", `pane ${paneId} has no working directory`);
+          // herdr refuses a linked worktree's folder (`linked_worktree_source`): the worktree is made
+          // from the main checkout, based on the pane's own branch unless the request names one
+          const source = await resolveWorktreeSource(paneId, cwd);
+          const created = await worktreeCreate({ cwd: source.repo_root, branch, base: base ?? source.branch ?? source.head, label: branch });
+          // herdr appends the new workspace: the sidebar shows it right under the terminal's own
+          const sourceIndex = snapshot.workspaces.findIndex((workspace) => workspace.workspace_id === pane.workspace_id);
+          if (sourceIndex >= 0) {
+            try {
+              await workspaceMove(created.workspace.workspace_id, sourceIndex + 1);
+            } catch (error) {
+              console.error("[worktree] placing the new workspace failed:", error instanceof Error ? error.message : error);
+            }
+          }
+          broadcastAll({ type: "session-changed" });
+          return jsonResponse({ workspace_id: created.workspace.workspace_id, pane_id: created.root_pane.pane_id, cwd: created.root_pane.cwd ?? created.workspace.worktree?.checkout_path ?? "" });
+        } catch (error) {
+          return worktreeFailure(error);
+        }
+      }
+
+      if (pathname === "/api/worktree/list") {
+        if (request.method !== "GET") return badRequest("method_not_allowed", "use GET");
+        const paneId = url.searchParams.get("pane_id")?.trim();
+        if (!paneId) return badRequest("missing_pane_id", "pane_id query parameter is required");
+        try {
+          const pane = (await sessionSnapshot()).panes.find((candidate) => candidate.pane_id === paneId);
+          if (!pane) return badRequest("pane_not_found", `pane ${paneId} not found`);
+          const cwd = pane.foreground_cwd ?? pane.cwd;
+          if (!cwd) return badRequest("cwd_not_found", `pane ${paneId} has no working directory`);
+          const source = await resolveWorktreeSource(paneId, cwd);
+          const listed = await worktreeList(source.repo_root);
+          return jsonResponse({ worktrees: linkedWorktrees(listed.worktrees) });
+        } catch (error) {
+          return worktreeFailure(error);
+        }
+      }
+
+      if (pathname === "/api/worktree/open") {
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        let payload: unknown;
+        try {
+          payload = await request.json();
+        } catch {
+          return badRequest("invalid_json", "request body must be JSON");
+        }
+        const parsed = parseWorktreeOpen(payload);
+        if (!parsed.ok) return badRequest(parsed.code, parsed.message);
+        const { pane_id: paneId, path } = parsed.value;
+        try {
+          const snapshot = await sessionSnapshot();
+          const pane = snapshot.panes.find((candidate) => candidate.pane_id === paneId);
+          if (!pane) return badRequest("pane_not_found", `pane ${paneId} not found`);
+          const cwd = pane.foreground_cwd ?? pane.cwd;
+          if (!cwd) return badRequest("cwd_not_found", `pane ${paneId} has no working directory`);
+          // the checkout is opened from the main checkout (herdr refuses a linked one) and only when
+          // it is a worktree of the pane's repo, by the path herdr itself lists it under
+          const source = await resolveWorktreeSource(paneId, cwd);
+          const worktree = findLinkedWorktree((await worktreeList(source.repo_root)).worktrees, path);
+          if (!worktree) return badRequest("worktree_not_found", `${path} is not a worktree of ${source.repo_name}`);
+          const opened = await worktreeOpen({ cwd: source.repo_root, path: worktree.path });
+          const workspaceId = opened.root_pane.workspace_id;
+          if (!opened.already_open) {
+            // herdr appends the reopened workspace: the sidebar shows it right under the terminal's own
+            const sourceIndex = snapshot.workspaces.findIndex((workspace) => workspace.workspace_id === pane.workspace_id);
+            if (sourceIndex >= 0) {
+              try {
+                await workspaceMove(workspaceId, sourceIndex + 1);
+              } catch (error) {
+                console.error("[worktree] placing the reopened workspace failed:", error instanceof Error ? error.message : error);
+              }
+            }
+            broadcastAll({ type: "session-changed" });
+          }
+          return jsonResponse({ workspace_id: workspaceId, pane_id: opened.root_pane.pane_id, already_open: opened.already_open });
+        } catch (error) {
+          return worktreeFailure(error);
+        }
+      }
+
+      if (pathname === "/api/worktree/remove") {
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        let payload: { workspace_id?: unknown; force?: unknown };
+        try {
+          payload = (await request.json()) as typeof payload;
+        } catch {
+          return badRequest("invalid_json", "request body must be JSON");
+        }
+        if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
+        if (typeof payload.workspace_id !== "string" || payload.workspace_id.length === 0) {
+          return badRequest("missing_workspace_id", "workspace_id is required");
+        }
+        try {
+          await worktreeRemove(payload.workspace_id, payload.force === true);
+          broadcastAll({ type: "session-changed" });
+          return jsonResponse({ ok: true });
+        } catch (error) {
+          return worktreeFailure(error);
+        }
+      }
+
       if (pathname === "/api/workspace/colors") {
         if (request.method === "GET") return jsonResponse({ colors: workspaceColors.all() });
         if (request.method !== "POST") return badRequest("method_not_allowed", "use GET or POST");
@@ -1442,7 +1728,14 @@ export function createServer(
         if (typeof payload.pane_id !== "string" || payload.pane_id.length === 0) return badRequest("missing_pane_id", "pane_id is required");
         if (!isCount(payload.offset_from_bottom)) return badRequest("invalid_offset", "offset_from_bottom must be a non-negative integer");
         try {
-          return jsonResponse({ scroll: await paneScroll(payload.pane_id, payload.offset_from_bottom) });
+          const scroll = await paneScroll(payload.pane_id, payload.offset_from_bottom);
+          // a mirror reads the scrolled screen at once, not at its next idle read; typing returns it to the bottom
+          const attachment = attachments.get(payload.pane_id);
+          if (attachment?.mirror) {
+            attachment.historyOffset = scroll?.offset_from_bottom ?? 0;
+            attachment.mirror.poke();
+          }
+          return jsonResponse({ scroll });
         } catch (error) {
           return errorResponse(error);
         }
@@ -1529,9 +1822,11 @@ export function createServer(
         try {
           if (pathname === "/api/pane/input") {
             if (typeof payload.text !== "string") return badRequest("missing_text", "text is required");
+            await mirrorToBottom(payload.pane_id);
             await paneSendText(payload.pane_id, payload.text);
           } else {
             if (!Array.isArray(payload.keys) || !payload.keys.every((key) => typeof key === "string")) return badRequest("missing_keys", "keys must be an array");
+            await mirrorToBottom(payload.pane_id);
             await paneSendKeys(payload.pane_id, payload.keys);
           }
           return jsonResponse({ ok: true });
@@ -1693,9 +1988,10 @@ export function createServer(
                 releaseUnclaimed(message.pane_id, attachment);
                 break;
               }
-              // a mirror whose pane went away during its first read has already ended: joining
-              // it would leave this client on a terminal that never says anything again
-              if (attachment.mirror && attachments.get(message.pane_id) !== attachment) {
+              // a mirror whose pane went away during its first read, or a session control that ended
+              // with nobody on it, has already ended: joining it would leave this client on a
+              // terminal that never says anything again
+              if (attachments.get(message.pane_id) !== attachment) {
                 client.data.attached.delete(message.pane_id);
                 send(client, { type: "pty-exit", pane_id: message.pane_id, code: null });
                 break;
@@ -1707,15 +2003,19 @@ export function createServer(
               // a mirrored screen is drawn for the pane's own grid: the client takes that size
               // before the screen, or the rows would wrap in a grid of another width
               if (attachment.mirror) send(client, { type: "pane-geometry", pane_id: message.pane_id, cols: attachment.cols, rows: attachment.rows, fixed: true });
-              // hand the newcomer the current screen it would otherwise have missed
-              // (a mirror keeps its latest screen whole; a pty keeps a bounded tail of its stream)
-              const replay = attachment.mirror ? attachment.mirror.current ?? "" : attachment.replay.text();
+              // hand the newcomer the current screen it would otherwise have missed (a mirror keeps
+              // its latest screen whole; a session control the frames since its last full one, and
+              // when those are not all there herdr paints a full one to everybody; a pty keeps a
+              // bounded tail of its stream)
+              const stream = attachment.pty instanceof TerminalSession ? attachment.pty : null;
+              const replay = attachment.mirror ? attachment.mirror.current ?? "" : stream ? stream.current ?? "" : attachment.replay.text();
               if (!alreadyAttached && replay) sendOutput(client, message.pane_id, replay);
+              if (!alreadyAttached && stream && stream.answered && stream.current === null) stream.repaint();
               // a pane waiting for another web bridge to let go says so to each newcomer, too
               if (!alreadyAttached && attachment.held) send(client, { type: "error", code: "attach_held", message: ATTACH_HELD_MESSAGE, pane_id: message.pane_id });
               reconcileOutput(message.pane_id);
               if (client.data.closing) break;
-              if (attachment.ready && !attachment.held) send(client, { type: "input-ready", pane_id: message.pane_id });
+              if (attachment.ready && !attachment.held) send(client, inputReady(attachment, message.pane_id));
               if (attachment.mirror) break;
               if (client.data.mode === "interact" && message.keep_size !== true) {
                 // an operator's viewport owns the shared grid
@@ -1759,20 +2059,32 @@ export function createServer(
               const inputFailed = () => {
                 if (clients.has(client)) send(client, { type: "error", code: "input_failed", message: "Terminal input could not be confirmed. Check the terminal before typing again.", pane_id: message.pane_id });
               };
-              // without a pty (Windows: no terminal, or a mirrored one) typing, the key bar's Enter,
-              // Stop and arrows go through herdr itself, each in its turn behind a message in flight.
-              // The turn is taken before herdr is asked what it can do: a message sent while
-              // that answer is on its way must not overtake the typing.
-              if (terminalAttachKnown === false || (!attachment && terminalAttachKnown === null)) {
+              // without a stream (a mirrored pane, or none attached where herdr cannot attach) typing,
+              // the key bar's Enter, Stop and arrows go through herdr itself, each in its turn behind a
+              // message in flight. The turn is taken before herdr is asked what it can do: a message
+              // sent while that answer is on its way must not overtake the typing. A pane herdr's
+              // session control streams takes typing as an attached one does.
+              if (attachment ? attachment.mirror !== undefined : terminalAttachKnown !== true) {
                 const text = message.text;
                 void serialize(message.pane_id, async () => {
                   // a herdr that attaches: typing reaches an attached pane only
                   if (await terminalAttach()) { inputFailed(); return; }
+                  // a key herdr drops as text goes as its own key
+                  const keys = mirrorKeys(text);
+                  if (keys) {
+                    if (!clients.has(client)) return;
+                    authorizeSocket(client);
+                    await mirrorToBottom(message.pane_id);
+                    await paneSendKeys(message.pane_id, keys);
+                    attachments.get(message.pane_id)?.mirror?.poke();
+                    return;
+                  }
                   // a pasted block asks herdr what the pane runs, so it is shaped before the checks below
                   const shaped = await mirrorInput(text, async () => (await paneContext(message.pane_id)).agent);
                   // nothing typed outlives its connection
                   if (!clients.has(client)) return;
                   authorizeSocket(client);
+                  await mirrorToBottom(message.pane_id);
                   await paneSendText(message.pane_id, shaped);
                   // the echo is read at once, not at the mirror's next idle read
                   attachments.get(message.pane_id)?.mirror?.poke();
@@ -1784,17 +2096,31 @@ export function createServer(
                 send(client, { type: "error", code: "input_not_ready", message: "Terminal input is not ready. Nothing was sent.", pane_id: message.pane_id });
                 break;
               }
-              if (paneQueues.has(message.pane_id)) {
+              // Session control carries no terminal modes, so the browser never learned the program's
+              // bracketed paste: a pasted block is shaped as a mirror's is (server/mirror-input.ts),
+              // in its turn, and typing after it waits behind it.
+              const stream = attachment.pty instanceof TerminalSession ? attachment.pty : null;
+              if (paneQueues.has(message.pane_id) || (stream && pastedBlock(message.text))) {
                 const text = message.text;
                 // typed into this attach: one that ended meanwhile (and was attached again) takes none of it
                 const pty = attachment.pty;
-                void serialize(message.pane_id, () => {
+                const current = (): boolean => attachments.get(message.pane_id) === attachment && attachment.pty === pty && attachment.clients.has(client) && attachment.ready && !attachment.held;
+                void serialize(message.pane_id, async () => {
                   // held while this waited its turn: it goes nowhere, as unqueued typing would
-                  if (attachments.get(message.pane_id) !== attachment || attachment.pty !== pty || !attachment.clients.has(client) || !attachment.ready || attachment.held) { inputFailed(); return; }
+                  if (!current()) { inputFailed(); return; }
                   // nothing typed outlives its connection
                   if (!clients.has(client)) return;
                   authorizeSocket(client);
-                  return paneSendText(message.pane_id, text);
+                  if (!stream) {
+                    await mirrorToBottom(message.pane_id);
+                    return paneSendText(message.pane_id, text);
+                  }
+                  // the stream itself, not send_text: herdr 0.9.5 drops a lone ESC (Stop) handed over as text on Windows
+                  const shaped = await mirrorInput(text, async () => (await paneContext(message.pane_id)).agent);
+                  if (!current() || !clients.has(client)) { inputFailed(); return; }
+                  authorizeSocket(client);
+                  if (!stream.write(shaped)) { inputFailed(); return; }
+                  lastTyped.set(message.pane_id, Date.now());
                 }, true).catch(inputFailed);
               } else {
                 if (!attachment.pty.write(message.text)) { inputFailed(); break; }
@@ -1833,6 +2159,25 @@ export function createServer(
               resizePty(message.pane_id, geometry.cols, geometry.rows);
               break;
             }
+            case "scroll": {
+              // the wheel on a pane herdr's session control streams: herdr makes it mouse reports,
+              // alternate scroll or its own scrollback. An attach pty gets the wheel as the mouse
+              // reports xterm sends, and a mirror through /api/pane/scroll: theirs are dropped here.
+              if (client.data.mode === "observe") {
+                send(client, { type: "error", code: "read_only", message: "this connection is in observe mode" });
+                break;
+              }
+              const cell = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 1000;
+              if ((message.direction !== "up" && message.direction !== "down") || !cell(message.lines) || !cell(message.column) || !cell(message.row)) {
+                send(client, { type: "error", code: "invalid_scroll", message: "direction must be up or down; lines, column and row integers in 1..1000" });
+                break;
+              }
+              const attachment = attachments.get(message.pane_id);
+              if (!(attachment?.pty instanceof TerminalSession) || !attachment.clients.has(client) || !attachment.ready || attachment.held) break;
+              authorizeSocket(client);
+              attachment.pty.scroll(message.direction, message.lines, message.column, message.row);
+              break;
+            }
             case "keys": {
               if (client.data.mode === "observe") {
                 send(client, { type: "error", code: "read_only", message: "this connection is in observe mode" });
@@ -1855,6 +2200,7 @@ export function createServer(
                 // a key-bar key sent by RPC right after them must not overtake them
                 const typed = Date.now() - (lastTyped.get(message.pane_id) ?? 0);
                 if (typed < TYPED_SETTLE_MS) await Bun.sleep(TYPED_SETTLE_MS - typed);
+                await mirrorToBottom(message.pane_id);
                 await paneSendKeys(message.pane_id, message.keys);
                 attachments.get(message.pane_id)?.mirror?.poke();
               }, true).catch(() => {
@@ -1878,6 +2224,8 @@ export function createServer(
                 if (!attachment.ready || attachment.held) { result(false, "input_not_ready"); break; }
                 if (paneQueues.has(message.pane_id)) { result(false, "pane_busy"); break; }
                 await serialize(message.pane_id, async () => {
+                  // the prompt is looked for on the pane's last rows, not on history a mirror was scrolled to
+                  await mirrorToBottom(message.pane_id);
                   const screen = await paneRead({ paneId: message.pane_id, source: "visible", format: "text" });
                   if (client.data.closing || client.data.mode === "observe") { result(false, "read_only"); return; }
                   authorizeSocket(client);
@@ -1888,6 +2236,7 @@ export function createServer(
                     // A mirrored pane has no pty to type into: the secret is herdr's text, then the
                     // Enter key (a `\r` inside the text is not Enter to every shell). Both are awaited,
                     // so a send herdr refused is answered as failed, not as entered.
+                    await mirrorToBottom(message.pane_id);
                     await paneSendText(message.pane_id, message.secret);
                     await paneSendKeys(message.pane_id, ["Enter"]);
                   } else {
@@ -2003,10 +2352,14 @@ export function createServer(
 }
 
 if (import.meta.main) {
+  // The owned launcher's stop token lives in this variable only: nothing this process spawns inherits it, nothing logs it.
+  const ownedStopToken = process.env["TERMWEAVE_STOP_TOKEN"] ?? "";
+  delete process.env["TERMWEAVE_STOP_TOKEN"];
   if (existsSync(join(import.meta.dir, '..', '.termweave-owned.json')) && process.env.TERMWEAVE_OWNED_LAUNCH !== '1') throw new Error('Owned installation requires the recorded foreground lifecycle launcher');
+  if (process.env.TERMWEAVE_OWNED_LAUNCH === '1' && ownedStopToken.length < 32) throw new Error('Owned launch requires the launcher stop token');
   const configuredHost = process.env.HOST ?? '127.0.0.1';
   if (!LOOPBACK_HOSTNAMES.has(configuredHost) && (!process.env.HERDR_WEB_TOKEN || process.env.TERMWEAVE_EXTERNAL_ACCESS !== '1')) throw new Error('External binding requires TERMWEAVE_EXTERNAL_ACCESS=1 and a configured token');
-  const instance = createServer({ updates: connectUpdater(), registerBridge: true });
+  const instance = createServer({ updates: connectUpdater(), registerBridge: true, ...(ownedStopToken.length >= 32 ? { ownedStop: { token: ownedStopToken, stop: () => shutdown() } } : {}) });
   let stopping = false;
   const shutdown = () => {
     if (stopping) return;

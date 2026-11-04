@@ -4,13 +4,14 @@
  * log line or error message carries it.
  */
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   VOICE_DEFAULTS, VOICE_FORM, VOICE_KEYWORD_MAX_CHARS, VOICE_KEYWORDS_MAX, VOICE_MAX_AUDIO_BYTES,
   type VoiceErrorCode, type VoiceEvent, type VoiceMode, type VoiceStatus,
 } from "../shared/voice.ts";
 import { errorResponse, isJsonObject, jsonResponse } from "./http.ts";
+import { writePrivateFile } from "./private-file.ts";
 
 const ENV_KEY = "HERDR_WEB_OPENAI_API_KEY";
 const ENV_BASE_URL = "HERDR_WEB_OPENAI_BASE_URL";
@@ -78,10 +79,7 @@ export interface VoiceServiceOptions {
 
 /** Owner-only, and written whole: a crash mid-write must not leave half a key file. */
 function writeJsonPrivate(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
-  const temporary = `${path}.${process.pid}.tmp`;
-  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
-  renameSync(temporary, path);
+  writePrivateFile(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function baseUrlOf(value: string): string {
@@ -297,7 +295,8 @@ export class VoiceService {
     const cancelled = new AbortController();
     const upstream = AbortSignal.any([signal, cancelled.signal]);
     const form = new FormData();
-    form.append("file", new File([clip.audio], clip.filename, { type: clip.audio.type }));
+    // the bytes, not the part: Bun 1.4.0 (MIN_BUN) gives a File made of one File that File's name once it was read (parseClip reads it)
+    form.append("file", new File([await clip.audio.arrayBuffer()], clip.filename, { type: clip.audio.type }));
     form.append("model", transcribeModel);
     form.append("stream", "true");
     for (const language of clip.languages) form.append("languages[]", language);

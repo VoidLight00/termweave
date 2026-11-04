@@ -1,8 +1,9 @@
 import { afterAll, describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { DeviceStore, normalizeLabel } from "./devices.ts";
+import { fileDacl, ownerOnlyDacl } from "./private-file-fixture.ts";
 import { isTaggedNode, parseTailscaleOwner } from "./tailscale.ts";
 
 const dir = mkdtempSync(join(tmpdir(), "herdr-devices-"));
@@ -56,7 +57,9 @@ describe("DeviceStore", () => {
     expect(store.gated).toBe(true);
     const file = readFileSync(join(dir, "devices.json"), "utf8");
     expect(file).not.toContain(paired!.token);
-    expect((statSync(join(dir, "devices.json")).mode & 0o777)).toBe(0o600);
+    // Windows has no mode bits (0666 for any writable file): owner-only is the file's own DACL, the user and SYSTEM only
+    if (process.platform === "win32") expect(fileDacl(join(dir, "devices.json"))).toEqual(ownerOnlyDacl());
+    else expect((statSync(join(dir, "devices.json")).mode & 0o777)).toBe(0o600);
     expect(store.match(paired!.token)).toEqual({ id: paired!.device.id, label: "My phone", role: "drive" });
     expect(store.match("not-a-token")).toBeNull();
     // and a second store reading the same file knows the device
@@ -86,7 +89,7 @@ describe("DeviceStore", () => {
     // revoking the last device does not reopen the gate, not even after a restart
     expect(store.revoke(b.device.id)).toBe(true);
     expect(store.gated).toBe(true);
-    expect(new DeviceStore(join(dir, "r-") === "" ? dir : (store as unknown as { path: string }).path.replace(/\/devices\.json$/, "")).gated).toBe(true);
+    expect(new DeviceStore(join(dir, "r-") === "" ? dir : dirname((store as unknown as { path: string }).path)).gated).toBe(true);
   });
 });
 

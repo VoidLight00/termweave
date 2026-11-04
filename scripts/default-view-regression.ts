@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Browser } from "playwright-core";
 import { herdrRpc, workspaceClose, workspaceCreate } from "../server/herdr/client.ts";
+// the shortcut the app shows: shortcutHint() spells it per platform
+const VIEW_KEY = process.platform === "darwin" ? "⌘⇧J" : "Ctrl+Shift+J";
 
 /** Settings > Chat > Panes open in: one choice puts every agent pane on that lens, the ones that remembered another included. */
 export async function checkDefaultView(browser: Browser, origin: string): Promise<void> {
@@ -31,7 +33,7 @@ export async function checkDefaultView(browser: Browser, origin: string): Promis
     page.on("pageerror", (error) => errors.push(error.message));
     const lens = () => page.locator(".view-switch button[aria-pressed='true']").getAttribute("title");
     await page.goto(`${origin}/?pane=${encodeURIComponent(one)}`);
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     assert.match((await lens()) ?? "", /^Live terminal/, "a desktop opens an agent pane's terminal by default");
 
     await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+Comma" : "Control+Shift+Comma");
@@ -42,7 +44,7 @@ export async function checkDefaultView(browser: Browser, origin: string): Promis
     await page.waitForFunction(() => document.querySelector(".view-switch button[aria-pressed='true']")?.getAttribute("title")?.startsWith("Chat transcript") === true);
     assert.equal(await page.evaluate((pane) => localStorage.getItem(`termweave:view:local:${pane}`), two), null, "what a pane remembered gives way to the choice");
     // a pane switched by hand keeps its lens until the choice changes again
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
     await page.locator(`.pane-select[data-workspace-id="${workspaces[0]}"]`).click();
     await page.locator(`.pane-select[data-workspace-id="${workspaces[1]}"]`).click();
     await page.waitForFunction(() => document.querySelector(".view-switch button[aria-pressed='true']")?.getAttribute("title")?.startsWith("Live terminal") === true);

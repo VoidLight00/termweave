@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { VOICE_MAX_AUDIO_BYTES, type VoiceEvent, type VoiceStatus } from "../shared/voice.ts";
+import { fileDacl, ownerOnlyDacl } from "./private-file-fixture.ts";
 import { handleVoiceRequest, VoiceService } from "./voice.ts";
 
 const KEY = "sk-test-0123456789abcdef";
@@ -122,7 +123,9 @@ describe("voice config", () => {
     expect(saved.status).toBe(200);
     expect(await saved.text()).not.toContain(KEY);
     const path = join(stateDir, "voice.json");
-    expect(statSync(path).mode & 0o777).toBe(0o600);
+    // Windows has no mode bits (0666 for any writable file): owner-only is the file's own DACL, the user and SYSTEM only
+    if (process.platform === "win32") expect(fileDacl(path)).toEqual(ownerOnlyDacl());
+    else expect(statSync(path).mode & 0o777).toBe(0o600);
     expect(JSON.parse(readFileSync(path, "utf8"))).toMatchObject({ api_key: KEY });
     const body = await (await call(voice, "/api/voice")).text();
     expect(body).not.toContain(KEY);

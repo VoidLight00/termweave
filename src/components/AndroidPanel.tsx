@@ -21,14 +21,14 @@ export function AndroidPanel({ readOnly = false }: {readOnly?: boolean}) {
   const load=useCallback(async()=>{setData(await request<AndroidOverview>());},[]);
   useEffect(()=>{let live=true;const poll=()=>request<AndroidOverview>().then(x=>{if(live)setData(x);},()=>{if(live)setError("android_unavailable");});void poll();const timer=setInterval(poll,10000);return()=>{live=false;clearInterval(timer);};},[]);
   const run=async(path:string,body:unknown)=>{setBusy(true);setError("");setNotice("");try{await request(path,body);await load();setNotice(path==="/pair"?t("Pairing saved. Use the connection port to connect."):t("Device action completed."));}catch(e){setError(e instanceof Error?e.message:"android_unavailable");}finally{setCode("");setBusy(false);}};
-  const errors:Record<string,string>={device_not_connected:t("Connect and authorize your phone, then refresh."),device_not_registered:t("Register this phone before mirroring."),mirror_already_running:t("This phone already has a mirror window."),pairing_failed:t("Pairing failed. Check the code and pairing port."),invalid_pairing_code:t("Enter the six-digit pairing code."),connection_failed:t("Connection failed. Check the phone's connection port."),private_wifi_endpoint_required:t("Enter a private Wi-Fi IPv4 address and port."),invalid_endpoint:t("Enter a private Wi-Fi IPv4 address and port."),stop_mirror_first:t("Stop the mirror before removing this phone."),mirror_stop_unconfirmed:t("The mirror has not confirmed shutdown."),android_unavailable:t("Android tools are unavailable. Check the host Mac."),adb_command_failed:t("The phone did not respond. Check its connection and authorization."),read_only:t("This device can only watch.")};
+  const errors:Record<string,string>={device_not_connected:t("Connect and authorize your phone, then refresh."),device_not_registered:t("Register this phone before mirroring."),mirror_already_running:t("This phone already has a mirror window."),pairing_failed:t("Pairing failed. Check the code and pairing port."),invalid_pairing_code:t("Enter the six-digit pairing code."),connection_failed:t("Connection failed. Check the phone's connection port."),private_wifi_endpoint_required:t("Enter a private Wi-Fi IPv4 address and port."),invalid_endpoint:t("Enter a private Wi-Fi IPv4 address and port."),stop_mirror_first:t("Stop the mirror before removing this phone."),mirror_stop_unconfirmed:t("The mirror has not confirmed shutdown."),android_unavailable:t("Android tools are unavailable. Check the computer running TermWeave."),adb_command_failed:t("The phone did not respond. Check its connection and authorization."),read_only:t("This device can only watch.")};
   return <section ref={root} className="android-panel" aria-label={t("My Android devices")}>
-    <p>{t("Mirror windows open on the Mac running TermWeave, not on this browser's device.")}</p>
+    <p>{t("Mirror windows open on the computer running TermWeave, not on this browser's device.")}</p>
     <p className="settings-description">{t("USB and same-Wi-Fi mirroring need no Tailscale. Unattended LTE recovery is not verified.")}</p>
     {error&&<p role="alert">{errors[error]??t("Device action failed. Refresh and try again.")}</p>}
     {notice&&<p role="status">{notice}</p>}
     <button className="btn" disabled={busy} onClick={()=>{setError("");void load().catch(()=>setError("android_unavailable"));}}>{t("Refresh")}</button>
-    {data&&(!data.available.adb||!data.available.scrcpy)&&<p>{t("Install ADB and scrcpy on the host Mac to enable mirroring.")}</p>}
+    {data&&(!data.available.adb||!data.available.scrcpy)&&<p>{t("Install ADB and scrcpy on the computer running TermWeave to enable mirroring.")}</p>}
     {data?.devices.length===0&&<p>{t("No Android device found. Connect over Wi-Fi below, or authorize USB debugging.")}</p>}
     <ul className="android-device-list">{data?.devices.map(device=>{
       const session=data.sessions.find(s=>s.deviceId===device.id&&["connecting","running"].includes(s.state));
@@ -40,8 +40,8 @@ export function AndroidPanel({ readOnly = false }: {readOnly?: boolean}) {
           <button className="btn" disabled={busy||readOnly||!!session} onClick={()=>setForget(device.id)}>{t("Remove registration")}</button>
         </>}
         </div>
-        {session&&<p className="settings-description">{t("Mirror process is running. Verify the picture in its Mac window.")}</p>}
-        {failed&&!session&&<p role="alert">{t("The mirror process failed. Check the host Mac and phone authorization.")}</p>}
+        {session&&<p className="settings-description">{t("Mirror process is running. Verify the picture in its window on the computer running TermWeave.")}</p>}
+        {failed&&!session&&<p role="alert">{t("The mirror process failed. Check the computer running TermWeave and the phone authorization.")}</p>}
       </li>;
     })}</ul>
     <label>{t("Mirror mode")}<select className="input" value={mode} disabled={busy||readOnly} onChange={e=>setMode(e.target.value as MirrorMode)}>

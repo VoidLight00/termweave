@@ -42,7 +42,7 @@ export async function checkNeedsInput(browser: Browser, origin: string, paneId: 
     assert.equal(await group.getByRole("button", { name: /Local waiting/ }).getAttribute("aria-current"), null);
     await group.getByRole("button", { name: /Local waiting/ }).click();
     await page.locator(".context .machine-context-name").filter({ hasText: "QA host" }).waitFor();
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     if (process.env.UI_EVIDENCE_DIR) {
       mkdirSync(process.env.UI_EVIDENCE_DIR, { recursive: true });
       await page.screenshot({ path: join(process.env.UI_EVIDENCE_DIR, "needs-input-desktop.png") });

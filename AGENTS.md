@@ -72,3 +72,31 @@ Never print, log or commit a token.
 ```sh
 kill -TERM "$(sed -n 's/.*"launcher":\([0-9]*\).*/\1/p' ~/.local/share/termweave-owned/lifecycle.json)"
 ```
+
+## Windows (native, no WSL)
+
+On Windows, use `install.ps1` from the clone instead of `scripts/install.sh`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 --check
+powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File install.ps1 --stop
+```
+
+- Exit codes and `--check`/`--yes`/`--no-start`/`--dir`/`--port` work as above. The default dir is `%LOCALAPPDATA%\termweave-owned`.
+- Prerequisites: git, Bun 1.4+ and herdr 0.9.0+. Node is not needed on Windows.
+- The person starts herdr. Ask before `--yes`. It runs `irm https://bun.sh/install.ps1 | iex` and `irm https://herdr.dev/install.ps1 | iex`.
+- Stop only with `install.ps1 --stop`. It uses the recorded port. Never run `Stop-Process` or `taskkill` with a remembered PID. If the stop fails, follow INSTALL.md.
+- Open `msedge --app=http://127.0.0.1:7317`.
+- `install.ps1` and `install.sh` both run the shared lifecycle entry: `bun scripts/install-lifecycle.ts <check|install|start|stop> --dir PATH`.
+
+Tests for the Windows port:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-install.test.ps1
+bun test ./scripts/install-lifecycle.test.ts
+bun scripts/windows-native-acceptance.ts --self-test
+bun scripts/verify-isolated.ts type build unit render source-style
+```
+
+Real-machine evidence: `scripts/windows-native-acceptance.ts`. See INSTALL.md (M10). The self-test does not count as real-machine evidence.

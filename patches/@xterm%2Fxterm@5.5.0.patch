@@ -225,3 +225,16 @@ index 7542969a62fa6b5e84471a3bdecdc4bec82de542..95aed7468ad64e21b0332a3e9b66c606
        // Ignore if a composition has started since the timeout
        if (!this._isComposing) {
          const newValue = this._textarea.value;
+diff --git a/src/browser/services/CoreBrowserService.ts b/src/browser/services/CoreBrowserService.ts
+index 575b62b63c647356378a55919a3c9c18eb8da11e..27e0b787b0000550f9806c0ecc3a95e65ff017d4 100644
+--- a/src/browser/services/CoreBrowserService.ts
++++ b/src/browser/services/CoreBrowserService.ts
+@@ -13,7 +13,7 @@ export class CoreBrowserService extends Disposable implements ICoreBrowserServic
+ 
+   private _isFocused = false;
+   private _cachedIsFocused: boolean | undefined = undefined;
+-  private _screenDprMonitor = new ScreenDprMonitor(this._window);
++  private _screenDprMonitor = this.register(new ScreenDprMonitor(this._window));
+ 
+   private readonly _onDprChange = this.register(new EventEmitter<number>());
+   public readonly onDprChange = this._onDprChange.event;

@@ -93,7 +93,7 @@ try {
     captures = [...captures, { file: 'assets/screenshots/' + name + '.png', description, viewport: page.viewportSize(), sha256: createHash('sha256').update(readFileSync(file)).digest('hex') }];
   };
   await page.goto(`${origin}/?pane=${panes[0]}`);
-  await page.locator('.conn-live').waitFor();
+  await page.locator('.conn-live:visible').waitFor();
   await page.waitForFunction(() => document.querySelectorAll('.dock-group').length === 3);
   await page.waitForTimeout(1800);
   const folderColors = await page.locator('.pane-select[data-workspace-id] .agent-mark-holder').evaluateAll(nodes => nodes.map(node => getComputedStyle(node).color));
@@ -118,7 +118,7 @@ try {
   await page.locator('.droplet-card').click();
   await page.locator('.droplet').waitFor({ state: 'detached' });
   await page.goto(`${origin}/?pane=${panes[0]}`);
-  await page.locator('.conn-live').waitFor();
+  await page.locator('.conn-live:visible').waitFor();
   const moveRow = page.locator(`.workspace-terminal-row:has([data-terminal-pane="${panes[1]}"])`);
   await moveRow.locator('.terminal-menu-toggle').click();
   await page.getByRole('menuitem', { name: 'Move to…', exact: true }).click();

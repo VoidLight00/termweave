@@ -20,7 +20,11 @@ try {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   page.on('console',m=>{if(m.text().startsWith('MOVEDEBUG'))console.log(m.text())});
   page.on('pageerror',e=>console.log('PAGE_ERROR',e.message));
+  // The UI language follows the browser by default; this test drives the Korean UI.
+  await page.addInitScript(() => localStorage.setItem("termweave:settings", JSON.stringify({ language: "ko" })));
   await page.goto(`http://127.0.0.1:${server.port}/?pane=${encodeURIComponent(source.root_pane.pane_id)}&machine=local`);
+  // Native move lives in the group's tools panel, closed by default.
+  await page.locator(".dock-group").getByRole("button", { name: "터미널 도구", exact: true }).click();
   const summary = page.getByText("실제 작업공간·탭 이동", { exact: true });
   await summary.waitFor();
   // Open the details through the keyboard rather than a drag gesture.

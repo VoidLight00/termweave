@@ -6,6 +6,12 @@
 .modal.rename-terminal-dialog { border: 1px solid var(--border); border-radius: var(--radius-xl); max-height: calc(var(--app-height, 100dvh) - 24px); }
 .rename-terminal-dialog form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .rename-terminal-dialog .modal-header, .rename-terminal-dialog .modal-footer { flex-shrink: 0; }
+.worktree-closed { display: grid; gap: var(--space-2); min-width: 0; }
+.worktree-closed h3 { margin: 0; }
+.worktree-closed-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.worktree-closed-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.worktree-closed-name { display: grid; flex: 1; min-width: 0; }
+.worktree-closed-row[data-prunable] .worktree-closed-name { opacity: 0.6; }
 @media (pointer: coarse), (max-width: 768px) {
   .rename-terminal-dialog input { min-height: 44px; font-size: 16px; }
   .rename-terminal-dialog .btn { min-height: 44px; min-width: 64px; }

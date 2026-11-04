@@ -9,6 +9,7 @@ import { createServer } from "../server/index.ts";
 import { paneSendText, workspaceCreate, workspaceClose } from "../server/herdr/client.ts";
 
 const cwd = process.cwd();
+const windows = process.platform === "win32";
 const fixtureRoot=mkdtempSync(join(process.env.TERMWEAVE_TEST_ROOT!,"l"));const fixture=join(fixtureRoot,"f.txt");writeFileSync(fixture,"synthetic fixture content");mkdirSync(join(fixtureRoot,"scripts"));writeFileSync(join(fixtureRoot,"scripts/test-herdr.ts"),"synthetic script");writeFileSync(join(fixtureRoot,"README.md"),"synthetic readme");const shortUri="./f.txt";
 const workspace = await workspaceCreate({ cwd:fixtureRoot, label: "herdr-web-ui-test-file-links" });
 const pane = workspace.root_pane.pane_id;
@@ -28,12 +29,13 @@ try {
     const page = await context.newPage();let ready=false;page.on("websocket",socket=>socket.on("framereceived",({payload})=>{try{const m=JSON.parse(String(payload));if(m.type==="input-ready"&&m.pane_id===pane)ready=true;}catch{}}));const reads:string[]=[];page.on("request",request=>{if(request.url().includes("/api/file"))reads.push(request.url());});
     page.setDefaultTimeout(15_000);
     await page.goto(`http://127.0.0.1:${server.port}/?pane=${encodeURIComponent(pane)}`);
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     await page.waitForFunction(()=>document.querySelector(".xterm-screen")?.getBoundingClientRect().width!>200);
     const deadline=Date.now()+15000;while(!ready&&Date.now()<deadline)await Bun.sleep(20);assert.equal(ready,true);
-    await paneSendText(pane,"stty cols 160; PS1=synthetic; PROMPT=synthetic\r");
+    // a Windows pane runs PowerShell: its prompt is a function, `e is ESC, and the console is as wide as the view
+    await paneSendText(pane,windows?"function prompt { 'synthetic' }\r":"stty cols 160; PS1=synthetic; PROMPT=synthetic\r");
     await page.waitForTimeout(300);
-    await page.locator(".xterm-helper-textarea").focus();await page.keyboard.type(`PS1="synthetic> "; PROMPT="synthetic> "; printf '\\033[2J\\033[HFILELINK ${shortUri}\\n'\r`);
+    await page.locator(".xterm-helper-textarea").focus();await page.keyboard.type(windows?`function prompt { 'synthetic> ' }; Write-Host "\`e[2J\`e[HFILELINK ${shortUri}"\r`:`PS1="synthetic> "; PROMPT="synthetic> "; printf '\\033[2J\\033[HFILELINK ${shortUri}\\n'\r`);
     const row = page.locator(".xterm-rows > div", { hasText: /^FILELINK \.\// }).first();
     await row.waitFor();
     await page.waitForFunction(uri=>document.querySelector(".xterm-rows")?.textContent?.includes(uri),shortUri);
@@ -70,7 +72,7 @@ try {
       await page.locator(".file-viewer-header button").last().click();
       await page.locator(".file-viewer").waitFor({ state: "hidden" });
       // one row with a path and a bare name: `MIXED ` is six cells, the path the next 21, the name from cell 28
-      await paneSendText(pane, `printf '\\033[2J\\033[HMIXED scripts/test-herdr.ts README.md\\n'\r`);
+      await paneSendText(pane, windows ? "Write-Host \"`e[2J`e[HMIXED scripts/test-herdr.ts README.md\"\r" : `printf '\\033[2J\\033[HMIXED scripts/test-herdr.ts README.md\\n'\r`);
       const mixed = page.locator(".xterm-rows > div", { hasText: /^MIXED scripts\// }).first();
       await mixed.waitFor();
       const mixedBox = await mixed.boundingBox();

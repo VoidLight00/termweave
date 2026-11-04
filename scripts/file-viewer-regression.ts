@@ -57,7 +57,7 @@ try {
   // A known prior document proves explicit close leaves no invisible preview entry.
   await page.goto(`${origin}/api/health`);
   await page.goto(`${origin}/?pane=${encodeURIComponent(pane)}`);
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   const videoLink = page.getByRole("button", { name: "demo video", exact: true });
   await videoLink.waitFor();
   const composer = page.getByRole("textbox", { name: "Message", exact: true });

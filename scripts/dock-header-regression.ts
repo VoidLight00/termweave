@@ -8,6 +8,7 @@ import { chromium } from "playwright-core";
 import { createServer } from "../server/index.ts";
 import { workspaceCreate, workspaceClose, herdrRpc, sessionSnapshot } from "../server/herdr/client.ts";
 import { UsageService } from "../server/usage.ts";
+import { cwdSpelling } from "./pane-shell.ts";
 
 assert.ok(process.env.TERMWEAVE_TEST_ROOT && process.env.HERDR_TEST_SESSION && !process.env.HERDR_TEST_LIVE);
 const root = mkdtempSync(join(tmpdir(), "termweave-header-"));
@@ -37,7 +38,7 @@ try {
     }));
   }, { workspace, ids });
   await page.goto(`http://127.0.0.1:${server.port}/?pane=${ids[0]}`);
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   await page.locator('[data-group-id="header-a"]').waitFor();
   for (const theme of ["light", "dark"]) {
     await page.evaluate(theme => document.documentElement.setAttribute("data-theme", theme), theme);
@@ -61,7 +62,7 @@ try {
   }
   const touch = await browser.newPage({ viewport: { width: 768, height: 950 }, hasTouch: true });
   await touch.goto(page.url());
-  await touch.locator(".conn-live").waitFor();
+  await touch.locator(".conn-live:visible").waitFor();
   assert.ok(await touch.locator('.dock-tab-strip').evaluateAll(strips => strips.every(strip => {
     const bounds = strip.getBoundingClientRect();
     return Array.from(strip.querySelectorAll('button')).every(button => {
@@ -92,7 +93,8 @@ try {
   for (const id of ids) {
     const old = before.panes.find(pane => pane.pane_id === id)!;
     const next = after.panes.find(pane => pane.pane_id === id)!;
-    for (const key of ["pane_id", "terminal_id", "workspace_id", "tab_id", "cwd"] as const) assert.equal(next[key], old[key]);
+    for (const key of ["pane_id", "terminal_id", "workspace_id", "tab_id"] as const) assert.equal(next[key], old[key]);
+    assert.equal(cwdSpelling(next.cwd), cwdSpelling(old.cwd));
   }
   await page.setViewportSize({ width: 1440, height: 950 });
   const sidebar = page.locator('.sidebar');
@@ -108,7 +110,7 @@ try {
     assert.ok(folderId);
     await assignment.selectOption(folderId);
     await page.reload();
-    await page.locator('.conn-live').waitFor();
+    await page.locator('.conn-live:visible').waitFor();
     assert.equal(await sidebar.locator('.team-folder .team-folder').count(), 1);
     assert.equal(await sidebar.locator('.team-folder .team-folder .team-pane').count(), 1);
   } else throw new Error('Sidebar must be visible for nested team folder check');

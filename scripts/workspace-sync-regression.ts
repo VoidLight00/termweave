@@ -32,7 +32,7 @@ try {
     await context.addInitScript(() => localStorage.setItem('termweave:settings', JSON.stringify({ language: 'en' })));
     const page = await context.newPage();
     page.setDefaultTimeout(10000);
-    await page.goto(origin); await page.locator('.conn-live').waitFor();
+    await page.goto(origin); await page.locator('.conn-live:visible').waitFor();
     return page;
   };
   const app = await open();

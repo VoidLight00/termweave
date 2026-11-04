@@ -1,8 +1,8 @@
 import { expect,it } from 'bun:test';
-import { mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync,renameSync } from 'node:fs';
+import { mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync,renameSync,openSync,closeSync,existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';import { join } from 'node:path';
 import { hash,files,validateArtifact,type ReleaseManifest } from './manifest.ts';
-import { activateRelease,readPointer } from './activate.ts';import { rollbackRelease } from './rollback.ts';
+import { activateRelease,readPointer,replaceFile } from './activate.ts';import { rollbackRelease } from './rollback.ts';
 import { serveStatic } from '../../server/static.ts';
 function artifact(root:string,id:string) {
  const directory=join(root,'releases',id);mkdirSync(join(directory,'dist','assets'),{recursive:true});
@@ -75,7 +75,43 @@ it('separate process reads retained assets while repeated activation renames sid
  for(let i=0;i<15;i++)await activateRelease(root,i%2?'A':'B',async()=>{await Bun.sleep(5);return true;});
  expect(await child.exited).toBe(0);expect(Number(await new Response(child.stdout).text())).toBe(150);
  }finally{rmSync(root,{recursive:true,force:true});}
+// a second Bun process plus 150 verified reads and 15 activations: about 1.6 s idle on Windows, past Bun's 5 s default on a loaded runner
+},30_000);
+it('activation replaces the pointer and digests while a reader holds them open',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'tw-open-'));
+ try{artifact(root,'A');artifact(root,'B');await activateRelease(root,'A',async()=>true);
+  const held=['active.json','retained-digests.json'].map(name=>openSync(join(root,name),'r'));
+  try{await activateRelease(root,'B',async()=>true);expect(readPointer(root)?.active).toBe('B');expect(JSON.parse(readFileSync(held[0]!,'utf8')).active).toBe('A');}
+  finally{for(const fd of held)closeSync(fd);}
+  expect(Object.keys(JSON.parse(readFileSync(join(root,'retained-digests.json'),'utf8')))).toEqual(['assets/A.js','assets/B.js']);
+ }finally{rmSync(root,{recursive:true,force:true});}
 });
+it('a replace whose source cannot be opened fails with the OS reason and leaves the target',()=>{
+ const root=mkdtempSync(join(tmpdir(),'tw-replace-'));const to=join(root,'to');
+ try{writeFileSync(to,'old');
+  // Windows: no fallback rename and no retry, the Win32 error of the failing call (ERROR_FILE_NOT_FOUND); POSIX: rename(2)
+  expect(()=>replaceFile(join(root,'missing'),to)).toThrow(process.platform==='win32'?/failed: CreateFileW Win32 error 2$/:/ENOENT/);
+  expect(readFileSync(to,'utf8')).toBe('old');
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
+it.if(process.platform==='win32')('Windows replace retries a source held without delete sharing, and reports the Win32 error once the retry budget is spent',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'tw-held-'));const from=join(root,'from'),to=join(root,'to'),ready=join(root,'ready');
+ // a scanner-like holder in another process: the source opened with share mode 0, so no DELETE open succeeds while it holds
+ const hold=(ms:number)=>Bun.spawn([process.execPath,'-e',`import {dlopen,FFIType,ptr} from 'bun:ffi';import {writeFileSync} from 'node:fs';
+const k=dlopen('kernel32.dll',{CreateFileW:{args:[FFIType.ptr,FFIType.u32,FFIType.u32,FFIType.ptr,FFIType.u32,FFIType.u32,FFIType.ptr],returns:FFIType.i64},CloseHandle:{args:[FFIType.i64],returns:FFIType.i32}}).symbols;
+const h=k.CreateFileW(ptr(Buffer.from(${JSON.stringify(from)}+'\\0','utf16le')),0x80000000,0,null,3,0,null);if(h===-1n)process.exit(2);
+writeFileSync(${JSON.stringify(ready)},'');Bun.sleepSync(${ms});k.CloseHandle(h);`],{stdin:'ignore',stdout:'ignore',stderr:'pipe',windowsHide:true});
+ const held=async(holder:ReturnType<typeof hold>)=>{for(const deadline=Date.now()+15_000;!existsSync(ready);await Bun.sleep(5))if(holder.exitCode!==null||Date.now()>deadline)throw new Error(`holder not ready (exit ${holder.exitCode}): ${await new Response(holder.stderr).text()}`);};
+ writeFileSync(from,'new');writeFileSync(to,'old');let holder=hold(60_000);
+ try{await held(holder);
+  expect(()=>replaceFile(from,to,200)).toThrow('CreateFileW Win32 error 32 after retrying for 200 ms');
+  expect(readFileSync(to,'utf8')).toBe('old');expect(existsSync(from)).toBe(true);
+  holder.kill();await holder.exited;rmSync(ready);
+  // released 300 ms after it took the file: the sharing violations are retried and the replace completes
+  holder=hold(300);await held(holder);
+  replaceFile(from,to);expect(readFileSync(to,'utf8')).toBe('new');expect(existsSync(from)).toBe(false);expect(await holder.exited).toBe(0);
+ }finally{holder.kill();await holder.exited;rmSync(root,{recursive:true,force:true});}
+},30_000);
 it('exclusive metadata temporaries cannot follow attacker-planted symlinks',async()=>{
  const root=mkdtempSync(join(tmpdir(),'tw-temp-'));const target=join(root,'untouched');
  try{artifact(root,'A');writeFileSync(target,'sentinel');symlinkSync(target,join(root,`.digests-${process.pid}.json`));await expect(activateRelease(root,'A',async()=>true)).rejects.toThrow();expect(readFileSync(target,'utf8')).toBe('sentinel');expect(readPointer(root)).toBeNull();}

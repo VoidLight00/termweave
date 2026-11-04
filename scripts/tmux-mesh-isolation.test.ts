@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { TmuxClient } from "../server/tmux/client.ts";
 
 /** Creates only owned servers; never discovers or addresses the user's tmux sockets. */
-test("owned tmux: cross-session transport, literal safety, identity and cleanup", async () => {
+// POSIX-only: real tmux over Unix-domain sockets with /bin/sh fixtures and /bin/ps identity; a Windows tmux.exe (psmux) is no such host (covered by CI ubuntu/macos)
+test.skipIf(process.platform === "win32")("owned tmux: cross-session transport, literal safety, identity and cleanup", async () => {
   const binary = Bun.which("tmux");
   if (!binary) throw new Error("tmux required; integration may not silently skip");
   const root = await realpath(await mkdtemp(join(process.platform === "darwin" ? "/tmp" : tmpdir(), "tw-tmux-")));

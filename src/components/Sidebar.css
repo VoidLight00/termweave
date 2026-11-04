@@ -52,6 +52,21 @@
   transition: opacity var(--dur-fast) var(--ease-out);
 }
 
+/* a git worktree right below its main checkout hangs from it, on the hairline a folder's contents use */
+.workspace.is-worktree-child {
+  margin-left: var(--space-3);
+  padding-left: var(--space-1);
+  border-left: var(--hairline) solid var(--border);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.workspace-worktree-mark {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--text-dim);
+}
+
 .directory-group {
   margin-bottom: var(--space-3);
 }

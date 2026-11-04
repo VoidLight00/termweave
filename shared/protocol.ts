@@ -46,7 +46,8 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
 /** HTTP API
  *  GET    /api/health                    -> { ok: true, herdr: HerdrIdentity (shared/machines.ts; terminal_attach false on a
  *                                          Windows herdr and on a bridge that cannot run the PTY sidecar; terminal_mirror: its
- *                                          terminal lens is the pane's screen, repainted; /api/bridge tells the same herdr), auth: HealthAuth,
+ *                                          terminal lens streams through herdr's session control, or is the pane's screen
+ *                                          repainted where that cannot start; /api/bridge tells the same herdr), auth: HealthAuth,
  *                                          web_ui: { boot_id: string | null, revision: string | null } }
  *  GET    /api/session                   -> { snapshot: SessionSnapshot }
  *  GET    /api/access                    -> RemoteAccess (how a phone can reach this server: what
@@ -98,6 +99,24 @@ export type { Machine, MachineEvent, PaneTarget, SetupJob, SetupRequest, SetupAc
  *  POST   /api/workspace/rename { workspace_id, label } -> { ok: true }
  *  POST   /api/workspace/move   { workspace_id, insert_index } -> { ok: true } (sidebar reorder)
  *  POST   /api/workspace/close  { workspace_id } -> { ok: true }
+ *  GET    /api/worktree/source?pane_id= -> WorktreeSource (the checkout, repo and branch of the pane's
+ *         folder; 400 missing_pane_id / pane_not_found, 409 not_a_git_repository)
+ *  POST   /api/worktree/create  { pane_id, branch, base? } -> WorktreeCreated (worktree.create from the
+ *         pane's repo (its main checkout, also for a pane in a linked worktree), based on `base` or else
+ *         the pane's branch or commit, labelled with the branch, then placed right after the pane's
+ *         workspace; 400 missing_branch / pane_not_found, 409 not_a_git_repository or herdr's code when
+ *         herdr refuses)
+ *  GET    /api/worktree/list?pane_id= -> { worktrees: WorktreeEntry[] } (the linked worktrees of the pane's
+ *         repo, open or not; 400 missing_pane_id / pane_not_found, 409 not_a_git_repository or herdr's code)
+ *  POST   /api/worktree/open  { pane_id, path } -> WorktreeOpened (worktree.open of a checkout of the pane's
+ *         repo at the same path; a newly opened workspace is placed right after the pane's; 400
+ *         missing_path / pane_not_found, 409 not_a_git_repository or herdr's code when herdr refuses)
+ *  POST   /api/worktree/remove  { workspace_id, force? } -> { ok: true } (closes the workspace and deletes
+ *         its checkout, the branch stays; 409 dirty_worktree_requires_force on a dirty checkout without force)
+ *  GET    /api/open-url                  -> OpenUrlTargets (Aside is offered only to a request from this PC itself)
+ *  POST   /api/open-url { url, target: "aside" } -> 204 (opens the http(s) address in the Aside browser of this PC;
+ *         403 loopback_only unless the request comes from this PC with no proxy in front, 400 invalid_url /
+ *         invalid_target, 404 aside_not_installed, 500 open_failed; never forwarded to another PC)
  *  POST   /api/auth        { token }     -> 204 + Set-Cookie herdr_web_token (401 invalid_token on mismatch)
  *  DELETE /api/auth                      -> 204, clears the token and the device cookies
  *  GET    /api/devices                   -> { devices: PairedDevice[] } (the paired devices; `current` marks the caller's)
@@ -401,6 +420,81 @@ export interface WorkspaceCreated {
   error?: { code: string; message: string };
 }
 
+/** GET /api/worktree/source: where a worktree made from the pane starts. */
+export interface WorktreeSource {
+  pane_id: string;
+  /** the pane's folder */
+  cwd: string;
+  /** the checkout the folder sits in: the main one or a linked worktree */
+  checkout_root: string;
+  /** the main checkout, where herdr makes the worktree from */
+  repo_root: string;
+  repo_name: string;
+  /** null when HEAD is detached */
+  branch: string | null;
+  /** HEAD's short commit */
+  head: string;
+  /** the folder is in a linked worktree, not the main checkout */
+  linked: boolean;
+}
+
+/** POST /api/worktree/create: a git worktree of the pane's repo; blank or null `base` branches from the pane's branch or commit. */
+export interface WorktreeCreateRequest {
+  pane_id: string;
+  branch: string;
+  base?: string | null;
+}
+
+/** POST /api/worktree/create: the workspace herdr opened on the checkout and its root pane's shell. */
+export interface WorktreeCreated {
+  workspace_id: string;
+  pane_id: string;
+  /** the checkout the root pane's shell runs in */
+  cwd: string;
+}
+
+/** GET /api/worktree/list: a linked worktree of the pane's repo. */
+export interface WorktreeEntry {
+  /** the checkout folder, in the platform's form */
+  path: string;
+  /** null when the checkout's HEAD is detached */
+  branch: string | null;
+  /** null when no workspace has the checkout open */
+  open_workspace_id: string | null;
+  /** git can prune it: the checkout folder is gone */
+  prunable: boolean;
+}
+
+/** POST /api/worktree/open: a checkout of the pane's repo opened again as a workspace. */
+export interface WorktreeOpenRequest {
+  pane_id: string;
+  path: string;
+}
+
+/** POST /api/worktree/open: the checkout's workspace and its root pane; `already_open` when no new one was opened. */
+export interface WorktreeOpened {
+  workspace_id: string;
+  pane_id: string;
+  already_open: boolean;
+}
+
+/** POST /api/worktree/remove: `force` deletes a checkout with modified or untracked files. */
+export interface WorktreeRemoveRequest {
+  workspace_id: string;
+  force?: boolean;
+}
+
+/** POST /api/open-url: an absolute http(s) address opened in a browser of the PC the request comes from. */
+export interface OpenUrlRequest {
+  url: string;
+  target: "aside";
+}
+
+/** GET /api/open-url: the browsers this PC can open a link in for the caller (only a request from this PC itself). */
+export interface OpenUrlTargets {
+  aside: boolean;
+}
+
 /** GET /api/pane/commands: one slash command the pane's agent understands. */
 export interface SlashCommand {
   /** without the leading slash (or `$`) */
@@ -482,6 +576,7 @@ export interface PushPayload {
  *  Client -> server frames: attach {pane_id, cols, rows} | detach {pane_id} | input {pane_id, text}
  *    | keys {pane_id, keys} | resize {pane_id, cols, rows} | role {mode}
  *    | pty-ack {pane_id, stream_id, offset} | secret {id, pane_id, prompt, secret}
+ *    | scroll {pane_id, direction, lines, column, row}
  *  Server -> client frames: snapshot | pty-data | pty-exit | pane-geometry | role-ack
  *    | pane-status | pane-exited | session-changed | secret-result | error
  *
@@ -518,6 +613,9 @@ export type ClientMessage =
    * Never queued, retried, sent through agent.prompt, or echoed in a result. */
   | { type: "secret"; id: number; pane_id: string; prompt: string; secret: string }
   | { type: "resize"; pane_id: string; cols: number; rows: number }
+  /** The wheel on a pane whose input-ready said `session`: `lines` lines at a 1-based cell, each in 1..1000.
+   * herdr makes it mouse reports, alternate scroll or its own scrollback; any other pane ignores it. */
+  | { type: "scroll"; pane_id: string; direction: "up" | "down"; lines: number; column: number; row: number }
   /** Cumulative UTF-8 payload bytes processed by xterm, only for this subscription. */
   | { type: "pty-ack"; pane_id: string; stream_id: string; offset: number }
   | { type: "role"; mode: ClientRole };
@@ -527,13 +625,16 @@ export type ServerFeature = "submit" | "secret-input" | "input-ready";
 
 export type ServerMessage =
   | { type: "snapshot"; snapshot: SessionSnapshot; features?: ServerFeature[] }
-  /** raw PTY bytes: append to the terminal, never repaint over it. A mirrored pane (HerdrIdentity.terminal_mirror) sends whole screens the same way. */
+  /** raw PTY bytes: append to the terminal, never repaint over it. A pane session control streams sends herdr's frames,
+   * and a mirrored one (HerdrIdentity.terminal_mirror) whole screens, the same way. */
   | { type: "pty-data"; pane_id: string; data: string; flow?: { stream_id: string; offset: number } }
   | { type: "pty-exit"; pane_id: string; code: number | null }
   /** a pane that waited for another web bridge to let go of its terminal (error `attach_held`) is attached again */
   | { type: "attach-resumed"; pane_id: string }
-  /** Attachment readiness (omitted ready means true); false revokes it during retry. Never a typed-text acknowledgement. */
-  | { type: "input-ready"; pane_id: string; ready?: boolean }
+  /** Attachment readiness (omitted ready means true); false revokes it during retry. Never a typed-text acknowledgement.
+   * `session`: herdr's session control streams the pane (no attach on its PC). Its stream carries no mouse modes and
+   * no scrollback, so the client sends the wheel as `scroll` frames; the grid is still the clients' to drive. */
+  | { type: "input-ready"; pane_id: string; ready?: boolean; session?: true }
   /** the shared pty's grid changed: observe clients adopt it, interact clients drive it. `fixed`: the grid is the pane's own in herdr (a mirrored pane), so every client adopts it and none resizes */
   | { type: "pane-geometry"; pane_id: string; cols: number; rows: number; fixed?: boolean }
   | { type: "role-ack"; mode: ClientRole }

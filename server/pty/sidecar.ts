@@ -3,7 +3,8 @@ import type { HerdrIdentity } from "../../shared/machines.ts";
 /**
  * A terminal attach runs on the PTY sidecar: `node pty-host.mjs`, which imports
  * @lydell/node-pty. A runtime without either (the win32 remote bundle ships Bun alone)
- * cannot start it, whatever herdr itself can do, so its panes stay mirrored.
+ * cannot start it, whatever herdr itself can do, so its panes go through herdr's session
+ * control instead (server/herdr/terminal-session.ts, a plain pipe), or are mirrored.
  */
 export interface SidecarRuntime {
   node: () => boolean;

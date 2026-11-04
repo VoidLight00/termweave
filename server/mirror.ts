@@ -1,5 +1,7 @@
 /**
- * A terminal for a herdr that cannot `terminal attach` (Windows, herdrdev/herdr#4821).
+ * The fallback terminal for a herdr that cannot `terminal attach` (Windows, herdrdev/herdr#4821)
+ * when its session control (server/herdr/terminal-session.ts) does not start either: a herdr
+ * without it, a CLI that would not run, or a server told to mirror (tests force the attach answer).
  * There is no byte stream to forward, so the pane's visible screen is read a few times a
  * second (`pane.read`, ansi) and each changed screen goes out in the same `pty-data` frames a
  * real attach sends: the rows that changed, each drawn in its place, and the whole screen at
@@ -12,7 +14,7 @@
  *
  * What a repaint cannot give: herdr's read carries no cursor position (the cursor is
  * hidden), output between two reads is not seen, and the grid is the pane's own, never
- * the browser's. It is a stopgap that ends when herdr reports attach.
+ * the browser's. Session control gives all three; this is only what is left without it.
  */
 import { HerdrError, PANE_GONE_CODES } from "./herdr/client.ts";
 

@@ -138,7 +138,7 @@ print_next() {
   say "Other optional features stay off:"
   say "  Android companion: build it yourself from mobile/android (docs/mobile-android-integration.md)."
   say "  OpenRig teams: turn it on later from the OpenRig panel in the app."
-  say "Stop: kill -TERM \$(sed -n 's/.*\"launcher\":\\([0-9]*\\).*/\\1/p' \"$DIR/lifecycle.json\")"
+  say "Stop: (cd \"$DIR\" && bun scripts/install-lifecycle.ts stop --dir \"$DIR\")"
 }
 
 # ---- 2. check mode -----------------------------------------------------------
@@ -180,10 +180,9 @@ fi
 if [ -f "$DIR/lifecycle.json" ]; then
   pid=$(sed -n 's/.*"launcher":\([0-9]*\).*/\1/p' "$DIR/lifecycle.json")
   if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-    fail "a TermWeave launcher (pid $pid) is still starting or stuck. Wait, or stop it: kill -TERM $pid"
+    fail "a TermWeave launcher (pid $pid) is still starting or stuck. Wait, or stop it: (cd \"$DIR\" && bun scripts/install-lifecycle.ts stop --dir \"$DIR\")"
   fi
-  rm -f "$DIR/lifecycle.json"
-  say "Removed stale state from a previous run."
+  # stale state from a previous run is reclaimed by owned-server under the lifecycle guard, never removed here
 fi
 
 LOG="$DIR/server.log"

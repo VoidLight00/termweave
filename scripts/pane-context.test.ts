@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { resolve } from "node:path";
 import { localOrigin, paneContext } from "./pane-context.ts";
 
 const pane = (n = 34, extra = {}) => ({ global_pane_number: n, pane_id: `w1:p${n}`,
@@ -99,6 +100,14 @@ describe("read-only pane context", () => {
     });
     await fixture(req => response(req, [pane(), pane(35)]), async url => {
       expect(await paneContext(["roster"], env(url))).toContain("- P35:");
+    });
+  });
+  it("teaches only an absolute helper path, in the platform's own spelling", async () => {
+    await fixture(req => response(req), async url => {
+      const helper = resolve("/opt/termweave/pane-context.ts");
+      expect(await paneContext(["roster"], { ...env(url), TERMWEAVE_PANE_CONTEXT: helper })).toContain(`bun '${helper}' list`);
+      for (const relative of ["scripts/pane-context.ts", "./pane-context.ts", `${helper}\nnext`])
+        await expect(paneContext(["roster"], { ...env(url), TERMWEAVE_PANE_CONTEXT: relative })).rejects.toThrow("TERMWEAVE_PANE_CONTEXT must be an absolute path.");
     });
   });
   it("rejects missing or ambiguous numbers without reading", async () => {

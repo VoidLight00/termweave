@@ -159,7 +159,7 @@ export class SshConnection {
       let done = 0;
       try {
         for await (const chunk of chunksOf(Bun.file(stream.path).stream())) {
-          sink.write(chunk); await sink.flush();
+          await sink.write(chunk); await sink.flush();
           done += chunk.length; stream.onProgress?.(done);
         }
       } finally { try { await sink.end(); } catch {} }

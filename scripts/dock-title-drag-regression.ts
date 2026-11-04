@@ -9,6 +9,7 @@ import { createServer } from "../server/index.ts";
 import { workspaceCreate, workspaceClose, sessionSnapshot, herdrRpc, paneSendText } from "../server/herdr/client.ts";
 import { UsageService } from "../server/usage.ts";
 import { checkTerminalFileInput } from "./terminal-file-input-regression.ts";
+import { cwdSpelling, shellProcesses, submitted, writeShellPid } from "./pane-shell.ts";
 
 assert.ok(process.env.HERDR_STAGING_DIST && process.env.HERDR_TEST_SESSION && !process.env.HERDR_TEST_LIVE, "isolated staging only");
 const evidence = resolve(process.env.DOCK_EVIDENCE ?? "evidence/title-drag-20261004");
@@ -24,16 +25,13 @@ try {
   for (let i = 0; i < 3; i++) ids.push((await herdrRpc<{ pane: { pane_id: string } }>("pane.split", { target_pane_id: ids[0], direction: "right", cwd: root, focus: false })).pane.pane_id);
   // Only our just-created panes receive commands. Record each live shell's actual PID.
   for (const [i, id] of ids.entries()) {
-    await paneSendText(id, `printf '%s' $$ > '${root}/pid-${i}'\n`);
+    await paneSendText(id, submitted(writeShellPid(`${root}/pid-${i}`), "\n"));
     const deadline = Date.now() + 10000;
     while (!existsSync(join(root, `pid-${i}`))) { assert.ok(Date.now() < deadline, "shell PID not recorded"); await Bun.sleep(50); }
   }
   const pids = ids.map((_, i) => Number(readFileSync(join(root, `pid-${i}`), "utf8")));
   pids.forEach(pid => { assert.ok(pid > 1); process.kill(pid, 0); });
-  const processIdentity = async () => {
-    const result = await Bun.$`ps -o pid=,ppid=,lstart= -p ${pids.join(",")}`.quiet();
-    assert.equal(result.exitCode, 0); return result.text();
-  };
+  const processIdentity = () => shellProcesses(pids);
   const processesBefore = await processIdentity();
   const before = await sessionSnapshot();
   server = createServer({ port: 0, hostname: "127.0.0.1", token: "", stateDir: root, usage: new UsageService(undefined, []) });
@@ -48,7 +46,7 @@ try {
   page.on("websocket", ws => { socket = ws; ws.on("framesent", ({ payload }) => { const frame = JSON.parse(String(payload)); if (frame.type === "input") inputs.push(frame); }); });
   await page.addInitScript(() => localStorage.setItem("termweave:settings", JSON.stringify({ language: "en", terminalInputMode: "direct" })));
   const origin = `http://127.0.0.1:${server.port}`;
-  await page.goto(`${origin}/?pane=${ids[0]}`); await page.locator(".conn-live").waitFor();
+  await page.goto(`${origin}/?pane=${ids[0]}`); await page.locator(".conn-live:visible").waitFor();
   const key = `termweave:dock:workspace:v3:local:${encodeURIComponent(created.workspace.workspace_id)}`;
   const group = (id: string, tabs: string[]) => ({ kind: "group", id, tabs, active: tabs[0] });
   const initial = () => ({ kind: "split", id: "s", axis: "columns", ratio: .5, first: group("a", ids.slice(0, 3)), second: group("b", [ids[3]!]) });
@@ -71,6 +69,8 @@ try {
   };
   const drag = async (id: string, selector: string, x: number, y: number) => {
     const count = inputs.length;
+    // three tabs overflow a half-width strip: its end scrolls into view before the drag, as a person scrolls to it
+    await page.locator(selector).scrollIntoViewIfNeeded();
     await start(id);
     const box = await page.locator(selector).boundingBox(); assert.ok(box);
     await page.mouse.move(box.x + box.width * x, box.y + box.height * y, { steps: 25 });
@@ -106,7 +106,7 @@ try {
   const self = JSON.stringify(await stored()); await drag(ids[2]!, `[data-tab-id="${ids[2]}"]`, .8, .5); assert.equal(JSON.stringify(await stored()), self);
   passed.push("before-after-bidirectional-strip-append-self-noop");
   await reset(); await drag(ids[3]!, '[data-group-id="a"] .dock-strip-end', .6, .5); assert.deepEqual((await stored()).tabs, ids);
-  const persisted = JSON.stringify(await stored()); await page.reload(); await page.locator(".conn-live").waitFor(); assert.equal(JSON.stringify(await stored()), persisted);
+  const persisted = JSON.stringify(await stored()); await page.reload(); await page.locator(".conn-live:visible").waitFor(); assert.equal(JSON.stringify(await stored()), persisted);
   passed.push("cross-group-strip-append-order-active-persistence");
   await reset();
   for (const cancel of ["escape", "outside"] as const) {
@@ -124,7 +124,7 @@ try {
   await page.mouse.move(switchBox.x + switchBox.width / 2, switchBox.y + switchBox.height / 2, { steps: 20 });
   await page.mouse.move(switchBox.x + switchBox.width / 2, switchBox.y + switchBox.height / 2);
   assert.equal(await page.locator('.dock-drop-hint').count(), 1);
-  await page.goto(`${origin}/?pane=${other.root_pane.pane_id}`); await page.mouse.up(); await page.locator('.conn-live').waitFor();
+  await page.goto(`${origin}/?pane=${other.root_pane.pane_id}`); await page.mouse.up(); await page.locator('.conn-live:visible').waitFor();
   assert.equal(await page.locator('.dock-group').count(), 1);
   assert.equal(await page.locator('.dock-drop-hint, [data-insert], .dock-insert-end').count(), 0);
   await reset(); passed.push('workspace-switch-active-drag-cleanup');
@@ -139,15 +139,19 @@ try {
   passed.push("foreign-and-forged-payload-rejected");
   await page.locator('[data-group-id="a"] .xterm-helper-textarea').focus(); await page.waitForTimeout(500);
   // The existing file-input helper expects a single visible terminal and its socket.
-  await page.locator('[data-group-id="a"]').getByRole("button", { name: "Zoom", exact: true }).click();
+  // Zoom and Restore layout sit in the group's tools panel; zooming remounts the group, which closes it
+  const groupA = page.locator('[data-group-id="a"]');
+  await groupA.getByRole("button", { name: "Terminal tools", exact: true }).click();
+  await groupA.getByRole("button", { name: "Zoom", exact: true }).click();
   await page.waitForTimeout(500); assert.ok(socket); await checkTerminalFileInput(page, socket);
+  await groupA.getByRole("button", { name: "Terminal tools", exact: true }).click();
   await page.getByRole("button", { name: "Restore layout", exact: true }).click();
   assert.equal(JSON.stringify(await stored()), saved); await invariant(); passed.push("native-text-file-drop-and-paste-preserved");
   const divider = page.locator('.dock-divider').first(); await divider.focus(); await page.keyboard.press("ArrowRight");
   const ratio = (await stored()).ratio; assert.ok(ratio > .5);
   await page.setViewportSize({ width: 1250, height: 950 });
   const bounds = await page.locator('.dock-group').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().bottom)); assert.ok(bounds.every(bottom => bottom <= 950));
-  const nested = JSON.stringify(await stored()); await page.reload(); await page.locator('.conn-live').waitFor(); assert.equal(JSON.stringify(await stored()), nested);
+  const nested = JSON.stringify(await stored()); await page.reload(); await page.locator('.conn-live:visible').waitFor(); assert.equal(JSON.stringify(await stored()), nested);
   passed.push("ratio-direction-active-order-resize-reload-bottom-bounds");
   await page.locator('[data-group-id="a"] .xterm-helper-textarea').focus();
   const count = inputs.length; await page.keyboard.press("Meta+ArrowRight"); await page.waitForTimeout(100);
@@ -156,7 +160,8 @@ try {
   const after = await sessionSnapshot();
   for (const [i, id] of ids.entries()) {
     const old = before.panes.find(pane => pane.pane_id === id)!, next = after.panes.find(pane => pane.pane_id === id)!;
-    for (const field of ["pane_id", "terminal_id", "workspace_id", "tab_id", "cwd"] as const) assert.equal(next[field], old[field]);
+    for (const field of ["pane_id", "terminal_id", "workspace_id", "tab_id"] as const) assert.equal(next[field], old[field]);
+    assert.equal(cwdSpelling(next.cwd), cwdSpelling(old.cwd));
     process.kill(pids[i]!, 0);
   }
   const processesAfter = await processIdentity(); assert.equal(processesAfter, processesBefore, 'shell PID, parent and start time unchanged');

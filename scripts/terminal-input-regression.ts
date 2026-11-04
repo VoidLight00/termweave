@@ -3,6 +3,8 @@ import { chromiumExecutable } from './browser.ts';
 import assert from "node:assert/strict";
 import type { Browser } from "playwright-core";
 import { sessionSnapshot } from '../server/herdr/client.ts';
+// the shortcut the app shows: shortcutHint() spells it per platform
+const VIEW_KEY = process.platform === "darwin" ? "⌘⇧J" : "Ctrl+Shift+J";
 
 export async function checkTerminalInput(browser: Browser, origin: string, pane: string, otherPane: string): Promise<void> {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
@@ -47,7 +49,7 @@ export async function checkTerminalInput(browser: Browser, origin: string, pane:
   };
   try {
     await page.goto(`${origin}/?pane=${encodeURIComponent(pane)}`);
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
     assert.equal(await page.locator(".key-bar").isVisible(), false, "a desktop shows no key bar under the terminal");
     assert.equal(await page.getByRole("button", { name: "Type straight into the terminal", exact: true }).count(), 0);
     await line.fill("draft 한글 😀");
@@ -57,19 +59,27 @@ export async function checkTerminalInput(browser: Browser, origin: string, pane:
     await line.waitFor();
     assert.equal(await line.inputValue(), "draft 한글 😀");
     await page.goto(`${origin}/?pane=${encodeURIComponent(otherPane)}`);
-    if (!(await line.isVisible())) await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    if (!(await line.isVisible())) await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
     assert.equal(await line.inputValue(), "");
     await page.goto(`${origin}/?pane=${encodeURIComponent(pane)}`);
     await line.waitFor();
     assert.equal(await line.inputValue(), "draft 한글 😀");
 
+    // Send during an unfinished composition commits it and submits the line once; no compositionend
+    // comes here, so the box's text goes after the fallback wait
     await line.dispatchEvent("compositionstart", { data: "" });
     await page.getByRole("button", { name: "Send to the terminal", exact: true }).click();
+    await until(() => !!acknowledge);
+    acknowledge!();
+    acknowledge = undefined;
+    await until(async () => (await line.inputValue()) === "");
     await page.waitForTimeout(100);
-    assert.equal(sent.length, 0, "unfinished composition must not submit via button");
+    assert.deepEqual(sent.map(({ type, text }) => ({ type, text })), [{ type: "submit", text: "draft 한글 😀" }], "Send during composition submits the committed line once");
     // Leaving during composition must not leave the composition guard stuck.
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await line.fill("draft 한글 😀");
+    await line.dispatchEvent("compositionstart", { data: "" });
+    await page.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
+    await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
     await remountLine();
     await line.waitFor();
     await page.getByRole("button", { name: "Send to the terminal", exact: true }).click();
@@ -81,7 +91,7 @@ export async function checkTerminalInput(browser: Browser, origin: string, pane:
     acknowledge!();
     await until(async () => !(await page.getByRole("button", { name: "Send to the terminal", exact: true }).isDisabled()));
     assert.equal(await line.inputValue(), "draft 한글 😀", "late ack cannot erase replacement text");
-    assert.equal(sent.length, 1);
+    assert.equal(sent.length, 2);
 
     await page.keyboard.press(process.platform === "darwin" ? "Meta+Shift+Comma" : "Control+Shift+Comma");
     const shortcut = page.getByRole("combobox", { name: "Command palette", exact: true });

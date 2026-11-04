@@ -28,7 +28,7 @@ assert.equal(winner.child.exitCode,null);process.kill(initialPid,0);
 winner.child.kill('SIGTERM');await winner.child.exited;
 assert.throws(()=>process.kill(initialPid,0));
 assert.equal(existsSync(join(destination,'lifecycle.json')),false);
-assert.equal(existsSync(join(destination,'.lifecycle.lock')),false);
+assert.equal(existsSync((await import('./lifecycle-lock.ts')).lockPaths(destination).lock),false);
 const launcher=spawn(['bun',join(destination,'scripts/owned-server.ts'),'start'],{env,stdout:'ignore',stderr:'ignore'});let pid=0;
 try{pid=await waitPid();ownedPids.add(pid);process.kill(pid,0);let ready=false;for(let i=0;i<100;i++){try{ready=(await fetch(`http://127.0.0.1:${port}/api/health`)).status===200;if(ready)break;}catch{}await Bun.sleep(30);}assert.equal(ready,true);assert.equal((await fetch(`http://127.0.0.1:${port}/api/session`)).status,401);assert.equal((await fetch(`http://127.0.0.1:${port}/api/session`,{headers:{authorization:'Bearer synthetic-install'}})).status,200);assert.throws(()=>uninstallOwned(destination,true));
 const contenders=simultaneous('active-start-uninstall',[[join(destination,'scripts/owned-server.ts'),'start'],[join(destination,'scripts/uninstall.ts'),'--confirm',destination]]);
@@ -38,7 +38,7 @@ assert.ok(existsSync(join(destination,'.termweave-owned.json')));assert.equal(JS
 const second=spawn(['bun',join(destination,'scripts/owned-server.ts'),'start'],{env,stdout:'ignore',stderr:'ignore'});assert.notEqual(await second.exited,0);const direct=spawn(['bun',join(destination,'server/index.ts')],{env,stdout:'ignore',stderr:'ignore'});assert.notEqual(await direct.exited,0);}
 finally{launcher.kill('SIGTERM');await launcher.exited;}
 assert.equal(existsSync(join(destination,'lifecycle.json')),false);assert.throws(()=>process.kill(pid,0));const crash=spawn(['bun',join(destination,'scripts/owned-server.ts'),'start'],{env,stdout:'ignore',stderr:'ignore'});for(let i=0;i<100&&!existsSync(join(destination,'lifecycle.json'));i++)await Bun.sleep(20);let crashPid:number|undefined;for(let i=0;i<100;i++){try{crashPid=JSON.parse(readFileSync(join(destination,'lifecycle.json'),'utf8')).pid;if(crashPid)break;}catch{}await Bun.sleep(20);}assert.ok(crashPid);ownedPids.add(crashPid);process.kill(crashPid,'SIGKILL');await crash.exited;assert.equal(existsSync(join(destination,'lifecycle.json')),false);
-const lockFile=join(destination,'.lifecycle.lock');(await import('node:fs')).writeFileSync(lockFile,'synthetic-stale');assert.throws(()=>uninstallOwned(destination,true));const blocked=spawn(['bun',join(destination,'scripts/owned-server.ts'),'start'],{env,stdout:'ignore',stderr:'ignore'});assert.notEqual(await blocked.exited,0);rmSync(lockFile);
+const lockFile=(await import('./lifecycle-lock.ts')).lockPaths(destination).lock;(await import('node:fs')).writeFileSync(lockFile,'synthetic-stale');assert.throws(()=>uninstallOwned(destination,true));const blocked=spawn(['bun',join(destination,'scripts/owned-server.ts'),'start'],{env,stdout:'ignore',stderr:'ignore'});assert.notEqual(await blocked.exited,0);rmSync(lockFile);
 uninstallOwned(destination,true);assert.equal(existsSync(destination),false);rmSync(root,{recursive:true,force:true});console.log('PASS actual clean-HOME installer/start/live refusal/stop/PID removal/uninstall');
 
 } finally {

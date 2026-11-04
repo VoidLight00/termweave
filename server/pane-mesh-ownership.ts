@@ -1,9 +1,10 @@
 import { Database } from "bun:sqlite";
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { closeSync, existsSync, lstatSync, mkdirSync, openSync, realpathSync, statSync, writeFileSync, readFileSync, readSync, renameSync } from "node:fs";
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, realpathSync, statSync, writeFileSync, readFileSync, readSync } from "node:fs";
 import { homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { replaceFile } from "../scripts/release/activate.ts";
 /** Windows reports no POSIX permission bits (stat.mode looks world-writable); its ACLs guard the profile. */
 const POSIX_MODES = process.platform !== "win32";
 
@@ -73,8 +74,10 @@ function inside(root: string, path: string): boolean {
   const rel = relative(root, path);
   return rel === "" || (!rel.startsWith(`..${sep}`) && rel !== ".." && !isAbsolute(rel));
 }
+/** A backslash is a glob escape on POSIX but the path separator on Windows: there it splits segments instead of being refused. */
+const EXACT_PATH = process.platform === "win32" ? { glob: /[*?\[\]{}]/, separators: /[\\/]/ } : { glob: /[*?\[\]{}\\]/, separators: /[\/]/ };
 function exactPath(path: string): void {
-  if (!text(path) || /[*?\[\]{}\\]/.test(path) || path.split(/[\/]/).includes("..")) fail("invalid_scope");
+  if (!text(path) || EXACT_PATH.glob.test(path) || path.split(EXACT_PATH.separators).includes("..")) fail("invalid_scope");
 }
 export function canonicalProject(root: string): string {
   exactPath(root);
@@ -196,11 +199,12 @@ export class PaneMeshOwnership {
     // Publish the sentinel whole: created with "wx" and written after, a second process starting at
     // the same moment read it empty and failed with malformed_state. rename() is atomic and keeps
     // nlink at 1 (a hard link did not: assertPrivateFile refused the brief second link).
-    // Two first starts may both rename: the content is the same either way.
+    // Two first starts may both rename: the content is the same either way. A plain Windows rename refuses
+    // to replace the sentinel while the other start has it open (EPERM), so the replace is the POSIX one.
     if (!existsSync(sentinel)) {
       const draft = `${sentinel}.${process.pid}.${randomBytes(4).toString("hex")}`;
       writeFileSync(draft, "pane-mesh-ownership-v1\n", { flag: "wx", mode: 0o600 });
-      renameSync(draft, sentinel);
+      replaceFile(draft, sentinel);
     }
     assertPrivateFile(sentinel);
     this.statePath = path;

@@ -11,7 +11,11 @@
  * program that does read VT input receives the markers whether or not it turned bracketed
  * paste on: `cat` under Git Bash showed `^[[200~` around the block. Any other pane therefore
  * gets the bytes as they came, and so does a paste whose pane herdr could not be asked about.
- * Enter, Ctrl+C, Esc, Tab and the arrows already work there as plain bytes and stay as typed.
+ * Enter, Ctrl+C, Tab and the arrows already work there as plain bytes and stay as typed.
+ *
+ * The Esc key does not on Windows: herdr 0.9.5 drops a lone ESC handed over as text (measured
+ * on a Windows PC under pwsh: `send_text "\x1b"` left PSReadLine's line as typed, `send_keys esc`
+ * cleared it), so there it goes as herdr's own key. Elsewhere herdr passes the byte on as is.
  *
  * A Linux or macOS PC mirrors too, when it has no Node for the PTY sidecar, and herdr there
  * hands `send_text` to the program byte for byte, adding no markers even where the program
@@ -22,11 +26,22 @@
 const PASTE_START = "\x1b[200~";
 const PASTE_END = "\x1b[201~";
 
+/** herdr keys a typed frame goes as instead of text, or null when it goes as text. */
+export function mirrorKeys(text: string, platform: NodeJS.Platform = process.platform): string[] | null {
+  return platform === "win32" && text === "\x1b" ? ["esc"] : null;
+}
+
+/**
+ * Whether `text` is a pasted block mirrorInput may wrap. Typing is one key per frame: only a
+ * paste has a line break with more text after it, and a terminal that knew the mode has wrapped
+ * it already. herdr's session control carries no modes either, so its panes are shaped the same.
+ */
+export function pastedBlock(text: string): boolean {
+  return /[\r\n][^\r\n]/.test(text) && !text.includes(PASTE_START) && !text.includes(PASTE_END);
+}
+
 export async function mirrorInput(text: string, paneAgent: () => Promise<string | null>): Promise<string> {
-  // typing is one key per frame: only a paste has a line break with more text after it
-  if (!/[\r\n][^\r\n]/.test(text)) return text;
-  // a terminal that knew the mode has wrapped it already
-  if (text.includes(PASTE_START) || text.includes(PASTE_END)) return text;
+  if (!pastedBlock(text)) return text;
   let agent: string | null;
   try {
     agent = await paneAgent();

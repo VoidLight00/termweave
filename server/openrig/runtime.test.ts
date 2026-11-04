@@ -44,8 +44,14 @@ describe('OpenRig guarded bridge',()=>{
    const fetcher=async(url:string)=>{if(url.includes('/preview'))return Response.json(preview);opens++;throw new Error('lost response');};
    const first=new OpenRigRuntime({stateDir:dir,fetch:fetcher});
    try{await first.preview('team');await expect(first.open('team','plan1','first')).rejects.toMatchObject({code:'openrig_open_uncertain'});first.dispose();
-     const second=new OpenRigRuntime({stateDir:dir,fetch:fetcher});try{await second.preview('team');await expect(second.open('team','plan1','second')).rejects.toMatchObject({code:'openrig_open_uncertain'});expect(opens).toBe(1);expect(statSync(join(dir,'openrig-operation-holds.sqlite')).mode&0o777).toBe(0o600);}finally{second.dispose();}
+     const second=new OpenRigRuntime({stateDir:dir,fetch:fetcher});try{await second.preview('team');await expect(second.open('team','plan1','second')).rejects.toMatchObject({code:'openrig_open_uncertain'});expect(opens).toBe(1);}finally{second.dispose();}
    }finally{rmSync(dir,{recursive:true,force:true});}
+ });
+ // POSIX mode bits; covered by CI ubuntu/macos (holds name only an origin, a view and a time, no secret)
+ test.skipIf(process.platform==='win32')('uncertain hold storage is owner-only',async()=>{
+   const dir=mkdtempSync(join(tmpdir(),'or-hold-'));
+   const runtime=new OpenRigRuntime({stateDir:dir,fetch:async(url:string)=>{if(url.includes('/preview'))return Response.json(preview);throw new Error('lost response');}});
+   try{await runtime.preview('team');await expect(runtime.open('team','plan1','first')).rejects.toMatchObject({code:'openrig_open_uncertain'});expect(statSync(join(dir,'openrig-operation-holds.sqlite')).mode&0o777).toBe(0o600);}finally{runtime.dispose();rmSync(dir,{recursive:true,force:true});}
  });
  test('known result clears persistent hold',async()=>{
    const dir=mkdtempSync(join(tmpdir(),'or-hold-'));const fetcher=async(url:string)=>Response.json(url.includes('/preview')?preview:{ok:true,opened:['dev'],absent:[],degraded:[],pages:1});

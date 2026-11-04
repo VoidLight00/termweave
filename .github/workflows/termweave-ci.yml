@@ -2,7 +2,7 @@ name: TermWeave isolated verification
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, windows-native]
 permissions:
   contents: read
 concurrency:
@@ -13,11 +13,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15]
+        os: [ubuntu-24.04, macos-15, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: read
+    defaults:
+      run:
+        # bash everywhere (Git Bash on Windows): `-eo pipefail`, so a lane piped through tee keeps its exit code
+        shell: bash
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -26,33 +30,57 @@ jobs:
         with:
           bun-version: 1.4.2
       - name: Install locked dependencies without lifecycle scripts
+        id: deps
         run: bun install --frozen-lockfile --ignore-scripts
       - name: Install tmux (Ubuntu images ship it, macOS images do not)
         if: runner.os == 'macOS'
         run: brew install tmux
       - name: Install pinned Chromium
+        id: chromium
         run: bun node_modules/playwright-core/cli.js install chromium
+      - name: Windows invariant guard and its detection-power test
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: |
+          mkdir -p evidence/ci
+          bun scripts/check-windows-invariants.mjs 2>&1 | tee evidence/ci/windows-invariants.txt
+          bun test ./scripts/check-windows-invariants.test.ts 2>&1 | tee evidence/ci/windows-invariants.test.txt
       - name: Verify source and synthetic browser lanes
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' && steps.chromium.outcome == 'success' }}
         # no ledger lane: tracking/ is internal and left out of the public export (public-exclude.txt)
         run: bun scripts/verify-isolated.ts type build unit render source-style
-      # Native API/integration lanes need a separately reviewed runtime binary lock.
-      # No upstream installer, deployment action, credentials, or release workflow runs here.
-
-  # Windows: the herdr/tmux terminal host is macOS/Linux only, so this lane checks what must
-  # still work there: types, the web build, and the platform-neutral server stores.
-  windows:
-    runs-on: windows-2025
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: install.ps1 contract fixtures (Windows PowerShell 5.1)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' && runner.os == 'Windows' }}
+        # local file: installer fixtures and a fixture registry Path only (TERMWEAVE_INSTALL_TEST_MODE=1): no official installer runs
+        run: |
+          mkdir -p evidence/ci
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows-install.test.ps1 2>&1 | tee evidence/ci/windows-install.test.txt
+      - name: Lane counts
+        if: always()
+        run: |
+          mkdir -p evidence/ci
+          bun -e '
+          import {appendFileSync,existsSync,readdirSync,readFileSync,writeFileSync} from "node:fs";
+          const runs=existsSync("evidence/p3")?readdirSync("evidence/p3").filter(run=>existsSync(`evidence/p3/${run}/result.json`)):[];
+          const counts=runs.map(run=>{const result=JSON.parse(readFileSync(`evidence/p3/${run}/result.json`,"utf8"));
+            return {run,cleanup_exit:result.cleanup_exit,tracked_sources_unchanged:result.tracked_sources_unchanged,lanes:result.results.map(({name,exit_code,counts})=>({name,exit_code,...counts}))};});
+          writeFileSync("evidence/ci/counts.json",JSON.stringify({os:process.env.RUNNER_OS,sha:process.env.GITHUB_SHA,runs:counts},null,2));
+          const rows=counts.flatMap(run=>run.lanes.map(lane=>`| ${lane.name} | ${lane.exit_code} | ${lane.pass??""} | ${lane.skip??""} | ${lane.fail??""} |`));
+          if(process.env.GITHUB_STEP_SUMMARY)appendFileSync(process.env.GITHUB_STEP_SUMMARY,`### ${process.env.RUNNER_OS} lanes\n| lane | exit | pass | skip | fail |\n|---|---|---|---|---|\n${rows.join("\n")||"| (no result.json) | | | | |"}\n`);
+          '
+      # Full lane logs, result.json and counts, also for a failed or timed-out run. Nothing here holds a secret: the job gets no
+      # secrets or token in its env, and hidden files plus key/env-shaped files are excluded anyway.
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@735343b667d3e6f658f44d0eca948eb6282f2b76
-        with:
-          bun-version: 1.4.2
-      - run: bun install --frozen-lockfile --ignore-scripts
-      - run: bun run typecheck
-      - run: bun run build
-      - run: bun test ./server/workspace-colors.test.ts ./src/lib/sessionColor.test.ts ./src/lib/color.test.ts
+          name: termweave-ci-${{ matrix.os }}
+          path: |
+            evidence/p3/
+            evidence/ci/
+            !**/.env*
+            !**/*.pem
+            !**/*.key
+          include-hidden-files: false
+          if-no-files-found: warn
+          retention-days: 14
+      # Native API/integration lanes need a separately reviewed runtime binary lock: no herdr is installed or started here, and
+      # no upstream installer (Bun/herdr), deployment action, credentials, or release workflow runs here.

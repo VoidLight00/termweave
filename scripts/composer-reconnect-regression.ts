@@ -26,7 +26,7 @@ export async function checkComposerReconnect(browser: Browser, origin: string, p
       live = socket;
     });
     await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.tap();
     await composer.fill("dictated ");
@@ -42,7 +42,7 @@ export async function checkComposerReconnect(browser: Browser, origin: string, p
     await page.keyboard.press("Enter");
     assert.equal(await composer.inputValue(), "dictated while reconnecting", "Enter sends nothing while offline");
     admit = true;
-    await page.locator(".conn-live").waitFor();
+    await page.locator(".conn-live:visible").waitFor();
     assert.equal(await composer.inputValue(), "dictated while reconnecting", "the draft survives the reconnect");
     await composer.fill("");
     assert.deepEqual(errors, []);

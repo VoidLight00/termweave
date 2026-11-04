@@ -2,7 +2,8 @@ import {expect,test} from "bun:test";
 import {mkdtemp,rm,writeFile} from "node:fs/promises";
 import {gitMetadata} from "./metadata.ts";
 
-test("Git metadata observes branch and dirty state without running fsmonitor or exposing file names",async()=>{
+// POSIX-only on Windows: gitMetadata serves the tmux backend's POSIX pane cwd, and the fsmonitor probe is a `touch` that Git's sh resolves against its own /tmp, so on Windows it passes even with the guard removed (covered by CI ubuntu/macos; the refusal below runs everywhere)
+test.skipIf(process.platform === "win32")("Git metadata observes branch and dirty state without running fsmonitor or exposing file names",async()=>{
   const root=await mkdtemp("/tmp/twg-");
   const run=async(args:string[])=>{const p=Bun.spawn(["git","-C",root,...args],{stdout:"ignore",stderr:"ignore"});expect(await p.exited).toBe(0);};
   try{
@@ -17,4 +18,9 @@ test("Git metadata observes branch and dirty state without running fsmonitor or 
     expect(await Bun.file(root+"/MUST_NOT_EXIST").exists()).toBe(false);
     expect(await gitMetadata("relative")).toBeNull();
   }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test("Git metadata refuses a cwd that is not a POSIX absolute path, even a real checkout's",async()=>{
+  const checkout=process.platform==="win32"?[import.meta.dir,import.meta.dir.replaceAll("\\","/")]:["C:\\work"]; // on Windows this test file sits in a real Git checkout
+  for(const cwd of ["relative","server/tmux",...checkout])expect(await gitMetadata(cwd)).toBeNull();
 });

@@ -7,6 +7,7 @@ import type { AlertPrefs } from "../shared/notify-policy.ts";
 import type { AgentStatus, HerdrPane, SessionSnapshot } from "../shared/protocol.ts";
 import { CompletionTracker } from "./completion.ts";
 import { createPushService, handlePushRequest, parseSubscription, type PushService } from "./push.ts";
+import { fileDacl, ownerOnlyDacl } from "./private-file-fixture.ts";
 import { startFakePushService, type FakePushService } from "./push.fake.ts";
 
 /**
@@ -70,12 +71,18 @@ describe("parseSubscription", () => {
   });
 });
 
+/** Windows has no mode bits (0666 for any writable file): owner-only is the file's own DACL, the user and SYSTEM only. */
+function expectOwnerOnly(path: string): void {
+  if (process.platform === "win32") expect(fileDacl(path)).toEqual(ownerOnlyDacl());
+  else expect(statSync(path).mode & 0o777).toBe(0o600);
+}
+
 describe("push state", () => {
   it("keeps one owner-only VAPID key pair across restarts", () => {
     const key = createPushService({ stateDir }).publicKey();
     expect(Buffer.from(key, "base64url").length).toBe(65);
     expect(createPushService({ stateDir }).publicKey()).toBe(key);
-    expect(statSync(join(stateDir, "vapid.json")).mode & 0o777).toBe(0o600);
+    expectOwnerOnly(join(stateDir, "vapid.json"));
   });
 
   it("refuses a malformed key file instead of rotating the key under every device", () => {
@@ -86,7 +93,7 @@ describe("push state", () => {
 
   it("keeps subscriptions across restarts", async () => {
     subscribed();
-    expect(statSync(join(stateDir, "push-subscriptions.json")).mode & 0o777).toBe(0o600);
+    expectOwnerOnly(join(stateDir, "push-subscriptions.json"));
     const restarted = createPushService({ stateDir });
     expect(await restarted.sendTest(fake.subscription.endpoint)).toEqual({ ok: true });
     expect(fake.received).toHaveLength(1);

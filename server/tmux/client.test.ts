@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { TmuxClient } from "./client.ts";
-const client = new TmuxClient({ approvedSockets: ["/nonexistent/tmux.sock"] });
+// every case is refused before tmux would run, so no tmux binary is needed (a runner may have none)
+const binary = "tmux-is-never-spawned";
+const client = new TmuxClient({ binary, approvedSockets: ["/nonexistent/tmux.sock"] });
 const invalid = { socket: "/nonexistent/tmux.sock", generation: "a".repeat(64), paneId: "%1" };
 
 test("rejects controls, multiline, empty and oversized literal input before connecting", async () => {
@@ -13,6 +15,6 @@ test("rejects malformed, relative, incomplete and stale-address-shaped targets",
   await expect(client.read({ ...invalid, generation: "" })).rejects.toThrow("invalid_target");
   await expect(client.list("relative.sock")).rejects.toThrow("invalid_socket");
   await expect(client.list(invalid.socket)).rejects.toThrow("missing_socket");
-  await expect(new TmuxClient().list(invalid.socket)).rejects.toThrow("socket_not_approved");
+  await expect(new TmuxClient({ binary }).list(invalid.socket)).rejects.toThrow("socket_not_approved");
   await expect(client.read(invalid, 0)).rejects.toThrow("invalid_lines");
 });

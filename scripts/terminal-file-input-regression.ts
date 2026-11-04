@@ -15,7 +15,7 @@ export async function checkTerminalFileInput(page: Page, socket: WebSocket): Pro
     const off = (): void => { socket.off("framesent", listener); };
     socket.on("framesent", listener);
   });
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   const host = page.locator(".pane-terminal");
   const path = "/Users/test/Downloads/monthly-report.json"; // leakscan:allow: test fixture
   const unbracket = (text: string): string => text.replace(/^\x1b\[200~/, "").replace(/\x1b\[201~$/, "");

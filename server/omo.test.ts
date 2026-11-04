@@ -3,9 +3,10 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { HerdrPane } from "../shared/protocol.ts";
-import { heldRuntime, heldSessionIds, isOmoProcess, omoAgentDir, omoSessionFolder, omoCandidates, omoTranscriptsOfCwd, selectOmoTranscript, type OmoRuntime } from "./omo.ts";
+import { heldRuntime, heldSessionIds, isOmoProcess, omoAgentDir, omoSessionFolder, omoCandidates, omoTranscriptsOfCwd, selectOmoTranscript, withOmoDescendants, type OmoRuntime, type ProcessInfo } from "./omo.ts";
 import { processStartedAt } from "./process-start.ts";
 import { parseOmpTranscript } from "./transcript-records.ts";
+import type { ProcessRow } from "./windows-processes.ts";
 
 const runtime = (paneId: string, startedAt: number | null = 10_000, paths: string[] = [], ids: string[] = []): OmoRuntime => ({ paneId, startedAt, paths, ids });
 const files = [
@@ -141,17 +142,21 @@ it("does not pin a launch session id after a new unclaimed session appears", () 
   expect(selectOmoTranscript("a", newer, [runtime("a", 10_000, [], ["old-session"]), runtime("b", 14_000, ["/new.jsonl"])], 20_000)).toBe("/old.jsonl");
 });
 
+// The agent directory is a native path: a POSIX fixture as is, on Windows the same path on a drive with backslashes.
+const native = (path: string) => process.platform === "win32" ? `C:${path.replaceAll("/", "\\")}` : path;
+
 it("finds omo's agent directory where the process's environment moved it", () => {
-  expect(omoAgentDir(null, "/home/u", "/project")).toBe("/home/u/.omo/agent"); // leakscan:allow: test fixture
-  expect(omoAgentDir(["PATH=/bin"], "/home/u", "/project")).toBe("/home/u/.omo/agent"); // leakscan:allow: test fixture
-  expect(omoAgentDir(["OMO_CODING_AGENT_DIR=/state/omo/agent"], "/home/u", "/project")).toBe("/state/omo/agent");
+  const home = native("/home/u"), cwd = native("/project");
+  expect(omoAgentDir(null, home, cwd)).toBe(native("/home/u/.omo/agent")); // leakscan:allow: test fixture
+  expect(omoAgentDir(["PATH=/bin"], home, cwd)).toBe(native("/home/u/.omo/agent")); // leakscan:allow: test fixture
+  expect(omoAgentDir([`OMO_CODING_AGENT_DIR=${native("/state/omo/agent")}`], home, cwd)).toBe(native("/state/omo/agent"));
   // the brand's own prefix first, then senpi's and pi's, as senpi reads them
-  expect(omoAgentDir(["PI_CODING_AGENT_DIR=/pi", "SENPI_CODING_AGENT_DIR=/senpi"], "/home/u", "/project")).toBe("/senpi");
-  expect(omoAgentDir(["SENPI_CODING_AGENT_DIR=/senpi", "OMO_CODING_AGENT_DIR=/omo"], "/home/u", "/project")).toBe("/omo");
-  expect(omoAgentDir(["OMO_CODING_AGENT_DIR=~/.local/state/omo"], "/home/u", "/project")).toBe("/home/u/.local/state/omo"); // leakscan:allow: test fixture
-  expect(omoAgentDir(["OMO_CODING_AGENT_DIR=rel/agent"], "/home/u", "/project")).toBe("/project/rel/agent");
+  expect(omoAgentDir([`PI_CODING_AGENT_DIR=${native("/pi")}`, `SENPI_CODING_AGENT_DIR=${native("/senpi")}`], home, cwd)).toBe(native("/senpi"));
+  expect(omoAgentDir([`SENPI_CODING_AGENT_DIR=${native("/senpi")}`, `OMO_CODING_AGENT_DIR=${native("/omo")}`], home, cwd)).toBe(native("/omo"));
+  expect(omoAgentDir(["OMO_CODING_AGENT_DIR=~/.local/state/omo"], home, cwd)).toBe(native("/home/u/.local/state/omo")); // leakscan:allow: test fixture
+  expect(omoAgentDir(["OMO_CODING_AGENT_DIR=rel/agent"], home, cwd)).toBe(native("/project/rel/agent"));
   // set but empty: senpi keeps its default and looks no further
-  expect(omoAgentDir(["OMO_CODING_AGENT_DIR=", "SENPI_CODING_AGENT_DIR=/senpi"], "/home/u", "/project")).toBe("/home/u/.omo/agent"); // leakscan:allow: test fixture
+  expect(omoAgentDir(["OMO_CODING_AGENT_DIR=", `SENPI_CODING_AGENT_DIR=${native("/senpi")}`], home, cwd)).toBe(native("/home/u/.omo/agent")); // leakscan:allow: test fixture
 });
 
 it("binds an omo pane whose launcher moved its agent directory out of ~/.omo", () => {
@@ -165,7 +170,7 @@ it("binds an omo pane whose launcher moved its agent directory out of ~/.omo", (
     const agentDir = join(root, "state", "profile", ".omo", "agent");
     mkdirSync(join(home, ".omo", "agent", "sessions"), { recursive: true });
     mkdirSync(cwd, { recursive: true });
-    const dir = join(agentDir, "sessions", `-${cwd.replaceAll("/", "-")}--`);
+    const dir = join(agentDir, "sessions", omoSessionFolder(cwd));
     const id = "01a0fd83-0000-7000-8000-000000000001";
     const pid = process.pid;
     mkdirSync(join(dir, "session-holders", id), { recursive: true });
@@ -199,4 +204,34 @@ it("names a cwd's session folder as omo's engine does, a Windows cwd included", 
   expect(omoSessionFolder("/home/u/dev/app")).toBe("--home-u-dev-app--"); // leakscan:allow: test fixture
   expect(omoSessionFolder("C:\\Users\\me\\dev\\app")).toBe("--C--Users-me-dev-app--");
   expect(omoSessionFolder("C:/Users/me/app")).toBe("--C--Users-me-app--"); // leakscan:allow: test fixture
+});
+
+// herdr on Windows names the pane's launcher, not what the launcher starts (windows-processes.ts)
+const launcherInfo: ProcessInfo = { process_info: { shell_pid: 10, foreground_processes: [{ pid: 11, argv: ["C:\\tools\\pi.exe"] }] } };
+const launcherRows: ProcessRow[] = [
+  { pid: 10, parent: 1, path: "C:\\pwsh.exe", commandLine: "pwsh.exe" },
+  { pid: 11, parent: 10, path: "C:\\tools\\pi.exe", commandLine: "pi.exe" },
+  { pid: 12, parent: 11, path: "C:\\bun.exe", commandLine: 'bun.exe "C:\\node_modules\\omo-ai\\bin\\cli.js" --session-id session-123' },
+  // below another pane's shell
+  { pid: 13, parent: 2, path: "C:\\bun.exe", commandLine: 'bun.exe "C:\\node_modules\\omo-ai\\bin\\cli.js" --session-id other-session' },
+];
+
+it("finds the OmO a Windows launcher started below the pane's shell, with its session arguments", () => {
+  const processes = withOmoDescendants(launcherInfo, launcherRows)?.process_info?.foreground_processes ?? [];
+  expect(processes.map((entry) => entry.pid)).toEqual([11, 12]);
+  expect(isOmoProcess(processes[1]!.argv!)).toBeTrue();
+  expect(processes[1]!.argv).toContain("session-123");
+  expect(launcherInfo?.process_info?.foreground_processes).toHaveLength(1);
+});
+
+it("does not turn an ordinary pi into OmO or borrow another pane's OmO", () => {
+  expect(withOmoDescendants(launcherInfo, launcherRows.filter((entry) => entry.pid !== 12))).toEqual(launcherInfo);
+  expect(withOmoDescendants(launcherInfo, [])).toEqual(launcherInfo);
+  expect(withOmoDescendants({ process_info: { foreground_processes: [] } }, launcherRows)).toEqual({ process_info: { foreground_processes: [] } });
+  expect(withOmoDescendants(null, launcherRows)).toBeNull();
+});
+
+it("does not list an OmO process twice when herdr already names it", () => {
+  const once = withOmoDescendants(launcherInfo, launcherRows);
+  expect(withOmoDescendants(once, launcherRows)).toEqual(once);
 });

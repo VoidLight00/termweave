@@ -1,13 +1,15 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from 'node:child_process';
+import { createdMs, windowsProcessInfo } from "./windows-process-info.ts";
 
 /**
  * When a process started, in ms since the epoch: Linux counts it in /proc (USER_HZ
- * ticks after boot). null where that is not readable, as on macOS.
+ * ticks after boot), macOS asks ps, Windows asks the kernel. null where that is not readable.
  */
 export function processStartedAt(pid: number): number | null {
   if (!Number.isSafeInteger(pid) || pid <= 0) return null;
   try {
+    if (process.platform === 'win32') { const info = windowsProcessInfo(pid); return info.state === 'alive' ? createdMs(info.createdTicks) : null; }
     if (process.platform === 'darwin') {
       const value = Date.parse(execFileSync('/bin/ps', ['-p', String(pid), '-o', 'lstart='], { encoding: 'utf8', timeout: 1500, maxBuffer: 4096, env: { ...process.env, LC_ALL: 'C', TZ: 'UTC' } }).trim() + ' UTC');
       return Number.isFinite(value) ? value : null;

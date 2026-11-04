@@ -37,8 +37,13 @@ export class DirectoryError extends Error {
 function fail(code: string): never { throw new DirectoryError(code); }
 const safeId = (id: unknown): id is string => typeof id === "string" && id.length > 0 && id.length <= 4096 && !/[\x00-\x1f\x7f]/.test(id);
 const validGeneration = (value: unknown): value is string => typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+/**
+ * One canonical absolute spelling per socket: the Unix socket file, or on Windows herdr's local drive-path marker
+ * (herdr.sock), whose named pipe server/herdr/client.ts socketAddress() derives. Pipe, UNC, device and drive-less
+ * spellings are refused, so one herdr keeps one identity and no foreign pipe name is allowlisted.
+ */
 function socketPath(path: unknown): asserts path is string {
-  if (!safeId(path) || !path.startsWith("/") || resolve(path) !== path) fail("invalid_socket");
+  if (!safeId(path) || !(process.platform === "win32" ? /^[A-Za-z]:\\/.test(path) : path.startsWith("/")) || resolve(path) !== path) fail("invalid_socket");
 }
 /** Identity key deliberately excludes mutable layout addresses; suitable for task ownership. */
 export function terminalKey(target: TerminalTarget): string {

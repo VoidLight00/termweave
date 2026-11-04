@@ -12,7 +12,7 @@ try {
   const context=await browser.newContext({viewport:{width:1280,height:900}});
   await context.addInitScript(language=>localStorage.setItem('termweave:settings',JSON.stringify({language,alertsOn:false})),language);
   const page=await context.newPage();const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.port}/?pane=${owned.root_pane.pane_id}`);await page.locator('.conn-live').waitFor();
+  await page.goto(`http://127.0.0.1:${server.port}/?pane=${owned.root_pane.pane_id}`);await page.locator('.conn-live:visible').waitFor();
   // The application may open in chat; switch through its existing terminal lens.
   await page.evaluate(id=>localStorage.setItem(`termweave:view:${id}`,'terminal'),owned.root_pane.pane_id);await page.reload();
   await page.getByRole('button',{name:label,exact:true}).first().waitFor();

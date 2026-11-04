@@ -175,4 +175,5 @@ test("a task still running under thousands of newer records is found, over a few
   let titles: string[] = [];
   for (let poll = 0; poll < 5 && titles.length === 0; poll++) titles = omoTasks(cwd, SESSION, alive, NOW).map((task) => task.title);
   expect(titles).toEqual(["old but running"]);
-});
+  // writing 2,500 fixture files alone takes seconds on Windows (NTFS + scanning): the bound is the poll count, not the clock
+}, 60_000);

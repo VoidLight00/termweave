@@ -8,7 +8,8 @@ import type { ConversationTurn } from "../shared/protocol.ts";
 
 const root = mkdtempSync(join(tmpdir(), "herdr-pi-store-"));
 const store = join(root, "sessions");
-const slug = join(store, `--${root.replaceAll("/", "-")}--`);
+// pi's per-cwd folder name: separators (and a Windows drive colon) become '-'
+const slug = join(store, `--${root.replace(/[/\\:]/g, "-")}--`);
 mkdirSync(slug, { recursive: true });
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 

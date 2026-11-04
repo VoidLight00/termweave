@@ -52,11 +52,12 @@ test("persistent read/clear, dedupe and per-terminal rate bound", () => {
   now += 60001; expect(store.add("terminal-A", item)).toBe(true);
   store.clear(); expect(store.list(panes)).toEqual([]); store.close();
 });
+// 240 persisted adds: well under a second locally, about 6.5 s on the windows-latest runner (file writes are scanned)
 test("retention caps at 200 and terminal output cannot spoof identity", () => {
   const store = new TerminalNotificationStore(temp());
   for (let i = 0; i < 240; i++) store.add(`terminal-${i}`, { protocol: "9", title: `P999 ${i}`, body: "workspace spoof" });
   const rows = store.list(panes); expect(rows).toHaveLength(200); expect(rows.every(r => r.target === null)).toBe(true); store.close();
-});
+}, 60_000);
 test("API watch read-only, current target fresh, missing target 410, no raw failure", async () => {
   let current = panes; const service = new TerminalNotifications(temp(), async () => ({ panes: current }));
   service.stream("terminal-A")(osc("9;message"));

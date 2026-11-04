@@ -46,6 +46,7 @@ import { parseConversationMetadata } from "./conversation-metadata.ts";
 
 import { invokedSkill } from "./skill-activity.ts";
 import { isContextClear, MAX_TURNS, parseOmpTranscript, piImageBlock, piMessage, piResults, toolSummary } from "./transcript-records.ts";
+import { userHome } from "./user-home.ts";
 
 export { isOmoProcess } from "./omo.ts";
 
@@ -714,7 +715,7 @@ async function claudeTranscriptPath(paneId: string, cwds: readonly (string | nul
   const info = await herdrRpc<{ agent: { agent_session?: { value?: unknown } } }>("agent.get", { target: paneId });
   const session = info.agent.agent_session?.value;
   if (typeof session !== "string" || !SESSION_ID.test(session)) throw new ConversationUnavailable("no_session_id");
-  const path = await claudeTranscriptFile(process.env["HOME"] ?? "", session, cwds);
+  const path = await claudeTranscriptFile(userHome(), session, cwds);
   if (!path) throw new ConversationUnavailable("transcript_missing");
   return path;
 }
@@ -732,8 +733,7 @@ export function ompSessionPath(value: unknown, home: string, paths: PlatformPath
 async function ompTranscriptPath(paneId: string): Promise<string> {
   const info = await herdrRpc<{ agent: { agent_session?: { kind?: unknown; value?: unknown } } }>("agent.get", { target: paneId });
   const session = info.agent.agent_session;
-  // a Windows bridge starts with HOME set to the profile directory (remote-entry.ts)
-  const path = ompSessionPath(session?.kind === "path" ? session.value : undefined, process.env["HOME"] ?? "");
+  const path = ompSessionPath(session?.kind === "path" ? session.value : undefined, userHome());
   if (!path) throw new ConversationUnavailable("no_session_path");
   return path;
 }

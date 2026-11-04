@@ -7,6 +7,9 @@ import { join } from "node:path";
 import { chromium, type Browser } from "playwright-core";
 import { createServer } from "../server/index.ts";
 import { paneSendText, workspaceCreate, workspaceClose } from "../server/herdr/client.ts";
+import { runInPane, submitted } from "./pane-shell.ts";
+// the shortcut the app shows: shortcutHint() spells it per platform
+const VIEW_KEY = process.platform === "darwin" ? "⌘⇧J" : "Ctrl+Shift+J";
 
 /** Only owned no-echo fixtures; assert delivery without storing the entered value. */
 export async function checkSecretInput(browser: Browser, origin: string): Promise<void> {
@@ -40,7 +43,7 @@ process.stdin.on("data", chunk => {
       };
       (window as any).dropTestSockets = () => { for (const socket of sockets) socket.close(); };
     }, pane);
-    await paneSendText(pane, `exec '${Bun.which("node")}' '${script}'\n`);
+    await paneSendText(pane, submitted(runInPane(Bun.which("node")!, script), "\n"));
     const page = await context.newPage();
     page.setDefaultTimeout(10_000);
     const errors: string[] = [];
@@ -66,7 +69,7 @@ process.stdin.on("data", chunk => {
     assert.equal(await field.evaluate((element) => element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", keyCode: 229, bubbles: true, cancelable: true }))), false);
     assert.equal(await page.locator("body").innerText().then((text) => text.includes("fixture-secret")), false);
     assert.equal(await page.evaluate(() => JSON.stringify({ ...localStorage }).includes("fixture-secret")), false);
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await page.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
     await field.waitFor();
     await page.getByText("Loading conversation…", { exact: true }).waitFor({ state: "hidden" });
     assert.equal(await page.getByRole("textbox", { name: "Message", exact: true }).count(), 0);
@@ -104,7 +107,7 @@ process.stdin.on("data", chunk => {
     assert.deepEqual(sent, ["secret", "secret"]);
     await paneSendText(pane, "\u0010");
     await field.waitFor();
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
     await page.setViewportSize({ width: 1280, height: 800 });
     if (process.env.UI_EVIDENCE_DIR) await page.screenshot({ path: join(process.env.UI_EVIDENCE_DIR, "secret-input-desktop.png") });
     await field.fill("discarded-secret");

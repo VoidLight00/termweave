@@ -4,6 +4,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {chromium} from 'playwright-core';
 import {chromiumExecutable} from './browser.ts';
+import {writeShellPid} from './pane-shell.ts';
 import {createServer} from '../server/index.ts';
 import {workspaceCreate,workspaceClose,sessionSnapshot,paneSendText,paneSendKeys} from '../server/herdr/client.ts';
 const {testSocketPath}=await import('./test-herdr.ts');
@@ -19,7 +20,7 @@ try{
  const before=await snapshot();const a=before.panes.find(p=>p.terminal_id===owned[0].root_pane.terminal_id);const b=before.panes.find(p=>p.terminal_id===owned[1].root_pane.terminal_id);
  assert.notEqual(a.global_pane_number,b.global_pane_number);
  const resolved=await(await fetch(origin+'/api/panes/by-number/'+b.global_pane_number)).json();assert.equal(resolved.terminal_id,b.terminal_id);
- const pidfile=join(root,'owned-shell.pid');await paneSendText(b.pane_id,`printf '%s' $$ > '${pidfile}'`);await paneSendKeys(b.pane_id,['Enter']);
+ const pidfile=join(root,'owned-shell.pid');await paneSendText(b.pane_id,writeShellPid(pidfile));await paneSendKeys(b.pane_id,['Enter']);
  for(let i=0;i<60&&!existsSync(pidfile);i++)await Bun.sleep(100);
  assert.ok(existsSync(pidfile));const pid=Number(readFileSync(pidfile,'utf8'));assert.ok(Number.isInteger(pid)&&pid>1);
  browser=await chromium.launch({headless:true,executablePath:chromiumExecutable()});const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Browser } from "playwright-core";
+// the shortcut the app shows: shortcutHint() spells it per platform
+const VIEW_KEY = process.platform === "darwin" ? "⌘⇧J" : "Ctrl+Shift+J";
 
 type ViewportQA = Window & { viewportQA: { resize: (height: number) => void; pointer: (touch: boolean) => void } };
 
@@ -28,8 +30,8 @@ export async function checkMobileViewport(browser: Browser, origin: string, pane
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(`${origin}/?pane=${encodeURIComponent(paneId)}`);
-    await page.locator(".conn-live").waitFor();
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await page.locator(".conn-live:visible").waitFor();
+    await page.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
     const composer = page.getByRole("textbox", { name: "Message", exact: true });
     await composer.waitFor();
     const blur = () => page.evaluate(() => { (document.activeElement as HTMLElement)?.blur(); });
@@ -101,7 +103,7 @@ export async function checkMobileViewport(browser: Browser, origin: string, pane
     await page.setViewportSize({ width: 390, height: 844 });
     await height(500);
 
-    await page.getByTitle("Live terminal (⌘⇧J)", { exact: true }).click();
+    await page.getByTitle(`Live terminal (${VIEW_KEY})`, { exact: true }).click();
     const terminal = page.locator(".xterm-helper-textarea");
     await terminal.focus();
     await shell(false, "", 844);
@@ -120,7 +122,7 @@ export async function checkMobileViewport(browser: Browser, origin: string, pane
     await blur();
     await shell(false, "", 844);
 
-    await page.getByTitle("Chat transcript (⌘⇧J)", { exact: true }).click();
+    await page.getByTitle(`Chat transcript (${VIEW_KEY})`, { exact: true }).click();
     await composer.focus();
     await shell(true, "500px", 500);
     // Switching to a hardware pointer must clear sizing even when the text field keeps focus.

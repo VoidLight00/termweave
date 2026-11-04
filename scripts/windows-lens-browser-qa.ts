@@ -182,7 +182,7 @@ try {
   operator.on("pageerror", (error) => errors.push(error.message));
   await operator.goto(`${attachOrigin}/?pane=${encodeURIComponent(attached)}`);
   // typed before the terminal is attached, it would be held as a draft
-  await operator.locator(".conn-live").waitFor();
+  await operator.locator(".conn-live:visible").waitFor();
   await until(async () => (await screen(operator)).includes("hist-"), "the operator's terminal is attached");
   await operator.locator(".xterm-helper-textarea").focus();
   await operator.keyboard.type("clear; for i in $(seq 1 60); do echo hist-$i; done; printf '%*s\\n' $COLUMNS right-edge");

@@ -10,11 +10,19 @@ test("OpenRig explicit off persists and bridge restart cannot restart it", async
   try {
     const service = new OpenRigService(dir, control);
     expect(await service.setEnabled(false)).toMatchObject({ enabled: false, running: false });
-    expect(statSync(join(dir, "openrig-service.json")).mode & 0o777).toBe(0o600);
     const restored = new OpenRigService(dir, control); await restored.restore();
     expect(restored.enabled).toBe(false); expect(calls).toEqual(["stop"]);
     expect(await restored.setEnabled(true)).toMatchObject({ enabled: true, running: true });
     await new OpenRigService(dir, control).restore(); expect(calls).toEqual(["stop", "start", "start"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+// POSIX mode bits; covered by CI ubuntu/macos (the file holds only the on/off switch, no secret)
+test.skipIf(process.platform === "win32")("OpenRig switch state is written owner-only", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "tw-openrig-switch-")); let running = true;
+  const control = async (action: "status" | "start" | "stop") => { if (action !== "status") running = action === "start"; return { available: true, running }; };
+  try {
+    expect(await new OpenRigService(dir, control).setEnabled(false)).toMatchObject({ enabled: false, running: false });
+    expect(statSync(join(dir, "openrig-service.json")).mode & 0o777).toBe(0o600);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 test("OpenRig failed stop keeps off intent but reports live process", async () => {

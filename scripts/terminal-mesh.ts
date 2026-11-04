@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { open } from "node:fs/promises";
+import { lstat, open } from "node:fs/promises";
 import { PaneDirectory, DirectoryError, terminalKey, type DirectoryAllowlist, type TerminalTarget } from "../server/pane-directory.ts";
 
 type Config = DirectoryAllowlist & { aliases?: Record<string, string> };
@@ -15,11 +15,16 @@ async function saveHandles(path: string, terminals: readonly TerminalTarget[], c
   try { await file.writeFile(JSON.stringify({ version: 1, terminals: terminals.map((target) => ({ ref: reference(target, config), target })) })); }
   finally { await file.close(); }
 }
+/** Windows has no O_NOFOLLOW and no POSIX permission bits (its profile ACLs guard the handle file). */
+const WINDOWS = process.platform === "win32";
 async function loadHandle(path: string, ref: string): Promise<TerminalTarget> {
-  const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  // without O_NOFOLLOW the opened file must be the very non-link entry at `path`
+  const entry = WINDOWS ? await lstat(path) : null;
+  const file = await open(path, constants.O_RDONLY | (WINDOWS ? 0 : constants.O_NOFOLLOW));
   try {
     const info = await file.stat();
-    if (!info.isFile() || info.uid !== process.getuid?.() || (info.mode & 0o077) !== 0 || info.nlink !== 1) throw new DirectoryError("unsafe_handle_file");
+    if (!info.isFile() || (entry && (entry.isSymbolicLink() || entry.dev !== info.dev || entry.ino !== info.ino)) ||
+      (process.getuid && info.uid !== process.getuid()) || (!WINDOWS && (info.mode & 0o077) !== 0) || info.nlink !== 1) throw new DirectoryError("unsafe_handle_file");
     const parsed = JSON.parse(await file.readFile("utf8")) as { version: number; terminals: { ref: string; target: TerminalTarget }[] };
     if (parsed.version !== 1 || !Array.isArray(parsed.terminals)) throw new DirectoryError("invalid_handle_file");
     const matches = parsed.terminals.filter((entry) => entry.ref === ref);

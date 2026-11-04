@@ -6,6 +6,7 @@ import { join } from "node:path";
 import type { Machine } from "../shared/machines.ts";
 import type { ServerMessage, SessionSnapshot } from "../shared/protocol.ts";
 import { CompletionTracker } from "./completion.ts";
+import { socketAddress } from "./herdr/client.ts";
 import { MachineManager } from "./machines.ts";
 import type { PushService } from "./push.ts";
 
@@ -65,7 +66,7 @@ async function fixture() {
       void local.read().then((captured) => socket.end(JSON.stringify({ id: request.id, result: { snapshot: captured } }) + "\n"));
     });
   });
-  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(path, resolve); });
+  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(socketAddress(path), resolve); }); // a named pipe of the marker's name on Windows
   const previousSocket = process.env["HERDR_SOCKET"];
   process.env["HERDR_SOCKET"] = path;
   const push = { seed() {}, async onStatus() {}, async onEnded() {} } as unknown as PushService;

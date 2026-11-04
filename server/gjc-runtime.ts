@@ -14,6 +14,7 @@ import { herdrRpc, paneRead } from "./herdr/client.ts";
 import { processStartedAt } from "./process-start.ts";
 import { parseOmpTranscript } from "./transcript-records.ts";
 import { descendantArgv, windowsProcessTable, type ProcessRow } from "./windows-processes.ts";
+import { userHome } from "./user-home.ts";
 
 export interface GjcTerminal { id: string; startedAt: number }
 
@@ -448,7 +449,7 @@ export function gjcBreadcrumbPath(home: string, cwd: string, terminalId: string,
  * Prefer an exact open transcript, then GJC's terminal-scoped breadcrumb written
  * during this process lifetime. Never infer ownership from cwd or session recency.
  */
-export async function gjcTranscriptForPane(paneId: string, cwd: string, home = process.env["HOME"] ?? ""): Promise<string | null> {
+export async function gjcTranscriptForPane(paneId: string, cwd: string, home = userHome()): Promise<string | null> {
   let root: string;
   try { root = realpathSync(join(home, ".gjc", "agent", "sessions")); }
   catch { return null; }

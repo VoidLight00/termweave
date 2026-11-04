@@ -26,7 +26,7 @@ const composer = page.getByRole("textbox", { name: "Message", exact: true });
 let releaseUpload = () => {};
 try {
   await page.goto(`${origin}/?machine=${a}&pane=${encodeURIComponent(paneId)}`);
-  await page.locator(".conn-live").waitFor();
+  await page.locator(".conn-live:visible").waitFor();
   await page.getByRole("button", { name: "Chat", exact: true }).click();
   await composer.fill("PC A draft");
   await select("QA second PC");

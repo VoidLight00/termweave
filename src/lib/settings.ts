@@ -23,6 +23,8 @@ export type Palette = "amber" | "report" | "charcoal";
 export type UsagePlacement = "footer" | "top";
 /** the lens a pane opens in until it is switched there: auto is chat for an agent on a touch screen, else terminal */
 export type DefaultView = "auto" | "chat" | "terminal";
+/** where a terminal's web link opens: browser is a new tab here; aside is the Aside browser of the server's PC */
+export type WebLinkTarget = "browser" | "aside";
 
 import { sanitizeShortcutOverrides, type ShortcutOverrides } from "./shortcutBindings.ts";
 
@@ -42,8 +44,12 @@ export interface Settings {
   terminalFontSize: number;
   /** mouse reports sent to herdr per wheel event in the terminal: 1 is what xterm sends by itself */
   terminalWheelSpeed: number;
+  /** xterm line height as a multiple of the font's cell height: 1 is xterm's own spacing */
+  terminalLineHeight: number;
   /** fonts tried before the built-in terminal stack, as a CSS font-family list; "" keeps the built-in one */
   terminalFontFamily: string;
+  /** where a terminal's web link opens: a new tab of this browser, or Aside on the server's PC (POST /api/open-url) */
+  webLinkTarget: WebLinkTarget;
   /** chat text size in px (its body text; the rest scales with it); null follows the density */
   chatFontSize: number | null;
   /** fonts tried before the UI font in the chat's prose (code stays mono), as a CSS font-family list; "" keeps the UI font */
@@ -97,7 +103,9 @@ export const DEFAULT_SETTINGS: Settings = {
   palette: "amber",
   terminalFontSize: 13,
   terminalWheelSpeed: 1,
+  terminalLineHeight: 1,
   terminalFontFamily: "",
+  webLinkTarget: "browser",
   chatFontSize: null,
   chatFontFamily: "",
   enterSends: true,
@@ -148,6 +156,9 @@ export const TERMINAL_FONT_MIN = 10;
 export const TERMINAL_FONT_MAX = 22;
 export const TERMINAL_WHEEL_SPEED_MIN = 1;
 export const TERMINAL_WHEEL_SPEED_MAX = 10;
+export const TERMINAL_LINE_HEIGHT_MIN = 1;
+export const TERMINAL_LINE_HEIGHT_MAX = 2;
+export const TERMINAL_LINE_HEIGHT_STEP = 0.1;
 
 export const CHAT_FONT_MIN = 11;
 export const CHAT_FONT_MAX = 24;
@@ -182,10 +193,14 @@ export function sanitizeSettings(raw: unknown): Settings {
     terminalWheelSpeed: typeof record["terminalWheelSpeed"] === "number" && Number.isFinite(record["terminalWheelSpeed"])
       ? Math.min(TERMINAL_WHEEL_SPEED_MAX, Math.max(TERMINAL_WHEEL_SPEED_MIN, Math.round(record["terminalWheelSpeed"])))
       : DEFAULT_SETTINGS.terminalWheelSpeed,
+    terminalLineHeight: typeof record["terminalLineHeight"] === "number" && Number.isFinite(record["terminalLineHeight"])
+      ? Math.round(Math.min(TERMINAL_LINE_HEIGHT_MAX, Math.max(TERMINAL_LINE_HEIGHT_MIN, record["terminalLineHeight"])) * 10) / 10
+      : DEFAULT_SETTINGS.terminalLineHeight,
     chatFontSize: typeof chatFont === "number" && Number.isFinite(chatFont)
       ? Math.min(CHAT_FONT_MAX, Math.max(CHAT_FONT_MIN, Math.round(chatFont)))
       : DEFAULT_SETTINGS.chatFontSize,
     terminalFontFamily: sanitizeFontFamily(record["terminalFontFamily"]),
+    webLinkTarget: record["webLinkTarget"] === "browser" || record["webLinkTarget"] === "aside" ? record["webLinkTarget"] : DEFAULT_SETTINGS.webLinkTarget,
     chatFontFamily: sanitizeFontFamily(record["chatFontFamily"]),
     enterSends: typeof record["enterSends"] === "boolean" ? record["enterSends"] : DEFAULT_SETTINGS.enterSends,
     showThinking: typeof record["showThinking"] === "boolean" ? record["showThinking"] : DEFAULT_SETTINGS.showThinking,
@@ -220,6 +235,16 @@ export function loadSettings(): Settings {
   } catch {
     return DEFAULT_SETTINGS;
   }
+}
+
+/**
+ * Another tab saved or cleared the settings: the shortcut overrides it now holds, or null when the
+ * event is about another record or another storage. Only the overrides follow, so a tab keeps its
+ * own unsaved view of the rest, and nothing is written back (no echo between tabs).
+ */
+export function storedShortcutOverrides(event: Pick<StorageEvent, "key" | "storageArea">, local: Storage): ShortcutOverrides | null {
+  if (event.storageArea !== local || (event.key !== STORAGE_KEY && event.key !== null)) return null;
+  return loadSettings().shortcutOverrides;
 }
 
 function saveSettings(settings: Settings): void {
@@ -309,6 +334,15 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [systemDark, setSystemDark] = useState(() => resolveTheme("system") === "dark");
+
+  useEffect(() => {
+    const onStorage = (event: StorageEvent): void => {
+      const shortcutOverrides = storedShortcutOverrides(event, window.localStorage);
+      if (shortcutOverrides) setSettings((current) => ({ ...current, shortcutOverrides }));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     const query = window.matchMedia?.(DARK_QUERY);

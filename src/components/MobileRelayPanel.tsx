@@ -37,7 +37,7 @@ export function MobileRelayPanel({readOnly=false}:{readOnly?:boolean}) {
       <form onSubmit={e=>{e.preventDefault();void action("configure",{endpoint,viewerToken:credential});}}>
         <label>{t("Relay WebSocket address")}<input type="url" required value={endpoint} onChange={e=>setEndpoint(e.target.value)} placeholder={t("Secure relay URL, e.g. {url}",{url:"wss://relay.example/connect?role=viewer"})} disabled={readOnly||busy}/></label>
         <label>{t("Viewer credential")}<input type="password" required autoComplete="off" spellCheck={false} value={credential} onChange={e=>setCredential(e.target.value)} disabled={readOnly||busy}/></label>
-        <p>{t("Enter the viewer credential issued by your relay. It stays on this Mac.")}</p>
+        <p>{t("Enter the viewer credential issued by your relay. It stays on the computer running TermWeave.")}</p>
         <button className="btn" disabled={readOnly||busy||!credential}>{t("Save relay settings")}</button>
       </form>
     </details>
