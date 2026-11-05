@@ -6,7 +6,7 @@ import { useT } from "../lib/i18n.ts";
 import { useEffect, useRef, useState } from "react";
 import type { HerdrPane } from "../../shared/protocol.ts";
 import { OpenFileContext } from "../lib/filePaths.ts";
-import { initialWorkspaceLayout, readWorkspaceLayout, saveWorkspaceLayout } from "../lib/sessionLayout.ts";
+import { includeWorkspacePanes, initialWorkspaceLayout, readWorkspaceLayout, saveWorkspaceLayout } from "../lib/sessionLayout.ts";
 import { createShellPane, fetchSession, movePane } from "../lib/api.ts";
 import { moveRequest, type PaneMoveResult } from "../../shared/paneMove.ts";
 import { NativePaneMove } from "./NativePaneMove.tsx";
@@ -212,7 +212,7 @@ function DockWorkspace({ machineId, panes, primaryId, ownerId, terminal, onSelec
   }, [tree, workspace, machineId, ownerId, primaryId]);
   useEffect(() => {
     const reconcile = (available: string[]) => {
-      setTree(current => sanitize(current, [...available, ...pending]) ?? group("main"));
+      setTree(current => includeWorkspacePanes(sanitize(current, [...available, ...pending]) ?? group("main"), available));
       setPending(current => current.filter(id => !available.includes(id)));
     };
     const available = roster.map(pane => pane.pane_id);

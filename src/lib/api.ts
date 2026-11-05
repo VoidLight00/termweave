@@ -326,6 +326,11 @@ export async function fetchDirectories(path: string, hidden: boolean, machineId 
   return getJson<DirectoryListing>(machinePath(machineId, `workspace/directories?${query.toString()}`));
 }
 
+export async function createProjectDirectory(parent: string, name: string, machineId = "local"): Promise<{ path: string }> {
+  const response = await sendJson(machinePath(machineId, "workspace/directory/create"), "POST", { parent, name });
+  return response.json();
+}
+
 function fileQuery(path: string, paneId: string | null): string {
   return new URLSearchParams({ path, ...(paneId ? { pane_id: paneId } : {}) }).toString();
 }

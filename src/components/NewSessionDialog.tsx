@@ -35,6 +35,7 @@ export function NewSessionDialog({ open, defaultCwd, onClose, onCreated, machine
   const [error, setError] = useState<string | null>(null);
   const [createdPaneId, setCreatedPaneId] = useState<string | null>(null);
   const [browsing, setBrowsing] = useState(false);
+  const [folderBusy, setFolderBusy] = useState(false);
   const firstFieldRef = useRef<HTMLButtonElement>(null);
   const cwdRef = useRef<HTMLInputElement>(null);
   const defaultCwdRef = useRef(defaultCwd);
@@ -48,6 +49,7 @@ export function NewSessionDialog({ open, defaultCwd, onClose, onCreated, machine
     setPending(false);
     setCreatedPaneId(null);
     setBrowsing(true);
+    setFolderBusy(false);
     // A folder session starts as a plain shell; an agent is an explicit, optional choice.
     const stored = "";
     setAgentKind(stored);
@@ -72,21 +74,21 @@ export function NewSessionDialog({ open, defaultCwd, onClose, onCreated, machine
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== "Escape") return;
       event.preventDefault();
-      if (!pending) onClose();
+      if (!pending && !folderBusy) onClose();
     };
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [open, onClose, pending]);
+  }, [open, onClose, pending, folderBusy]);
 
   if (!open) return null;
 
   const selectedAgent = agents.find((agent) => agent.kind === agentKind);
   const pendingLabel = selectedAgent ? t("Starting {agent}… up to 60s", { agent: selectedAgent.label }) : t("Creating folder session…");
-  const fieldsDisabled = pending || createdPaneId !== null;
+  const fieldsDisabled = pending || folderBusy || createdPaneId !== null;
 
   const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
-    if (pending) return;
+    if (pending || folderBusy) return;
     if (createdPaneId !== null) { onCreated(createdPaneId); return; }
     setPending(true);
     setError(null);
@@ -111,7 +113,7 @@ export function NewSessionDialog({ open, defaultCwd, onClose, onCreated, machine
   };
 
   const closeFromScrim = (event: MouseEvent<HTMLDivElement>): void => {
-    if (!pending && event.target === event.currentTarget) onClose();
+    if (!pending && !folderBusy && event.target === event.currentTarget) onClose();
   };
 
   return (
@@ -119,7 +121,7 @@ export function NewSessionDialog({ open, defaultCwd, onClose, onCreated, machine
       <form className="modal new-session-modal" role="dialog" aria-modal="true" aria-labelledby="new-session-title" onSubmit={(event) => void submit(event)}>
         <header className="modal-header">
           <h2 className="modal-title" id="new-session-title">{t("New folder session")} · {machineName ?? machineId}</h2>
-          <button type="button" className="icon-button" aria-label={t("Close new session dialog")} disabled={pending} onClick={onClose}>
+          <button type="button" className="icon-button" aria-label={t("Close new session dialog")} disabled={pending || folderBusy} onClick={onClose}>
             <X aria-hidden="true" />
           </button>
         </header>
@@ -133,7 +135,7 @@ export function NewSessionDialog({ open, defaultCwd, onClose, onCreated, machine
                 {t("Browse")}
               </button>
             </div>
-            {browsing && <DirectoryBrowser start={cwd} onPick={(picked) => { setCwd(picked); setBrowsing(false); }} />}
+            {browsing && <DirectoryBrowser start={cwd} onBusyChange={setFolderBusy} onPick={(picked) => { setCwd(picked); setBrowsing(false); }} />}
             <span className="field-hint">{t("absolute path or ~/…")}</span>
           </div>
           <label className="field">
@@ -156,8 +158,8 @@ export function NewSessionDialog({ open, defaultCwd, onClose, onCreated, machine
           {error && <p className="field-hint new-session-error" role="alert">{error}</p>}
         </div>
         <footer className="modal-footer">
-          <button type="button" className="btn btn-ghost" disabled={pending} onClick={onClose}>{t("Cancel")}</button>
-          <button type="submit" className="btn btn-primary" disabled={pending}>{t(pending ? "Starting…" : createdPaneId !== null ? "Open session" : "Create folder session")}</button>
+          <button type="button" className="btn btn-ghost" disabled={pending || folderBusy} onClick={onClose}>{t("Cancel")}</button>
+          <button type="submit" className="btn btn-primary" disabled={pending || folderBusy}>{t(pending ? "Starting…" : createdPaneId !== null ? "Open session" : "Create folder session")}</button>
         </footer>
       </form>
     </div>

@@ -3,6 +3,15 @@
 TermWeave(herdr web ui 포크)의 변경 기록입니다. 원본 프로젝트의 기록은 `CHANGELOG.md`에 있습니다.
 이 파일에는 실제 동작이나 게이트로 확인된 완료 항목만 적습니다. 일부만 끝난 항목은 "남은 일"에 따로 적습니다.
 
+## [0.3.32] - 2026-11-05
+
+- feat(projects): create and select an empty project folder from the folder browser, including remote PCs.
+- fix(layout): preserve existing pane layout and include newly available workspace panes.
+- fix(prompt): submit custom Claude plan feedback with Enter.
+- fix(codex): retain conversation identity while transient child processes appear and exit.
+- fix(mesh): reduce socket identity probe overhead and preserve the roster hook's shared time budget.
+- test(updater): avoid repeated macOS Git discovery overhead without changing test deadlines.
+
 ## [0.3.31] - 2026-10-31
 
 - feat(mobile): attach photos from the phone's terminal line

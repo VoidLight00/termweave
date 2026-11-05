@@ -310,6 +310,15 @@ export const ZH: Record<string, string> = {
   "Directory not found": "找不到目录",
 
   // ---- folder browser ----
+  "New project folder": "新建项目文件夹",
+  "Project folder name": "项目文件夹名称",
+  "Create an empty folder in {path} and select it.": "在 {path} 中创建一个空文件夹并选中它。",
+  "Create and select": "创建并选择",
+  "Creating folder…": "正在创建文件夹…",
+  "A folder or file with this name already exists.": "已存在同名文件夹或文件。",
+  "Enter a folder name without path separators or reserved characters.": "请输入不含路径分隔符或保留字符的文件夹名称。",
+  "Update this PC's bridge to create folders.": "请更新此 PC 的桥接程序以创建文件夹。",
+  "The project folder could not be created. Check write permissions.": "无法创建项目文件夹。请检查写入权限。",
   "Choose a folder": "选择文件夹",
   "Parent folder": "上级文件夹",
   "Home folder": "主文件夹",

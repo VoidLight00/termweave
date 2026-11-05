@@ -308,6 +308,15 @@ export const JA: Record<string, string> = {
   "Directory not found": "ディレクトリが見つかりません",
 
   // ---- folder browser ----
+  "New project folder": "新しいプロジェクトフォルダー",
+  "Project folder name": "プロジェクトフォルダー名",
+  "Create an empty folder in {path} and select it.": "{path} に空のフォルダーを作成して選択します。",
+  "Create and select": "作成して選択",
+  "Creating folder…": "フォルダーを作成中…",
+  "A folder or file with this name already exists.": "同じ名前のフォルダーまたはファイルが既に存在します。",
+  "Enter a folder name without path separators or reserved characters.": "パス区切り文字や予約文字を含まないフォルダー名を入力してください。",
+  "Update this PC's bridge to create folders.": "フォルダーを作成するには、この PC のブリッジを更新してください。",
+  "The project folder could not be created. Check write permissions.": "プロジェクトフォルダーを作成できませんでした。書き込み権限を確認してください。",
   "Choose a folder": "フォルダーを選択",
   "Parent folder": "親フォルダー",
   "Home folder": "ホームフォルダー",

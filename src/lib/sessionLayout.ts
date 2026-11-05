@@ -23,9 +23,15 @@ export const saveWorkspaceLayout = (machine: string, workspace: string, value: S
  * Keep the winner's geometry/focus; merge other v2 members as inactive tabs.
  * The native roster, not storage, is authoritative for terminal membership.
  */
+export function includeWorkspacePanes(tree: Layout, ids: readonly string[]): Layout {
+  const members = new Set(groups(tree).flatMap(g => g.tabs));
+  const extras = [...new Set(ids)].filter(id => !members.has(id));
+  const first = groups(tree)[0];
+  return first && extras.length ? updateGroup(tree, first.id, g => ({ ...g, tabs: [...g.tabs, ...extras], active: g.active ?? extras[0]! })) : tree;
+}
 export function initialWorkspaceLayout(machine: string, workspace: string, ids: readonly string[], preferred: string | null): SessionLayout {
   const stored = readWorkspaceLayout(machine, workspace);
-  if (stored?.workspace === workspace) return stored;
+  if (stored?.workspace === workspace) return { ...stored, tree: includeWorkspacePanes(stored.tree, ids) };
   const prefix = `termweave:dock:session:v2:${encodeURIComponent(machine)}:`;
   let keys = ids.map(id => sessionLayoutKey(machine, id));
   try { keys = [...new Set([...keys, ...Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)).filter((key): key is string => !!key?.startsWith(prefix))])]; } catch { /* bounded roster fallback */ }
@@ -39,6 +45,7 @@ export function initialWorkspaceLayout(machine: string, workspace: string, ids: 
   const extras = [...new Set(candidates.flatMap(value => groups(value.tree).flatMap(g => g.tabs)))].filter(id => ids.includes(id) && !members.includes(id));
   const first = groups(tree)[0];
   if (first && extras.length) tree = updateGroup(tree, first.id, g => ({ ...g, tabs: [...g.tabs, ...extras] }));
+  tree = includeWorkspacePanes(tree, ids);
   const value = { tree, primary: winner?.primary ?? preferred ?? ids[0] ?? null, workspace };
   saveWorkspaceLayout(machine, workspace, value);
   return value;

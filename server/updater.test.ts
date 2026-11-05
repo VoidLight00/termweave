@@ -1,7 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { delimiter, dirname, join } from "node:path";
 import { Updater, runCommand, type Release } from "./updater.ts";
 import { HERDR_SOCKET_PATH } from "../shared/protocol.ts";
 
@@ -21,6 +21,22 @@ async function release(contents: string, tag: string, options: { failBuild?: boo
   await git(upstream, "tag", ...(options.annotated ? ["-a", "-m", tag] : []), tag);
   return revision;
 }
+
+const originalPath = process.env.PATH;
+beforeAll(async () => {
+  // Apple's /usr/bin/git dispatches through developer-tool discovery on every command.
+  // These real-Git tests spawn dozens of commands (including in the managed child).
+  // Resolve that shim once without replacing Git or relaxing any update deadline.
+  if (process.platform !== "darwin" || Bun.which("git") !== "/usr/bin/git") return;
+  const developerGit = await runCommand(import.meta.dir, ["/usr/bin/xcrun", "--find", "git"]);
+  if (developerGit !== "/usr/bin/git" && existsSync(developerGit)) {
+    process.env.PATH = `${dirname(developerGit)}${delimiter}${originalPath ?? ""}`;
+  }
+});
+afterAll(() => {
+  if (originalPath === undefined) delete process.env.PATH;
+  else process.env.PATH = originalPath;
+});
 
 beforeEach(async () => {
   directory = mkdtempSync(join(tmpdir(), "herdr-updater-"));

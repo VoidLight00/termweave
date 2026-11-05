@@ -1497,11 +1497,7 @@ export function answerKeys(prompt: InteractivePrompt, answer: Pick<PromptAnswer,
     // what was typed into pi's line in the terminal would stay around the answer: the line is
     // emptied first, after the cursor and before it (pi's editor keys, measured on 0.87.1)
     if (parsed.responder === "pi-input") navigation.push("ctrl+k", "ctrl+u");
-    return [
-      ...keySteps(navigation),
-      { text },
-      ...(parsed.responder === "claude-plan" ? keySteps([KEY.backtab]) : keySteps([KEY.enter])),
-    ];
+    return [...keySteps(navigation), { text }, ...keySteps([KEY.enter])];
   }
 
   if (answer.option_indices !== undefined) {

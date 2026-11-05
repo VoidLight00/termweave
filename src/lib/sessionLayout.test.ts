@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { group, dock, groups } from './dockLayout.ts';
-import { initialSessionLayout, readSessionLayout, saveSessionLayout, initialWorkspaceLayout, readWorkspaceLayout, saveWorkspaceLayout } from './sessionLayout.ts';
+import { includeWorkspacePanes, initialSessionLayout, readSessionLayout, saveSessionLayout, initialWorkspaceLayout, readWorkspaceLayout, saveWorkspaceLayout } from './sessionLayout.ts';
 const values = new Map<string,string>();
 beforeEach(()=>{values.clear();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{get length(){return values.size;},key:(i:number)=>[...values.keys()][i]??null,getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value)}});});
 afterEach(()=>{delete (globalThis as Record<string,unknown>).localStorage;});
@@ -42,6 +42,21 @@ test('workspace migration supports v1-only geometry and rejects unrelated v2',()
  values.set('termweave:dock:v1:local:w',JSON.stringify(tree));
  saveSessionLayout('local','A',{tree:group('foreign',['foreign']),primary:'foreign',workspace:'foreign'});
  expect(initialWorkspaceLayout('local','w',['A','B'],'A').tree).toEqual(tree);
+});
+test('stored desktop layout includes remote additions without changing focus or splits',()=>{
+ const tree=dock(group('main',['P5','P7','P19']), 'P19','main','right','split');
+ saveWorkspaceLayout('local','w',{tree,primary:'P7',workspace:'w'});
+ const result=initialWorkspaceLayout('local','w',['P5','P7','P28','P19'],'P28');
+ expect(groups(result.tree).flatMap(g=>g.tabs)).toEqual(['P5','P7','P28','P19']);
+ expect(result.primary).toBe('P7');
+ expect(result.tree.kind).toBe('split');
+ expect(groups(result.tree).map(g=>g.active)).toEqual(groups(tree).map(g=>g.active));
+ expect(includeWorkspacePanes(result.tree,['P28','P28','P5'])).toBe(result.tree);
+});
+test('fresh and empty workspace layouts include every available pane',()=>{
+ expect(groups(initialWorkspaceLayout('local','w',['A','B'],'A').tree).flatMap(g=>g.tabs)).toEqual(['A','B']);
+ expect(groups(includeWorkspacePanes(group('main'),['P28','P28'])).flatMap(g=>g.tabs)).toEqual(['P28']);
+ expect(groups(includeWorkspacePanes(group('main'),['P28']))[0]?.active).toBe('P28');
 });
 test('malformed storage is harmless',()=>{
  values.set('termweave:dock:session:v2:local:A','{"tree":null}');

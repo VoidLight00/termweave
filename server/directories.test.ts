@@ -3,12 +3,28 @@ import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { listDirectories, MAX_DIRECTORY_ENTRIES } from "./directories.ts";
+import { createProjectDirectory, listDirectories, MAX_DIRECTORY_ENTRIES } from "./directories.ts";
 
 describe("listDirectories", () => {
   const roots: string[] = [];
   afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });
   const temp = () => { const root = mkdtempSync(join(tmpdir(), "herdr-dirs-")); roots.push(root); return root; };
+
+  it("creates one empty project folder and refuses collisions or unsafe names", () => {
+    const root = temp();
+    const result = createProjectDirectory(root, "새 프로젝트");
+    expect(result).toEqual({ path: join(root, "새 프로젝트") });
+    expect(listDirectories(join(root, "새 프로젝트"))?.directories).toEqual([]);
+    expect(createProjectDirectory(root, "새 프로젝트")).toEqual({ error: "folder_exists" });
+    writeFileSync(join(root, "file"), "preserve");
+    expect(createProjectDirectory(root, "file")).toEqual({ error: "folder_exists" });
+    for (const name of ["", " ", ".", "..", "../escape", "/escape", "a/b", "a\\b", "a\x00b", "CON", "nul.txt", "end.", " space", "가".repeat(86)]) {
+      expect(createProjectDirectory(root, name)).toEqual({ error: "invalid_folder_name" });
+    }
+    expect(createProjectDirectory(join(root, "missing"), "child")).toEqual({ error: "invalid_cwd" });
+    expect(createProjectDirectory(null, "child")).toEqual({ error: "invalid_cwd" });
+    expect(createProjectDirectory(root, {})).toEqual({ error: "invalid_folder_name" });
+  });
 
   it("lists folders only, sorted naturally, with links to folders and without hidden ones", () => {
     const root = temp();

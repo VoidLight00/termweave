@@ -1,8 +1,28 @@
-import { readdirSync, statSync } from "node:fs";
+import { mkdirSync, readdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 import type { DirectoryListing } from "../shared/protocol.ts";
+
+export function createProjectDirectory(parent: unknown, name: unknown): { path: string } | { error: string } {
+  if (typeof parent !== "string" || !parent.trim()) return { error: "invalid_cwd" };
+  if (typeof name !== "string" || !name.trim() || name !== name.trim() ||
+      name === "." || name === ".." || /[<>:"/\\|?*\x00-\x1f\x7f]/.test(name) ||
+      /[. ]$/.test(name) || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(name) ||
+      new TextEncoder().encode(name).length > 255) return { error: "invalid_folder_name" };
+  const home = homedir();
+  const base = parent === "~" ? home : parent.startsWith("~/") ? resolve(home, parent.slice(2)) : resolve(parent);
+  try {
+    if (!statSync(base).isDirectory()) return { error: "invalid_cwd" };
+    const path = join(base, name);
+    // No recursive mkdir: never reuse an existing project or create missing parents.
+    mkdirSync(path);
+    return { path };
+  } catch (reason) {
+    const code = (reason as NodeJS.ErrnoException).code;
+    return { error: code === "EEXIST" ? "folder_exists" : code === "ENOENT" || code === "ENOTDIR" ? "invalid_cwd" : "folder_create_failed" };
+  }
+}
 
 /** A folder with more subfolders than this lists the first ones and says it stopped. */
 export const MAX_DIRECTORY_ENTRIES = 500;

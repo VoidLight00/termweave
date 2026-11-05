@@ -33,7 +33,7 @@ import { omoRuns, omoTasks } from "./omo-tasks.ts";
 import { CompletionTracker } from "./completion.ts";
 import { freeAgentName } from "./agent-name.ts";
 import { SHELL_AGENTS, isShellAgentKind, shellAgentExecutable, startShellAgent } from "./shell-agent.ts";
-import { listDirectories } from "./directories.ts";
+import { createProjectDirectory, listDirectories } from "./directories.ts";
 import { fileResponse, locateFile } from "./file-view.ts";
 import {
   agentManifests,
@@ -1194,6 +1194,15 @@ export function createServer(
         // several files end in that name: the viewer lists them to choose from
         if ("candidates" in found) return jsonResponse({ error: { code: "ambiguous_path", message: "several files have that name", candidates: found.candidates } }, 409);
         return pathname === "/api/fs/stat" ? jsonResponse(found.info) : fileResponse(found.info, url.searchParams.get("download") === "1");
+      }
+
+      if (pathname === "/api/workspace/directory/create") {
+        if (request.method !== "POST") return badRequest("method_not_allowed", "use POST");
+        let payload: unknown;
+        try { payload = await request.json(); } catch { return badRequest("invalid_json", "request body must be JSON"); }
+        if (!isJsonObject(payload)) return badRequest("invalid_body", "request body must be a JSON object");
+        const result = createProjectDirectory(payload.parent, payload.name);
+        return "error" in result ? badRequest(result.error, result.error) : jsonResponse(result);
       }
 
       if (pathname === "/api/workspace/directories") {

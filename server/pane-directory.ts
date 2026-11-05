@@ -49,7 +49,7 @@ export function terminalKey(target: TerminalTarget): string {
   return JSON.stringify([target.backend, target.socket, target.generation, target.terminalId]);
 }
 async function command(binary: string, args: string[]): Promise<string> {
-  const child = Bun.spawn([binary, ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe" });
+  const child = Bun.spawn([binary, ...args], { stdin: "ignore", stdout: "pipe", stderr: "pipe", env: { ...process.env, LC_ALL: "C", TZ: "UTC" } });
   const timer = setTimeout(() => child.kill("SIGKILL"), 5000);
   try {
     const [out, , code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
@@ -66,12 +66,13 @@ export async function herdrServerGeneration(path: string): Promise<string> {
   if (!before.isSocket() || before.uid !== process.getuid?.()) fail("untrusted_socket");
   const lsof = Bun.which("lsof");
   if (!lsof) fail("generation_unverified");
-  const pids = [...new Set((await command(lsof, ["-t", "--", path])).split(/\s+/).filter(Boolean))];
+  const pids = [...new Set((await command(lsof, ["-nP", "-a", "-U", "-t", "--", path])).split(/\s+/).filter(Boolean))];
   if (pids.length !== 1 || !/^[1-9][0-9]*$/.test(pids[0]!)) fail("generation_unverified");
   const pid = pids[0]!;
-  const name = await command("/bin/ps", ["-p", pid, "-o", "comm="]);
-  const start = await command("/bin/ps", ["-p", pid, "-o", "lstart="]);
-  if (basename(name) !== "herdr" || !start) fail("generation_unverified");
+  const identity = await command("/bin/ps", ["-p", pid, "-o", "lstart=,comm="]);
+  const match = /^(\S+\s+\S+\s+\d+\s+\S+\s+\d+)\s+(.+)$/.exec(identity);
+  const start = match?.[1];
+  if (!start || basename(match![2]!) !== "herdr") fail("generation_unverified");
   const after = await lstat(path);
   if (!after.isSocket() || after.uid !== before.uid || after.dev !== before.dev || after.ino !== before.ino || after.birthtimeMs !== before.birthtimeMs) fail("stale_generation");
   return createHash("sha256").update(JSON.stringify([path, after.dev, after.ino, after.birthtimeMs, pid, start])).digest("hex");
@@ -111,8 +112,9 @@ export class PaneDirectory {
     if (!validGeneration(value)) fail("generation_unverified");
     return value;
   }
-  private async herdrList(socket: string): Promise<TerminalTarget[]> {
+  private async herdrList(socket: string, expectedGeneration?: string): Promise<TerminalTarget[]> {
     const generation = await this.generation(socket);
+    if (expectedGeneration !== undefined && generation !== expectedGeneration) fail("stale_generation");
     const { workspaces } = await this.deps.rpc<{ workspaces: WorkspaceInfo[] }>("workspace.list", {}, socket);
     if (!Array.isArray(workspaces) || workspaces.some((w) => !safeId(w.workspace_id)) || new Set(workspaces.map((w) => w.workspace_id)).size !== workspaces.length) fail("malformed_roster");
     const groups = await Promise.all(workspaces.map(async (w) => {
@@ -158,8 +160,7 @@ export class PaneDirectory {
   /** Re-resolve stable terminal_id; never trust the caller's stale herdr pane address. */
   async resolve(target: TerminalTarget): Promise<TerminalTarget> {
     this.approved(target);
-    if (target.backend === "herdr" && await this.generation(target.socket) !== target.generation) fail("stale_generation");
-    const roster = target.backend === "tmux" ? await this.tmuxList(target.socket, target.generation) : await this.herdrList(target.socket);
+    const roster = target.backend === "tmux" ? await this.tmuxList(target.socket, target.generation) : await this.herdrList(target.socket, target.generation);
     if (roster.some((p) => p.generation !== target.generation)) fail("stale_generation");
     if (!roster.length && target.backend === "herdr" && await this.generation(target.socket) !== target.generation) fail("stale_generation");
     const found = roster.filter((p) => terminalKey(p) === terminalKey(target));

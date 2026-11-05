@@ -16,6 +16,21 @@
   border-bottom: var(--hairline) solid var(--border);
 }
 
+.dir-browser-bar { flex-wrap: wrap; }
+.dir-browser-create {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.dir-browser-create > * { min-width: 0; }
+.dir-browser-create .input { width: 100%; }
+.dir-browser-create p { margin: 0; text-wrap: pretty; }
+.dir-browser :is(.btn, .field-label) { white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+.dir-browser-create-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.dir-browser-footer { flex-wrap: wrap; }
+
 /* a long path keeps its end, the part that says where you are */
 .dir-browser-path {
   flex: 1 1 auto;

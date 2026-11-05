@@ -2,8 +2,18 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { appendFileSync, mkdirSync, mkdtempSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { codexCallFailed, codexHistoryTail, codexRolloutPath, forgetHistoryChains, matchCodexTranscript, matchShortCodexAnswers, parseCodexTranscript, resumedThread, unansweredCodexQuestions } from "./codex.ts";
+import { codexProcessKey, codexCallFailed, codexHistoryTail, codexRolloutPath, forgetHistoryChains, matchCodexTranscript, matchShortCodexAnswers, parseCodexTranscript, resumedThread, unansweredCodexQuestions } from "./codex.ts";
 import { splitTurn } from "../src/lib/workBlocks.ts";
+
+it("keeps Codex identity across transient forks but not process replacement", () => {
+  expect(codexProcessKey([100, 101], new Map([[100, 1], [101, 100]]))).toBe("100");
+  expect(codexProcessKey([100], new Map([[100, 1]]))).toBe("100");
+  expect(codexProcessKey([100, 101], new Map([[100, 1]]))).toBe("100");
+  expect(codexProcessKey([200], new Map([[200, 1]]))).not.toBe("100");
+  expect(codexProcessKey([200, 100], new Map([[100, 1], [200, 1]]))).toBe("100,200");
+  expect(codexProcessKey([200, 100])).toBe("100,200");
+  expect(codexProcessKey([100, 101], new Map())).toBe("");
+});
 
 const ts = "2026-09-22T01:00:00.000Z";
 const item = (payload: unknown, timestamp = ts) => ({ type: "response_item", timestamp, payload });

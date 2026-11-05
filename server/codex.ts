@@ -700,13 +700,38 @@ function theirs(rollouts: string[], paneId: string, claimed: ReadonlySet<string>
 }
 
 /** A pane's Codex processes: the ones whose command line names codex, and their pids as one key. */
+export function codexProcessKey(ids: readonly number[], parents?: ReadonlyMap<number, number>): string {
+  const present = new Set(ids);
+  return ids.filter((pid) => !parents || parents.has(pid) && !present.has(parents.get(pid)!))
+    .sort((left, right) => left - right).join(",");
+}
+
 async function codexProcessesOf(paneId: string): Promise<{ list: { pid: number; argv?: string[] }[]; key: string }> {
   const processInfo = await herdrRpc<{ process_info?: { foreground_processes?: { pid: number; argv?: string[] }[] } }>(
     "pane.process_info", { pane_id: paneId },
   );
   const list = (processInfo.process_info?.foreground_processes ?? [])
     .filter((process) => process.argv?.some((arg) => /(?:^|\/)codex(?:\.js)?$/.test(arg)));
-  return { list, key: list.map((process) => process.pid).sort((left, right) => left - right).join(",") };
+  // A forked helper can briefly retain its parent's Codex argv. Its lifetime must
+  // not invalidate a binding while the actual Codex process remains alive.
+  const ids = new Set(list.map((process) => process.pid));
+  const parents = new Map<number, number>();
+  let ancestryRead = false;
+  if (list.length > 1) {
+    try {
+      const child = Bun.spawn(["/bin/ps", "-p", [...ids].join(","), "-o", "pid=,ppid="], { stdout: "pipe", stderr: "ignore" });
+      const timer = setTimeout(() => child.kill(), 1500);
+      try {
+        const output = await new Response(child.stdout).text();
+        if (await child.exited === 0) { ancestryRead = true; }
+        if (ancestryRead) for (const line of output.trim().split("\n")) {
+          const [pid, parent] = line.trim().split(/\s+/).map(Number);
+          if (pid && parent) parents.set(pid, parent);
+        }
+      } finally { clearTimeout(timer); }
+    } catch { /* Keep the conservative full identity if ancestry is unavailable. */ }
+  }
+  return { list, key: codexProcessKey([...ids], ancestryRead ? parents : undefined) };
 }
 
 /** When each pane last looked at the other Codex panes for a set of threads, and which panes those were. */

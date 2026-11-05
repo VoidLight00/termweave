@@ -1,12 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 const script = join(import.meta.dir, "hooks", "pane-mesh-roster.sh");
 const jq = Bun.which("jq");
+const python = Bun.which("python3");
 let shim: string;
-beforeAll(() => { shim = mkdtempSync(join(tmpdir(), "pane-mesh-roster-")); });
+beforeAll(() => {
+  if (!python) throw new Error("python3 is required for roster hook tests");
+  shim = mkdtempSync(join(tmpdir(), "pane-mesh-roster-"));
+  // Keep the deliberately narrow PATH, but use the runner's interpreter, not a macOS shim.
+  symlinkSync(python, join(shim, "python3"));
+});
 afterAll(() => rmSync(shim, { recursive: true, force: true }));
 
 /** a herdr that answers `pane list` with this body (or fails) */
@@ -55,12 +61,52 @@ describe("P-number hook context", () => {
       expect(sibling.out).toContain("You are P34");
     } finally { server.stop(true); }
   });
+  it("starts Python in isolated mode without site initialization", async () => {
+    const bin = mkdtempSync(join(shim, "python-flags-"));
+    const wrapper = join(bin, "python3");
+    writeFileSync(wrapper, `#!/bin/sh\n[ "$1" = -I ] && [ "$2" = -S ] || exit 1\nexec '${python!.replaceAll("'", "'\\''")}' "$@"\n`);
+    chmodSync(wrapper, 0o755);
+    fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));
+    const result = await runContext("http://127.0.0.1:1", "relative.ts", {
+      PATH: `${bin}:${shim}:${jq ? dirname(jq) : ""}:/usr/bin:/bin`,
+    });
+    expect(result.code).toBe(0);
+    expect(result.err).toBe("");
+    expect(result.out).toContain("herdr pane read");
+  });
   it("refuses a relative configured helper and preserves native fallback", async () => {
     fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));
     const result = await runContext("http://127.0.0.1:1", "relative.ts");
     expect(result.code).toBe(0);
     expect(result.out).toContain("herdr pane read");
     expect(result.err).toBe("");
+  });
+  it("allows native listing to use the remaining shared budget", async () => {
+    fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));
+    const native = join(shim, "herdr");
+    const body = await Bun.file(native).text();
+    writeFileSync(native, body.replace("#!/bin/sh\n", "#!/bin/sh\nsleep 1.4\n"));
+    const start = Date.now();
+    const result = await runContext("http://127.0.0.1:1", "relative.ts");
+    expect(Date.now() - start).toBeLessThan(4800);
+    expect(result.code).toBe(0);
+    expect(result.err).toBe("");
+    expect(result.out).toContain("herdr pane read");
+  });
+  it("allows native formatting to use the remaining shared budget", async () => {
+    if (!jq) throw new Error("jq is required for native fallback tests");
+    const bin = mkdtempSync(join(shim, "slow-jq-"));
+    writeFileSync(join(bin, "jq"), `#!/bin/sh\nsleep 0.5\nexec '${jq.replaceAll("'", "'\\''")}' "$@"\n`);
+    chmodSync(join(bin, "jq"), 0o755);
+    fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));
+    const start = Date.now();
+    const result = await runContext("http://127.0.0.1:1", "relative.ts", {
+      PATH: `${bin}:${shim}:/usr/bin:/bin`,
+    });
+    expect(Date.now() - start).toBeLessThan(4800);
+    expect(result.code).toBe(0);
+    expect(result.err).toBe("");
+    expect(result.out).toContain("herdr pane read");
   });
   it("falls back when the local server fails", async () => {
     fakeHerdr(list([pane("w1:p1"), pane("w1:p34")]));

@@ -311,6 +311,15 @@ export const KO: Record<string, string> = {
   "Directory not found": "폴더를 찾을 수 없습니다",
 
   // ---- folder browser ----
+  "New project folder": "새 프로젝트 폴더",
+  "Project folder name": "프로젝트 폴더 이름",
+  "Create an empty folder in {path} and select it.": "{path}에 빈 폴더를 만들고 선택합니다.",
+  "Create and select": "만들고 선택",
+  "Creating folder…": "폴더 생성 중…",
+  "A folder or file with this name already exists.": "같은 이름의 폴더나 파일이 이미 있습니다.",
+  "Enter a folder name without path separators or reserved characters.": "경로 구분자나 예약 문자가 없는 폴더 이름을 입력하십시오.",
+  "Update this PC's bridge to create folders.": "폴더를 만들려면 이 PC의 브리지를 업데이트해야 합니다.",
+  "The project folder could not be created. Check write permissions.": "프로젝트 폴더를 만들 수 없습니다. 쓰기 권한을 확인하십시오.",
   "Choose a folder": "폴더 선택",
   "Parent folder": "상위 폴더",
   "Home folder": "홈 폴더",
